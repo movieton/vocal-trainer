@@ -19,6 +19,9 @@ export default function Progress() {
   const [thr] = useStored<{ date: number; cents: number }[]>('threshold', [])
   const [rh] = useStored<{ date: number; lo: number; hi: number }[]>('rangeHist', [])
   const [best] = useStored<Record<string, number>>('breathBest', {})
+  const [degStats] = useStored<Record<number, number[]>>('degStats', {})
+  const degRows = Object.entries(degStats).filter(([, v]) => v.length >= 3)
+    .map(([d, v]) => ({ d: +d, c: v.reduce((a, x) => a + x, 0) / v.length, n: v.length })).sort((a, b) => a.d - b.d)
   const MONTH = 30 * 86400000
   const checks = [
     { title: 'Порог слуха', to: '/ear/threshold', last: thr[0]?.date, value: thr[0] ? `${thr[0].cents} ц` + (thr[1] ? ` (было ${thr[1].cents})` : '') : null },
@@ -85,6 +88,15 @@ export default function Progress() {
           ))}</ul> : <p className="muted small">Устойчивых ошибок пока нет — или мало данных из распевок.</p>}
           <p className="muted small">Совет: на проблемной ноте сделай «Длинную ноту» в разделе «Дыхание».</p>
         </div>
+        {degRows.length > 0 && (
+          <div className="card">
+            <h2>Ступени под дрон</h2>
+            <p className="muted small">Среднее отклонение удержанной ступени от точной высоты.</p>
+            <ul className="probs">{degRows.map(r => (
+              <li key={r.d}><b>{r.d + 1}-я</b><span className={Math.abs(r.c) < 5 ? '' : r.c > 0 ? 'up' : 'down'}>{r.c > 0 ? '+' : '−'}{Math.abs(Math.round(r.c))} ц</span><span className="muted small">{Math.abs(r.c) < 5 ? 'точно' : r.c > 0 ? 'завышаешь' : 'занижаешь'}</span></li>
+            ))}</ul>
+          </div>
+        )}
         <div className="card">
           <h2>Чем занимался</h2>
           <p className="muted small">Доля занятий за всё время, всего {totalN}.</p>

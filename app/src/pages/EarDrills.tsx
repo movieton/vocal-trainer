@@ -264,3 +264,35 @@ export function SingDegree() {
       </>} />
   )
 }
+
+// ---------- Спой голос из аккорда ----------
+const VOICES = [{ k: 0, name: 'нижний' }, { k: 1, name: 'средний' }, { k: 2, name: 'верхний' }]
+
+export function ChordVoice() {
+  const r = useRange()
+  const [qs, setQs] = useStored('cv.q', 'maj-min')
+  const [hints, setHints] = useState(false)
+  const make = () => (i: number): Phrase | null => {
+    if (i >= 10) return null
+    const q = rand(qs === 'maj-min' ? (['maj', 'min'] as const) : (['maj', 'min', 'dim', 'aug'] as const))
+    const iv = CHORDS[q].iv, root = nearest(randInt(0, 11), r.lo + 3), v = rand(VOICES)
+    const m = root + iv[v.k]
+    // аккорд звучит целиком, затем пауза — пой нужный голос по памяти
+    return {
+      label: `${v.name} голос (${CHORDS[q].name})`,
+      piano: iv.map(x => ({ m: root + x, t: 0, d: 1.6, vel: 60 })),
+      notes: [{ m, t: 2.1, d: 2, sing: true, hidden: !hints }],
+      marks: [{ t: 0, text: 'Аккорд' }, { t: 1.7, text: `Спой ${v.name} голос` }],
+      len: 4.2,
+    }
+  }
+  return (
+    <DrillPage id="chord-voice" title="Спой голос из аккорда" make={make} settingsKey={`${qs}-${hints}`} windowSec={7}
+      intro="Звучит аккорд из трёх нот. Вычлени на слух нужный голос — нижний, средний или верхний — и спой его. Так учатся слышать гармонию «изнутри» и петь в ансамбле."
+      how={['Сначала мысленно «пройди» аккорд снизу вверх: три ноты.', 'Верхний голос слышно легче всего, средний — труднее. Начни с верхнего и нижнего.', 'Подсказка выключена: нота появится после того, как ты её споёшь.']}
+      controls={running => <>
+        <label>Аккорды <Seg value={qs} set={setQs} disabled={running} opts={[['maj-min', 'Мажор и минор'], ['all', 'Все трезвучия']]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту заранее</label>
+      </>} />
+  )
+}

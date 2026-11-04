@@ -11,7 +11,7 @@ import Progress from './pages/Progress'
 import { TheoryArticle, TheoryList } from './pages/Theory'
 import { BreathList, BreathRun } from './pages/Breath'
 import EarHub from './pages/EarHub'
-import { ChordSing, Harmony, PitchMatch, ScaleSing, SingDegree, SingInterval } from './pages/EarDrills'
+import { ChordSing, ChordVoice, Harmony, PitchMatch, ScaleSing, SingDegree, SingInterval } from './pages/EarDrills'
 import { ChordQuiz, FunctionalQuiz, IntervalQuiz } from './pages/EarQuiz'
 import Circle from './pages/Circle'
 import Rhythm from './pages/Rhythm'
@@ -63,6 +63,7 @@ export default function App() {
             <Route path="/ear/degrees" element={<FunctionalQuiz />} />
             <Route path="/ear/threshold" element={<Threshold />} />
             <Route path="/ear/dictation" element={<Dictation />} />
+            <Route path="/ear/chord-voice" element={<ChordVoice />} />
             <Route path="/ear/sing-degree" element={<SingDegree />} />
             <Route path="/breath" element={<BreathList />} />
             <Route path="/breath/:id" element={<BreathRun />} />

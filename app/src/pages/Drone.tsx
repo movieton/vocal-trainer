@@ -26,6 +26,9 @@ export default function Drone() {
   const [task, setTask] = useState<{ deg: number; m: number; t0: number } | null>(null)
   const [score, setScore] = useState({ ok: 0, all: 0 })
   const held = useRef(0)
+  const heldCents = useRef<number[]>([])
+  // статистика по ступеням: среднее отклонение удержанной ноты, последние 20 попыток на ступень
+  const [degStats, setDegStats] = useStored<Record<number, number[]>>('degStats', {})
   const steps: readonly number[] = minor ? SCALES.minor.steps : SCALES.major.steps
   const pc = key === 'auto' ? 0 : key
   const tonic = nearest(pc, work.lo + 4)
@@ -34,7 +37,7 @@ export default function Drone() {
     let d = rand([0, 1, 2, 3, 4, 5, 6, 7])
     if (d === prev) d = (d + 2) % 8
     const m = tonic + degree(d, steps)
-    setTask({ deg: d, m, t0: engine.now() }); held.current = 0
+    setTask({ deg: d, m, t0: engine.now() }); held.current = 0; heldCents.current = []
   }
   const start = () => { engine.drone(tonic); setOn(true); setScore({ ok: 0, all: 0 }); setTask({ deg: 0, m: tonic, t0: engine.now() }); held.current = 0 }
   const stop = () => {
@@ -55,9 +58,11 @@ export default function Drone() {
     const now = engine.now(), dt = Math.min(0.1, now - last.current); last.current = now
     if (!task) return
     const m = engine.current
-    if (m != null && Math.abs(m - task.m) * 100 <= TOL) held.current += dt
+    if (m != null && Math.abs(m - task.m) * 100 <= TOL) { held.current += dt; heldCents.current.push((m - task.m) * 100) }
     if (held.current >= HOLD) {
       engine.click(true)
+      const c = heldCents.current, mean = c.reduce((a, x) => a + x, 0) / Math.max(1, c.length), dg = task.deg % 7
+      setDegStats({ ...degStats, [dg]: [...(degStats[dg] ?? []), mean].slice(-20) })
       setScore(s => ({ ok: s.ok + 1, all: s.all + 1 }))
       newTask(task.deg)
     } else if (now - task.t0 > 12) { setScore(s => ({ ...s, all: s.all + 1 })); newTask(task.deg) }

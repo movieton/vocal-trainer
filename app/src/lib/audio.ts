@@ -21,6 +21,8 @@ class Engine {
   micError = ''
   history: PitchSample[] = []
   current: number | null = null
+  /** Громкость сигнала с микрофона (RMS) — для поиска начала звука в ритме голосом */
+  level = 0
   /** Для режима ?sim: какую высоту «петь» в момент t */
   simTarget: ((t: number) => number | null) | null = null
 
@@ -231,7 +233,8 @@ class Engine {
     this.analyser.getFloatTimeDomainData(this.buf)
     let s = 0
     for (let i = 0; i < this.buf.length; i++) s += this.buf[i] * this.buf[i]
-    if (Math.sqrt(s / this.buf.length) < 0.004) return null
+    this.level = Math.sqrt(s / this.buf.length)
+    if (this.level < 0.004) return null
     const [f, clarity] = this.detector.findPitch(this.buf, this.ctx.sampleRate)
     return clarity > 0.8 && f > 60 && f < 1500 ? ftom(f) : null
   }

@@ -79,10 +79,39 @@ export default function Rhythm() {
   }
   const stop = () => { clearInterval(timer.current); cur.current = null; setPhase('idle') }
 
-  const tap = () => {
+  // ---- ритм голосом: начало звука по скачку громкости, минус измеренная задержка микрофона ----
+  const [input, setInput] = useStored<'tap' | 'voice'>('rh.input', 'tap')
+  const [latency, setLatency] = useStored('rh.latency', 0)
+  const [calib, setCalib] = useState<{ clicks: number[]; onsets: number[] } | null>(null)
+  const quiet = useRef(0), lastOn = useRef(0)
+  useEffect(() => engine.subscribe(() => {
+    const now = engine.now(), lv = engine.level
+    if (lv < 0.012) { quiet.current = now; return }
+    // звук начался: громко после тишины не дальше 120 мс назад и не чаще раза в 120 мс
+    if (lv > 0.03 && now - quiet.current < 0.12 && now - lastOn.current > 0.12) {
+      lastOn.current = now
+      if (calib) setCalib(c => (c ? { ...c, onsets: [...c.onsets, now] } : c))
+      else if (input === 'voice') tap(now - latency)
+    }
+  }))
+  const startCalib = async () => {
+    if (engine.mic !== 'on') await engine.startMic()
+    const t0 = engine.ensureCtx().currentTime + 0.5, b = 60 / 80
+    const clicks = Array.from({ length: 8 }, (_, i) => t0 + i * b)
+    clicks.forEach((t, i) => engine.click(i % 4 === 0, t))
+    setCalib({ clicks, onsets: [] })
+    setTimeout(() => setCalib(c => {
+      if (!c) return null
+      const d = c.onsets.map(o => o - c.clicks.reduce((best, k) => (Math.abs(o - k) < Math.abs(o - best) ? k : best), c.clicks[0])).filter(x => x > -0.1 && x < 0.4).sort((a, b2) => a - b2)
+      if (d.length >= 4) setLatency(Math.max(0, d[d.length >> 1]))
+      return null
+    }), (8 * b + 1) * 1000)
+  }
+
+  const tap = (at?: number) => {
     const r = cur.current
     if (!r) return
-    const t = engine.now()
+    const t = at ?? engine.now()
     if (t >= r.tap - TOL && t <= r.end + TOL) { r.taps.push(t); setRound({ ...r }) }
   }
   useEffect(() => {
@@ -102,6 +131,14 @@ export default function Rhythm() {
       <h1>Ритм</h1>
       <p className="muted">Такт отсчёта, затем звучит ритмический рисунок, а в следующем такте повтори его: нажимай пробел или большую кнопку. Метроном идёт всё время. Попадание — в пределах 120 мс.</p>
       <div className="settings drill-controls">
+        <label>Как отвечать <span className="seg">
+          <button aria-pressed={input === 'tap'} disabled={running} onClick={() => setInput('tap')}>Нажатием</button>
+          <button aria-pressed={input === 'voice'} disabled={running} onClick={() => { setInput('voice'); if (engine.mic !== 'on') void engine.startMic() }}>Голосом «та»</button>
+        </span></label>
+        {input === 'voice' && <label>Задержка микрофона
+          <span className="calib"><b>{Math.round(latency * 1000)} мс</b>
+            <button className="btn ghost small-btn" disabled={running || !!calib} onClick={startCalib}>{calib ? 'Пой «та» на каждый щелчок…' : 'Калибровать'}</button></span>
+        </label>}
         <label>Рисунки <span className="seg">{Object.entries(SETS).map(([k, s]) => <button key={k} aria-pressed={set === k} disabled={running} onClick={() => setSet(k)}>{s.name}</button>)}</span></label>
         <label>Темп <span className="seg">{[60, 80, 100].map(b => <button key={b} aria-pressed={bpm === b} disabled={running} onClick={() => setBpm(b)}>{b}</button>)}</span></label>
       </div>
