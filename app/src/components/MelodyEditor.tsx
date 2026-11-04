@@ -98,7 +98,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
   return (
     <div className="mel-editor">
       <div className="mel-scroll">
-        <div className="mel-grid" ref={gridRef} style={{ gridTemplateColumns: `56px repeat(${cols}, minmax(18px, 1fr))` }}>
+        <div className="mel-grid" ref={gridRef} style={{ gridTemplateColumns: `var(--mel-label, 56px) repeat(${cols}, minmax(var(--mel-cell, 18px), 1fr))` }}>
           {pitches.map((m, r) => {
             // явные позиции: иначе автораскладка сетки сдвигает клетки вокруг нот
             const label = <div key={'l' + m} style={{ gridRow: r + 1, gridColumn: 1 }} className={'mel-label' + (isBlack(m) ? ' black' : '')} role="button" tabIndex={0} title="Послушать ноту" onPointerDown={() => onPreview(m)}>{noteName(m)}</div>

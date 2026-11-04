@@ -2,50 +2,12 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { noteName, VOICE_TYPES } from '../lib/music'
 import { useWorkRange } from '../lib/store'
+import { Credit, DiaphragmDiagram, FoldsDiagram, HeadProfile } from '../components/Anatomy'
+export { DiaphragmDiagram }
 
 type Article = { id: string; title: string; lead: string; body: () => ReactNode }
 
 // ---------- схемы (свои SVG, цвета из темы) ----------
-
-function VoiceDiagram() {
-  return (
-    <svg viewBox="0 0 520 300" className="diagram" role="img" aria-label="Схема голосового аппарата: лёгкие, связки, резонаторы">
-      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" className="fill-accent" /></marker></defs>
-      {/* лёгкие */}
-      <ellipse cx="110" cy="220" rx="46" ry="58" className="part lung" /><ellipse cx="210" cy="220" rx="46" ry="58" className="part lung" />
-      <path d="M160 160 V100" className="tube" />
-      {/* гортань со связками */}
-      <rect x="140" y="80" width="40" height="34" rx="8" className="part hl" />
-      <path d="M148 97 Q160 90 172 97" className="fold" /><path d="M148 99 Q160 106 172 99" className="fold" />
-      {/* глотка, рот, нос */}
-      <path d="M160 80 V40 Q160 22 182 22 H250" className="tube" />
-      <path d="M182 46 H250" className="tube" />
-      {/* поток воздуха */}
-      <path d="M160 200 V130" className="flow" markerEnd="url(#arr)" />
-      <path d="M200 34 H262" className="flow" markerEnd="url(#arr)" />
-      <text x="160" y="295" textAnchor="middle" className="lbl">1. Дыхание — «мотор»</text>
-      <text x="200" y="102" className="lbl">2. Связки — источник звука</text>
-      <text x="272" y="30" className="lbl">3. Резонаторы: глотка, рот, нос</text>
-      <text x="272" y="48" className="lbl small">«усилитель» звука и тембр</text>
-    </svg>
-  )
-}
-
-function DiaphragmDiagram() {
-  return (
-    <svg viewBox="0 0 520 220" className="diagram" role="img" aria-label="Диафрагма на вдохе опускается, на выдохе поднимается">
-      {[{ x: 130, t: 'Вдох', d: 'M50 150 Q130 175 210 150', note: 'диафрагма опускается, живот и рёбра расширяются' },
-        { x: 390, t: 'Выдох с опорой', d: 'M310 130 Q390 95 470 130', note: 'поднимается медленно, рёбра держатся раскрытыми' }].map(s => (
-        <g key={s.t}>
-          <path d={`M${s.x - 70} 40 Q${s.x - 90} 110 ${s.x - 80} 160 M${s.x + 70} 40 Q${s.x + 90} 110 ${s.x + 80} 160`} className="tube" />
-          <path d={s.d} className="fold thick" />
-          <text x={s.x} y="28" textAnchor="middle" className="lbl strong">{s.t}</text>
-          <text x={s.x} y="205" textAnchor="middle" className="lbl small">{s.note}</text>
-        </g>
-      ))}
-    </svg>
-  )
-}
 
 function RegistersDiagram() {
   const r = useWorkRange()
@@ -103,12 +65,14 @@ function RollDiagram() {
 
 export const ARTICLES: Article[] = [
   { id: 'voice', title: 'Как устроен голос', lead: 'Три части: дыхание, связки, резонаторы.', body: () => <>
-    <VoiceDiagram />
+    <HeadProfile caption="Голова в разрезе. Воздух из лёгких проходит через гортань со складками, затем через глотку, рот и нос." />
+    <FoldsDiagram />
     <p>Голос работает как духовой инструмент. <b>Дыхание</b> даёт поток воздуха. <b>Голосовые складки</b> (связки) в гортани смыкаются и вибрируют сотни раз в секунду: так рождается звук и его высота. <b>Резонаторы</b> (глотка, рот, нос) усиливают этот звук и придают тембр.</p>
     <p>Отсюда главный вывод для тренировки: громкость и сила идут от дыхания и резонанса, а не от напряжения горла. Если горлу тяжело, значит, работу делает не та часть.</p>
   </> },
   { id: 'support', title: 'Диафрагма и опора', lead: 'Что такое «петь на опоре» на самом деле.', body: () => <>
     <DiaphragmDiagram />
+    <Credit src="img/anatomy/Diaphragmatic_breathing.gif" alt="Анимация: на вдохе диафрагма опускается и лёгкие наполняются, на выдохе поднимается" caption="Так это выглядит в движении." author="John Pierce" license="CC0" href="https://commons.wikimedia.org/wiki/File:Diaphragmatic_breathing.gif" />
     <p>Диафрагма — куполообразная мышца под лёгкими. На вдохе она опускается: живот и нижние рёбра мягко расширяются. На выдохе поднимается.</p>
     <p><b>Опора</b> — это умение не «выплёскивать» воздух, а отдавать его ровно и порциями: рёбра остаются раскрытыми как можно дольше, живот работает плавно. В итальянской школе это называют апподжио. Тренируется упражнениями «Горизонт», «Шипящий метроном», «Длинная нота» в разделе «Дыхание».</p>
   </> },

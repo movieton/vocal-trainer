@@ -62,9 +62,10 @@ export function Levels() {
         <div className="levels">
           {LEVELS.map((x, i) => (
             <button key={i} className={'level' + (i === lvl ? ' on' : '')} disabled={i + 1 > open} onClick={() => setLvl(i)} title={x.text}>
-              <b>{i + 1 > open ? <Lock size={14} strokeWidth={2} /> : i + 1}</b><span>{x.title}</span><small>{best[i] != null ? `лучший ${best[i]}%` : i + 1 > open ? 'закрыт' : `±${x.tol} ц`}</small>
+              <b>{i + 1 > open ? <Lock size={14} strokeWidth={2} aria-label="закрыт" /> : i + 1}</b><span>{x.title}</span><small>{best[i] != null ? `лучший ${best[i]}%` : i + 1 > open ? 'закрыт' : `±${x.tol} ц`}</small>
             </button>
           ))}
+          <p className="level-cur">Уровень {lvl + 1}: <b>{LEVELS[lvl].title}</b> · допуск ±{LEVELS[lvl].tol} ц</p>
         </div>
       } />
   )

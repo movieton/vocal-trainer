@@ -7,6 +7,7 @@ import { noteName } from '../lib/music'
 import { buildRoots, ExerciseRun, type Key, type Mode, type Phase, type Target } from '../lib/run'
 import { logSession, useStored, useWorkRange } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
+import { libExercise } from '../data/library'
 import { RefTimbre, TakeBar, useTake } from '../components/Take'
 import { TEXTS } from '../data/exerciseTexts'
 import KeySelect from '../components/KeySelect'
@@ -21,7 +22,7 @@ type Summary = ReturnType<ExerciseRun['summary']>
 
 export default function Trainer() {
   const { id = '' } = useParams()
-  const ex = exerciseById(id)
+  const ex = exerciseById(id) ?? libExercise(id)
   const [mode, setMode] = useStored<Mode>('mode2', 'together')
   const [tempo, setTempo] = useStored('tempo', 1)
   const [tol, setTol] = useStored('tolerance', 25)
@@ -89,6 +90,7 @@ export default function Trainer() {
   })
 
   if (!ex) return <div className="page"><p>Упражнение не найдено. <Link to="/library">К списку</Link></p></div>
+  const texts = TEXTS[ex.id] ?? (ex.how ? { how: ex.how, mistakes: ex.mistakes ?? [] } : null)
 
   // окно доски по длине фразы: целиком видно «слушай» и «пой» одного круга
   const beat = 60 / (ex.bpm * tempo)
@@ -182,10 +184,10 @@ export default function Trainer() {
       </div>
       <p className="muted small">Рабочий диапазон: {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">изменить</Link> · Пробел — старт и стоп</p>
 
-      {TEXTS[ex.id] && (
+      {texts && (
         <div className="howto">
-          <div><h2>Как делать</h2><ol>{TEXTS[ex.id].how.map(t => <li key={t}>{t}</li>)}</ol></div>
-          <div><h2>Частые ошибки</h2><ul>{TEXTS[ex.id].mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>
+          <div><h2>Как делать</h2><ol>{texts.how.map(t => <li key={t}>{t}</li>)}</ol></div>
+          {texts.mistakes.length > 0 && <div><h2>Частые ошибки</h2><ul>{texts.mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>}
         </div>
       )}
 

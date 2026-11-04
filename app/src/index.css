@@ -471,7 +471,7 @@ th { color: var(--muted); font-weight: 500 }
   .circle-wrap { grid-template-columns: 1fr }
   .cmp-top { grid-template-columns: 1fr }
   .two-col { grid-template-columns: 1fr }
-  .diagram { min-width: 520px }
+  .diagram { min-width: 0 }
   .plan li a { grid-template-columns: 56px 1fr 20px }
   .plan li a .muted { grid-column: 2 }
   .plan li a .chev { grid-row: 1 / span 2; grid-column: 3; align-self: center }
@@ -505,7 +505,7 @@ th { color: var(--muted); font-weight: 500 }
   [data-focus] .roll.tall { height: calc(100dvh - 210px - env(safe-area-inset-bottom)) }
   .vt { grid-template-columns: 96px 1fr }
 }
-.article-body { overflow-x: auto }
+.article-body { overflow-x: visible }
 
 /* логотип: синий на светлом, белый на тёмном */
 .logo-dark { display: none }
@@ -597,3 +597,138 @@ img.logo-dark { display: none !important }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --pk-black: #0A0E24; --pk-black-line: var(--line) } }
 :root[data-theme='dark'] { --pk-black: #0A0E24; --pk-black-line: var(--line) }
 .pk.black.right span, .pk.black.wrong span, .pk.black.out span { color: var(--midnight) }
+
+/* анатомические иллюстрации */
+.fig { margin: 8px 0 24px; max-width: 640px }
+.fig figcaption { font-size: 13px; color: var(--muted); margin-top: 6px }
+.fig figcaption a { color: inherit }
+.fig.photo img { display: block; width: 100%; max-width: 440px; border-radius: var(--radius-ctl); background: #fff }
+.diagram.anat { font-family: var(--font); margin: 0 }
+.diagram .body { fill: color-mix(in srgb, var(--highlight) 45%, var(--surface)); stroke: var(--line); stroke-width: 1.5 }
+.diagram .lung { fill: color-mix(in srgb, #F28C9B 55%, var(--surface)); stroke: none }
+.diagram .rib { fill: none; stroke: var(--muted); stroke-width: 2.5; stroke-linecap: round; opacity: .55 }
+.diagram .diaphragm { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round }
+.diagram .arrow { stroke: var(--accent); stroke-width: 3; fill: none }
+.diagram .arrow.muted { stroke: var(--muted); stroke-dasharray: 4 4 }
+.diagram .leader { stroke: var(--muted); stroke-width: 1 }
+.diagram .lbl.strong { font-weight: 800; font-size: 15px }
+/* анатомия всегда на светлой подложке — одинаково читается в обеих темах */
+.fig { width: 100%; min-width: 0 }
+.diagram.anat { background: #fff; border-radius: var(--radius-ctl); width: 100%; max-width: 640px }
+.diagram.anat .body { fill: #FBF3D2; stroke: #E4DFC8 }
+.diagram.anat .lung { fill: #F6B9C2 }
+.diagram.anat .rib { stroke: #5B6280 }
+.diagram.anat .diaphragm, .diagram.anat .arrow { stroke: #3454F4 }
+.diagram.anat .fill-accent { fill: #3454F4 }
+.diagram.anat .arrow.muted { stroke: #8A90A8 }
+.diagram.anat .leader { stroke: #8A90A8 }
+.diagram.anat .lbl { fill: #182044 }
+.diagram.anat .lbl.small { fill: #5B6280 }
+
+.anat-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.diagram.anat { min-width: 0 !important }
+@media (max-width: 560px) { .anat-pair { grid-template-columns: 1fr } }
+
+/* библиотека */
+.lead-narrow { max-width: 62ch }
+.search { display: flex; align-items: center; gap: 10px; max-width: 560px; margin: 20px 0 12px; padding: 0 16px; min-height: 52px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--muted) }
+.search:focus-within { border-color: var(--accent) }
+.search input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: 16px; color: var(--text); outline: none }
+.search input::-webkit-search-cancel-button { display: none }
+.topics { margin-bottom: 8px }
+.topics button { flex: none; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 38px }
+.topics button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--on-accent) }
+.tile .tag { font-size: 12px; font-weight: 600; color: var(--accent) }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.lib-sec .prog-head { align-items: baseline }
+.big-btn { display: inline-flex; align-items: center; gap: 10px; min-height: 56px; font-size: 17px; margin: 20px 0 4px; text-decoration: none }
+.lib-item .meta { margin-top: 12px }
+.lib-item .meta span { display: inline-flex; align-items: center; gap: 6px }
+.steps { max-width: 640px }
+.step-text { font-size: 22px; font-weight: 700; line-height: 1.35; margin: 12px 0 20px; min-height: 3.2em }
+.steps .timer { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent) }
+.steps .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.source { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin: 8px 0 32px }
+.source a { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 600 }
+/* телефон: ничего не листается вбок — переключатели и чипы переносятся, клавиатура ужимается */
+@media (max-width: 560px) {
+  .seg { flex-wrap: wrap; overflow: visible; width: auto; max-width: 100%; border-radius: var(--radius-ctl) }
+  .seg button { flex: 1 1 auto; border-radius: calc(var(--radius-ctl) - 4px) }
+  .anchors { flex-wrap: wrap; overflow: visible }
+  .keyboard { overflow: visible }
+  .pk.white { min-width: 0 !important }
+  .pk.black::before { left: -8px; width: 16px; height: 70px }
+  .pk.white span { font-size: 9px }
+}
+@media (max-width: 560px) {
+  .levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; margin: 16px 0 4px; padding: 0; gap: 4px }
+  .level { padding: 8px 4px; align-items: center; text-align: center; min-width: 0 }
+  .level b { font-size: 16px }
+  .level span { font-size: 10px; overflow-wrap: anywhere }
+  .mel-grid { min-width: 0; --mel-label: 40px; --mel-cell: 0px }
+  .mel-cell { min-width: 0 }
+  .mel-note { font-size: 9px; padding: 0 2px }
+  .mel-scroll { overflow-x: visible }
+}
+
+.level-cur { display: none }
+@media (max-width: 560px) {
+  .level { width: auto; min-height: 44px; justify-content: center }
+  .level span, .level small { display: none }
+  .level-cur { display: block; grid-column: 1 / -1; margin: 4px 0 0; font-size: 14px; color: var(--muted) }
+  .level-cur b { color: var(--text) }
+}
+
+/* схемы головы и складок */
+.diagram.anat .organ { fill: #EDE6CF; stroke: #CFC7AE; stroke-width: 1.5 }
+.diagram.anat .organ.hl, .diagram.anat .air.hl { fill: #3454F4; stroke: #3454F4 }
+.diagram.anat .nose:not(.hl), .diagram.anat path.organ[class*='nose'] { }
+.diagram.anat .air { fill: #DCE6FF; stroke: #B8C4EE }
+.diagram.anat .bone { stroke: #B9AE8C; stroke-width: 5; fill: none; stroke-linecap: round }
+.diagram.anat .palate { fill: none; stroke-width: 7; stroke-linecap: round; stroke: #D79AA5 }
+.diagram.anat .palate.hl { stroke: #3454F4; fill: none }
+.diagram.anat .lips { fill: none; stroke-width: 5; stroke-linecap: round; stroke: #D7878F }
+.diagram.anat .lips.hl { stroke: #3454F4; fill: none }
+.diagram.anat .jawbone { fill: none; stroke-width: 6; stroke-linecap: round; stroke: #B9AE8C }
+.diagram.anat .jawbone.hl { stroke: #3454F4; fill: none }
+.diagram.anat .tooth { fill: #fff; stroke: #CFC7AE }
+.diagram.anat .fold-line { stroke: #182044; stroke-width: 2; fill: none }
+.diagram.anat .tube { stroke: #B9AE8C; stroke-width: 2; fill: none }
+.diagram.anat .plumb { stroke: #3454F4; stroke-width: 1.5; stroke-dasharray: 5 5 }
+.diagram.anat .vib { stroke: #3454F4; stroke-width: 2 }
+.diagram.anat .fold-l, .diagram.anat .fold-r { fill: #F2C4CB; stroke: #D7878F }
+.diagram.anat .lbl-hl .lbl { fill: #3454F4; font-weight: 800 }
+.diagram.anat.head { max-width: 420px }
+.lib-item .meta { margin: 8px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+@media (max-width: 560px) {
+  .library .lib-sec .tile { display: flex; flex-direction: column; align-items: stretch; gap: 4px }
+  .library .lib-sec .tile .muted.small { display: -webkit-box }
+}
+.diagram.anat.folds { max-width: 420px } .diagram.anat.folds .lbl.small { font-size: 12px }
+
+/* схемы v2 */
+.diagram.anat .airway { fill: none; stroke: #DCE6FF; stroke-width: 18; stroke-linejoin: round; stroke-linecap: round }
+.diagram.anat .airway.hl { stroke: #B9C8FF }
+.diagram.anat .flow { stroke: #3454F4; stroke-width: 2.5; stroke-dasharray: 6 5; fill: none }
+.diagram.anat .flow.thin { stroke-width: 1.5; opacity: .7 }
+.diagram.anat .air-lbl { fill: #3454F4 }
+.diagram.anat .ghost { fill: none; stroke: #3454F4; stroke-width: 4; stroke-dasharray: 6 5; stroke-linecap: round }
+.diagram.anat .straw { stroke: #3454F4; stroke-width: 8; stroke-linecap: round }
+.diagram.anat .bubble { fill: #fff; stroke: #3454F4; stroke-width: 1.5 }
+.diagram.anat .gap { fill: #2A3150 }
+.diagram.anat .fold-band { fill: #F2C4CB; stroke: #D7878F; stroke-width: 1.5 }
+.diagram.anat .lbl.tiny { font-size: 10px; fill: #5B6280 }
+.diagram.anat .limb { fill: none; stroke: #E9DDB3; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round }
+.diagram.anat .limb.torso { stroke-width: 22 }
+.diagram.anat .limb.arm { stroke-width: 9; stroke: #DCCD9C }
+.diagram.anat .limb.neck { stroke-width: 9 }
+.diagram.anat .head { fill: #E9DDB3; stroke: none }
+.diagram.anat .plumb.off { stroke: #8A90A8 }
+.diagram.anat .dot-bad { fill: #E5484D }
+.diagram.anat .lbl.ok { fill: #3454F4; font-weight: 800 }
+.diagram.anat.posture { max-width: 480px }
+.ev-key { list-style: none; padding: 0; margin: 4px 0 12px; display: flex; flex-wrap: wrap; gap: 6px 16px }
+.ev-key li { display: inline-flex; align-items: center; gap: 6px }
+@media (max-width: 560px) { .ev-key { flex-direction: column; gap: 6px } }
+.topics { flex-wrap: wrap; overflow: visible }
+.diagram.anat .glass { fill: none; stroke: #8A90A8; stroke-width: 2 } .diagram.anat .water { fill: #DCE6FF }

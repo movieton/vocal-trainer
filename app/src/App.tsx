@@ -1,11 +1,12 @@
 import { HashRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
-import { Activity, BookOpen, Ear, Ellipsis, MoveVertical, Music, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
+import { Activity, BookOpen, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
 import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
 import Home from './pages/Home'
 import Library from './pages/Library'
+import LibItem from './pages/LibItem'
 import Trainer from './pages/Trainer'
 import Tuner from './pages/Tuner'
 import RangeTest from './pages/RangeTest'
@@ -25,7 +26,7 @@ import { Levels, Melody } from './pages/EarMore'
 
 const NAV = [
   { to: '/', label: 'Сегодня', icon: Sun, main: true },
-  { to: '/library', label: 'Распевки', icon: Music, main: true },
+  { to: '/library', label: 'Библиотека', icon: LibraryIcon, main: true },
   { to: '/tuner', label: 'Тюнер', icon: Activity, main: true },
   { to: '/ear', label: 'Слух', icon: Ear, main: true },
   { to: '/compose', label: 'Сочинение', icon: PenLine },
@@ -49,6 +50,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/lib/:id" element={<LibItem />} />
             <Route path="/ex/:id" element={<Trainer />} />
             <Route path="/tuner" element={<Tuner />} />
             <Route path="/range" element={<RangeTest />} />
