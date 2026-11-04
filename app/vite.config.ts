@@ -1,9 +1,44 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  // относительные пути: сайт работает и локально, и на GitHub Pages в подпапке /vocal-trainer/
+  plugins: [
+    react(),
+    // PWA: устанавливается на экран «Домой», работает без сети; новая версия — по кнопке «Обновить»
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'Распевка — тренажёр голоса',
+        short_name: 'Распевка',
+        description: 'Распевки, слух, дыхание и сочинение мелодий',
+        lang: 'ru',
+        start_url: './',
+        scope: './',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#131210',
+        theme_color: '#131210',
+        icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,jpg}'],
+        navigateFallback: 'index.html',
+        // сэмплы рояля с CDN — в кэш при первом проигрывании, дальше работают без сети
+        runtimeCaching: [{
+          urlPattern: /^https:\/\/(?!lalo-app\.com).*\.(ogg|mp3|m4a|json)(\?.*)?$/,
+          handler: 'CacheFirst',
+          options: { cacheName: 'piano-samples', expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 180 }, cacheableResponse: { statuses: [0, 200] } },
+        }],
+      },
+    }),
+  ],
+  // относительные пути: сайт работает и локально, и в подпапке на сервере
   base: './',
 })

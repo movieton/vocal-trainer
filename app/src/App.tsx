@@ -1,6 +1,7 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { Activity, BookOpen, Ear, Ellipsis, MoveVertical, Music, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
+import { UpdateBanner } from './components/Pwa'
 import Home from './pages/Home'
 import Library from './pages/Library'
 import Trainer from './pages/Trainer'
@@ -35,6 +36,7 @@ const NAV = [
 export default function App() {
   return (
     <HashRouter>
+      <UpdateBanner />
       <div className="shell">
         <aside className="side">
           <div className="brand">Распевка</div>

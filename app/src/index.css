@@ -364,6 +364,7 @@ ol.plain li::marker { color: var(--muted) }
 .answers.degs { grid-template-columns: repeat(8, 1fr) }
 .answers.degs .answer { display: flex; flex-direction: column; align-items: center; font-weight: 700; font-size: 18px }
 .answers.degs small { font-size: 11px; font-weight: 400; color: var(--muted) }
+.update-banner { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.35); font-size: 14px }
 .calib { display: inline-flex; align-items: center; gap: 12px; color: var(--text) }
 .mel-editor { margin-top: 8px }
 .lyrics { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; resize: vertical; margin-top: 8px }
