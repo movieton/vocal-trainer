@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Распевка</title>
+<style>
+:root{
+  --bg:#f6f4ef; --surface:#ffffff; --line:#e4e0d6; --text:#1d1b17; --muted:#6d685d;
+  --accent:#c2562b; --good:#2f9e5b; --near:#d39b18; --bad:#d0453b; --bar:#d8d2c3;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15140f; --surface:#1f1d17; --line:#34312a; --text:#efeadf; --muted:#9a9386;
+  --accent:#e07a4a; --good:#4cc47e; --near:#e8b53a; --bad:#ee6a5f; --bar:#3d3a31; color-scheme:dark;}}
+:root[data-theme="dark"]{--bg:#15140f; --surface:#1f1d17; --line:#34312a; --text:#efeadf; --muted:#9a9386;
+  --accent:#e07a4a; --good:#4cc47e; --near:#e8b53a; --bad:#ee6a5f; --bar:#3d3a31; color-scheme:dark;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-tap-highlight-color:transparent;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+nav{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+nav button{border:0;background:none;color:var(--muted);font:inherit;font-size:15px;padding:8px 14px;border-radius:8px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--bg);color:var(--text);font-weight:600}
+section{display:none}
+section.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:17px;margin:0 0 6px}
+.hint{color:var(--muted);font-size:14px;margin:0 0 16px}
+.live{display:flex;align-items:baseline;gap:14px;margin:8px 0 4px}
+.live .note{font-size:48px;font-weight:700;font-variant-numeric:tabular-nums;min-width:4ch}
+.live .cents{font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meter{position:relative;height:8px;border-radius:4px;background:var(--bar);margin:6px 0 4px;overflow:hidden}
+.meter i{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;left:50%;background:var(--muted);border-radius:2px;transition:left .08s linear}
+.meter::after{content:"";position:absolute;left:25%;width:50%;top:0;bottom:0;background:color-mix(in srgb,var(--good) 25%,transparent)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.stat{flex:1 1 140px;background:var(--bg);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.btn{border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;min-height:44px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+label.sel{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);flex:1 1 180px}
+select{font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+canvas{display:block;width:100%;height:clamp(300px,50vh,520px);border-radius:12px;background:var(--bg);margin:8px 0}
+.running #train .hint,.running #train label.sel{display:none}
+.runline{display:none;flex:1;font-weight:600}
+.running .runline{display:block}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.status{display:flex;justify-content:space-between;gap:8px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.status strong{color:var(--text)}
+.phase{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--bar);color:var(--text);font-weight:600}
+.phase.sing{background:var(--accent);color:#fff}
+.result ul{margin:8px 0 0;padding-left:18px}
+.result li{margin:2px 0}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500}
+.empty{color:var(--muted);text-align:center;padding:24px 0}
+.err{color:var(--bad);font-size:14px;margin-top:10px}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+@media (max-width:520px){ canvas{height:min(52vh,400px)} #startBtn{flex:1 1 100%!important} .stat b{font-size:18px} .col-reps{display:none} .live .note{font-size:40px} nav button{padding:8px 10px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Распевка</h1>
+    <nav role="tablist">
+      <button role="tab" data-tab="train" aria-selected="true">Тренировка</button>
+      <button role="tab" data-tab="range" aria-selected="false">Диапазон</button>
+      <button role="tab" data-tab="diary" aria-selected="false">Дневник</button>
+    </nav>
+  </header>
+
+  <section id="train" class="on">
+    <div class="card">
+      <h2>Упражнение</h2>
+      <p class="hint">Сначала пианино играет фразу, затем пауза, и ты повторяешь её голосом. С каждым кругом фраза сдвигается на полутон, в пределах твоего диапазона: <strong id="rangeLabel"></strong>.</p>
+      <div class="row">
+        <span class="runline" id="runline"></span>
+        <label class="sel">Упражнение <select id="pattern"></select></label>
+        <label class="sel">Темп <select id="tempo">
+          <option value="0.8">Медленно</option><option value="0.6" selected>Средне</option><option value="0.45">Быстро</option></select></label>
+        <button class="btn" id="startBtn" style="align-self:flex-end;flex:0 0 auto;min-width:120px">Начать</button>
+      </div>
+      <div class="status" style="margin-top:16px">
+        <span><span class="phase" id="phase">Готов</span> &nbsp;Круг <strong id="rep">—</strong></span>
+        <span>Последний круг: <strong id="repScore">—</strong> &nbsp;Голос: <strong id="trainNote">—</strong></span>
+      </div>
+      <canvas id="roll"></canvas>
+      <div class="legend" style="margin-top:10px">
+        <span><i style="background:var(--good)"></i>±25 ц, попал</span>
+        <span><i style="background:var(--near)"></i>до 50 ц, рядом</span>
+        <span><i style="background:var(--bad)"></i>мимо</span>
+      </div>
+      <div class="err" id="trainErr" hidden></div>
+    </div>
+    <div class="card result" id="result" hidden></div>
+  </section>
+
+  <section id="range">
+    <div class="card">
+      <h2>Тест диапазона</h2>
+      <p class="hint">Нажми «Слушать» и спокойно, без напряжения, тяни «а-а-а»: от самой низкой ноты к самой высокой. Засчитывается нота, которую ты удержал хотя бы четверть секунды.</p>
+      <div class="live"><span class="note" id="rangeNote">—</span><span class="cents" id="rangeCents"></span></div>
+      <div class="meter"><i id="rangeNeedle"></i></div>
+      <div class="row" style="margin:16px 0">
+        <div class="stat"><b id="loLabel">—</b><span>Нижняя нота</span></div>
+        <div class="stat"><b id="hiLabel">—</b><span>Верхняя нота</span></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="rangeBtn">Слушать</button>
+        <button class="btn ghost" id="rangeReset">Сбросить</button>
+      </div>
+      <div class="err" id="rangeErr" hidden></div>
+    </div>
+  </section>
+
+  <section id="diary">
+    <div class="card">
+      <h2>Дневник</h2>
+      <p class="hint">Результаты хранятся только в этом браузере.</p>
+      <div class="stats">
+        <div class="stat"><b id="dCount">0</b><span>Тренировок</span></div>
+        <div class="stat"><b id="dAvg">—</b><span>Среднее за последние 7</span></div>
+        <div class="stat"><b id="dBest">—</b><span>Лучший результат</span></div>
+      </div>
+      <div id="diaryTable"></div>
+      <div class="row" style="margin-top:16px"><button class="btn ghost" id="diaryClear">Очистить дневник</button></div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { PitchDetector } from "https://cdn.jsdelivr.net/npm/pitchy@4.1.0/+esm";
+
+const $ = id => document.getElementById(id);
+const NAMES = ['До','До♯','Ре','Ре♯','Ми','Фа','Фа♯','Соль','Соль♯','Ля','Ля♯','Си'];
+const mtof = m => 440 * 2 ** ((m - 69) / 12);
+const ftom = f => 69 + 12 * Math.log2(f / 440);
+const noteName = m => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+const SIM = new URLSearchParams(location.search).has('sim');
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+const PATTERNS = {
+  arp:   { short: 'Арпеджио', name: 'Арпеджио 1‑3‑5‑3‑1', steps: [0, 4, 7, 4, 0] },
+  scale: { short: 'Гамма', name: 'Гамма 1‑2‑3‑4‑5‑4‑3‑2‑1', steps: [0, 2, 4, 5, 7, 5, 4, 2, 0] },
+  octave:{ short: 'Октава', name: 'Октавный скачок 1‑5‑8‑5‑1', steps: [0, 7, 12, 7, 0] },
+  sirena:{ short: 'Терции', name: 'Терции 1‑3‑2‑4‑3‑5', steps: [0, 4, 2, 5, 4, 7] },
+};
+for (const [k, p] of Object.entries(PATTERNS)) $('pattern').add(new Option(p.name, k));
+$('pattern').value = store.get('pattern', 'arp');
+$('tempo').value = store.get('tempo', '0.6');
+$('pattern').onchange = e => store.set('pattern', e.target.value);
+$('tempo').onchange = e => store.set('tempo', e.target.value);
+
+// ---------- аудио ----------
+let ctx, analyser, buf, detector, simOsc, simGain;
+async function ensureAudio() {
+  if (ctx) { await ctx.resume(); return; }
+  ctx = new AudioContext();
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  if (SIM) {
+    simOsc = ctx.createOscillator(); simGain = ctx.createGain(); simGain.gain.value = 0;
+    simOsc.connect(simGain).connect(analyser); simOsc.start();
+  } else {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    ctx.createMediaStreamSource(stream).connect(analyser);
+  }
+  buf = new Float32Array(analyser.fftSize);
+  detector = PitchDetector.forFloat32Array(buf.length);
+  next();
+}
+// в режиме ?sim таймер вместо rAF, чтобы проверка шла и в фоновой вкладке
+const next = () => SIM ? setTimeout(tick, 16) : requestAnimationFrame(tick);
+function readPitch() {
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  if (Math.sqrt(s / buf.length) < 0.01) return null;
+  const [f, clarity] = detector.findPitch(buf, ctx.sampleRate);
+  return clarity > 0.88 && f > 60 && f < 1400 ? f : null;
+}
+function sim(freq) {
+  if (!SIM) return;
+  if (freq) { simOsc.frequency.setValueAtTime(freq, ctx.currentTime); simGain.gain.setTargetAtTime(0.3, ctx.currentTime, 0.01); }
+  else simGain.gain.setTargetAtTime(0, ctx.currentTime, 0.01);
+}
+function pluck(freq, t, dur) {
+  const g = ctx.createGain(); g.connect(ctx.destination);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.22, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  for (const [h, type, a] of [[1, 'triangle', 1], [2, 'sine', 0.3], [3, 'sine', 0.12]]) {
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type = type; o.frequency.value = freq * h; og.gain.value = a;
+    o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+function audioError(el, e) {
+  el.hidden = false;
+  el.textContent = e?.name === 'NotAllowedError'
+    ? 'Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.'
+    : 'Не удалось включить микрофон: ' + (e?.message || e);
+}
+
+// ---------- диапазон ----------
+let range = store.get('range', null);
+const effRange = () => range ?? { lo: 48, hi: 67 };
+function renderRange() {
+  const r = effRange();
+  $('loLabel').textContent = range ? noteName(range.lo) : '—';
+  $('hiLabel').textContent = range ? noteName(range.hi) : '—';
+  $('rangeLabel').textContent = `${noteName(r.lo)} – ${noteName(r.hi)}` + (range ? '' : ' (по умолчанию, измерь свой во вкладке «Диапазон»)');
+}
+renderRange();
+let measuring = false, stable = { m: null, n: 0 }, simT0 = 0;
+$('rangeBtn').onclick = async () => {
+  try { await ensureAudio(); } catch (e) { return audioError($('rangeErr'), e); }
+  measuring = !measuring; simT0 = ctx.currentTime;
+  $('rangeBtn').textContent = measuring ? 'Готово' : 'Слушать';
+  if (!measuring) { sim(null); renderRange(); }
+};
+$('rangeReset').onclick = () => { range = null; store.set('range', null); renderRange(); };
+function rangeFrame(f) {
+  if (SIM) sim(mtof(45 + 24 * (((ctx.currentTime - simT0) / 6) % 1)));
+  if (f == null) { stable.n = 0; return; }
+  const m = Math.round(ftom(f));
+  stable = stable.m === m ? { m, n: stable.n + 1 } : { m, n: 1 };
+  if (stable.n === 15) {
+    range = range ? { lo: Math.min(range.lo, m), hi: Math.max(range.hi, m) } : { lo: m, hi: m };
+    store.set('range', range); renderRange();
+  }
+}
+
+// ---------- тренировка ----------
+const GAP = 0.6;
+let run = null; // {roots, i, d, steps, rep, results}
+function buildRoots(steps) {
+  const r = effRange(), span = Math.max(...steps), up = [];
+  for (let root = r.lo + 1; root + span <= r.hi - 1; root++) up.push(root);
+  if (!up.length) up.push(r.lo);
+  return up.concat(up.slice(0, -1).reverse());
+}
+function startRep() {
+  const root = run.roots[run.i], d = run.d;
+  const notes = run.steps.map(s => root + s);
+  const t0 = ctx.currentTime + 0.2;
+  notes.forEach((m, k) => pluck(mtof(m), t0 + k * d, d * 0.95));
+  const singStart = t0 + notes.length * d + GAP;
+  run.rep = { notes, t0, singStart, singEnd: singStart + notes.length * d, samples: [] };
+  $('rep').textContent = `${run.i + 1} / ${run.roots.length}`;
+}
+function scoreRep(rep) {
+  const d = run.d;
+  return rep.notes.map((m, k) => {
+    const win = rep.samples.filter(s => s.t >= k * d + 0.2 * d && s.t < (k + 1) * d);
+    const voiced = win.filter(s => s.f != null).map(s => 1200 * Math.log2(s.f / mtof(m)));
+    const hits = voiced.filter(c => Math.abs(c) <= 25).length;
+    const sorted = [...voiced].sort((a, b) => a - b);
+    return { m, score: win.length ? hits / win.length : 0, median: sorted.length ? sorted[sorted.length >> 1] : null };
+  });
+}
+$('startBtn').onclick = async () => {
+  if (run) return finish();
+  try { await ensureAudio(); } catch (e) { return audioError($('trainErr'), e); }
+  $('trainErr').hidden = true; $('result').hidden = true;
+  const steps = PATTERNS[$('pattern').value].steps;
+  run = { steps, roots: buildRoots(steps), i: 0, d: +$('tempo').value, results: [] };
+  $('startBtn').textContent = 'Стоп';
+  $('pattern').disabled = $('tempo').disabled = true;
+  document.body.classList.add('running');
+  const r = effRange();
+  $('runline').textContent = `${PATTERNS[$('pattern').value].short} · ${$('tempo').selectedOptions[0].text} · ${noteName(r.lo)}–${noteName(r.hi)}`;
+  startRep();
+};
+function trainFrame(f) {
+  const rep = run.rep, now = ctx.currentTime;
+  const inSing = now >= rep.singStart && now < rep.singEnd;
+  $('phase').textContent = inSing ? 'Пой' : now < rep.singStart - GAP ? 'Слушай' : now < rep.singStart ? 'Вдох…' : 'Пауза';
+  $('phase').classList.toggle('sing', inSing);
+  if (inSing) {
+    const k = Math.floor((now - rep.singStart) / run.d);
+    if (SIM) sim(mtof(rep.notes[k] + [0.1, -0.35, 0.05, 0.2, -0.6][k % 5]));
+    rep.samples.push({ t: now - rep.singStart, f });
+  } else sim(null);
+  if (now > rep.singEnd + 0.25) {
+    const notes = scoreRep(rep);
+    run.results.push(notes);
+    $('repScore').textContent = Math.round(100 * avg(notes.map(n => n.score))) + '%';
+    run.i++;
+    if (run.i < run.roots.length) startRep(); else finish();
+  }
+}
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+function finish() {
+  const r = run; run = null; sim(null);
+  $('startBtn').textContent = 'Начать'; $('phase').textContent = 'Готов'; $('phase').classList.remove('sing');
+  $('pattern').disabled = $('tempo').disabled = false;
+  document.body.classList.remove('running');
+  if (!r.results.length) return;
+  const all = r.results.flat();
+  const score = Math.round(100 * avg(all.map(n => n.score)));
+  const byNote = {};
+  for (const n of all) if (n.median != null) (byNote[n.m] ??= []).push(n.median);
+  const drift = Object.entries(byNote).map(([m, c]) => ({ m: +m, c: avg(c) }))
+    .filter(x => Math.abs(x.c) > 20).sort((a, b) => Math.abs(b.c) - Math.abs(a.c)).slice(0, 5);
+  const el = $('result'); el.hidden = false;
+  el.innerHTML = `<h2>Итог: ${score}% попаданий</h2>
+    <p class="hint">${PATTERNS[$('pattern').value].name} · кругов: ${r.results.length}</p>
+    ${drift.length ? '<strong>Где уходишь от ноты</strong><ul>' + drift.map(x =>
+      `<li>${noteName(x.m)}: ${x.c > 0 ? '+' : '−'}${Math.round(Math.abs(x.c))} ц, ${x.c > 0 ? 'завышаешь' : 'занижаешь'}</li>`).join('') + '</ul>'
+      : '<p>Устойчивых ошибок нет: интонация ровная.</p>'}`;
+  const diary = store.get('diary', []);
+  diary.unshift({ date: Date.now(), pattern: $('pattern').value, score, reps: r.results.length });
+  store.set('diary', diary.slice(0, 200)); renderDiary();
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------- рисование ----------
+const cv = $('roll'), g2 = cv.getContext('2d');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function draw() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  g2.setTransform(dpr, 0, 0, dpr, 0, 0); g2.clearRect(0, 0, W, H);
+  const rep = run?.rep;
+  if (!rep) {
+    g2.fillStyle = css('--muted'); g2.font = '15px system-ui'; g2.textAlign = 'center';
+    g2.fillText('Нажми «Начать», и здесь появятся ноты', W / 2, H / 2); return;
+  }
+  const d = run.d, T = rep.singEnd - rep.t0;
+  const lo = Math.min(...rep.notes) - 3, hi = Math.max(...rep.notes) + 3;
+  const L = 64, x = t => L + (t / T) * (W - L - 12), y = m => H - 10 - ((m - lo) / (hi - lo)) * (H - 20);
+  g2.font = '13px system-ui'; g2.textAlign = 'right'; g2.textBaseline = 'middle';
+  for (const m of new Set(rep.notes)) {
+    g2.strokeStyle = css('--line'); g2.beginPath(); g2.moveTo(L, y(m)); g2.lineTo(W, y(m)); g2.stroke();
+    g2.fillStyle = css('--muted'); g2.fillText(noteName(m), L - 8, y(m));
+  }
+  const bh = Math.max(6, (H - 20) / (hi - lo) * 0.5), sOff = rep.singStart - rep.t0;
+  g2.globalAlpha = 0.08; g2.fillStyle = css('--accent'); g2.fillRect(x(sOff), 0, W - x(sOff), H); g2.globalAlpha = 1;
+  g2.textAlign = 'left'; g2.textBaseline = 'top'; g2.fillStyle = css('--muted');
+  g2.font = '600 13px system-ui'; g2.fillText('слушай', L + 4, 8);
+  g2.fillStyle = css('--accent'); g2.font = '700 19px system-ui';
+  g2.fillText($('phase').textContent, x(sOff) + 6, 8);
+  g2.textAlign = 'right'; g2.fillStyle = css('--text'); g2.font = '700 20px system-ui';
+  g2.fillText($('trainNote').textContent, W - 10, 8);
+  const now = ctx.currentTime - rep.t0, w = x(d) - L - 2;
+  rep.notes.forEach((m, k) => {
+    const lOn = now >= k * d && now < (k + 1) * d, sOn = now >= sOff + k * d && now < sOff + (k + 1) * d;
+    g2.globalAlpha = lOn ? 0.9 : 0.35; g2.fillStyle = css(lOn ? '--text' : '--muted');
+    g2.fillRect(x(k * d) + 1, y(m) - bh / 2, w, bh);
+    g2.globalAlpha = sOn ? 0.95 : 0.45; g2.fillStyle = css(sOn ? '--text' : '--muted');
+    g2.fillRect(x(sOff + k * d) + 1, y(m) - bh / 2, w, bh);
+    g2.globalAlpha = 0.3; g2.strokeStyle = css('--text'); g2.lineWidth = 1;
+    g2.strokeRect(x(sOff + k * d) + 1.5, y(m) - bh / 2 + 0.5, w - 1, bh - 1);
+  });
+  g2.globalAlpha = 1;
+  g2.lineWidth = 3; g2.lineCap = 'round';
+  let prev = null;
+  for (const s of rep.samples) {
+    if (s.f == null) { prev = null; continue; }
+    const m = ftom(s.f), k = Math.min(rep.notes.length - 1, Math.floor(s.t / d));
+    const c = Math.abs((m - rep.notes[k]) * 100);
+    const pt = [x(sOff + s.t), y(Math.max(lo, Math.min(hi, m)))];
+    if (prev) {
+      const attack = s.t - k * d < 0.2 * d;
+      g2.strokeStyle = css(attack ? '--muted' : c <= 25 ? '--good' : c <= 50 ? '--near' : '--bad');
+      g2.beginPath(); g2.moveTo(...prev); g2.lineTo(...pt); g2.stroke();
+    }
+    prev = pt;
+  }
+  const px = x(Math.min(T, ctx.currentTime - rep.t0));
+  g2.strokeStyle = css('--accent'); g2.lineWidth = 2;
+  g2.beginPath(); g2.moveTo(px, 0); g2.lineTo(px, H); g2.stroke();
+}
+
+// ---------- главный цикл ----------
+function tick() {
+  const f = readPitch();
+  const m = f ? ftom(f) : null, c = m != null ? Math.round((m - Math.round(m)) * 100) : null;
+  const label = m != null ? noteName(Math.round(m)) : '—';
+  $('rangeNote').textContent = label; $('trainNote').textContent = label;
+  $('rangeCents').textContent = c != null ? (c > 0 ? '+' : '') + c + ' ц' : '';
+  $('rangeNeedle').style.left = c != null ? Math.max(0, Math.min(100, 50 + c)) + '%' : '50%';
+  if (measuring) rangeFrame(f);
+  if (run) trainFrame(f);
+  draw();
+  next();
+}
+draw();
+addEventListener("resize", draw);
+
+// ---------- дневник и вкладки ----------
+function renderDiary() {
+  const d = store.get('diary', []);
+  $('dCount').textContent = d.length;
+  $('dAvg').textContent = d.length ? Math.round(avg(d.slice(0, 7).map(e => e.score))) + '%' : '—';
+  $('dBest').textContent = d.length ? Math.max(...d.map(e => e.score)) + '%' : '—';
+  $('diaryClear').hidden = !d.length;
+  $('diaryTable').innerHTML = d.length ? '<table><tr><th>Дата</th><th>Упражнение</th><th class="col-reps">Кругов</th><th>Точность</th></tr>' +
+    d.slice(0, 50).map(e => `<tr><td>${new Date(e.date).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+      <td>${PATTERNS[e.pattern]?.short ?? e.pattern}</td><td class="col-reps">${e.reps}</td><td><strong>${e.score}%</strong></td></tr>`).join('') + '</table>'
+    : '<div class="empty">Пока пусто: закончи первую тренировку.</div>';
+}
+renderDiary();
+$('diaryClear').onclick = () => { if (confirm('Удалить все записи дневника?')) { store.set('diary', []); renderDiary(); } };
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+  draw();
+});
+</script>
+</body>
+</html>
