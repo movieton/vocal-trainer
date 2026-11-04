@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { PianoKeys } from '../components/PianoKeys'
 import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
-import { INTERVALS, noteName } from '../lib/music'
+import { INTERVALS, isBlack, noteName } from '../lib/music'
 import { logSession, useStored } from '../lib/store'
 import { CHORDS, degree, nearest, randInt, type ChordQ } from '../lib/theory'
 
 type Option = { id: string; label: string }
 /** after — звук после ответа (например, разрешение ступени в тонику) */
-type Question = { answer: string; play: () => void; reveal: string; after?: () => void }
+type Question = { answer: string; play: () => void; reveal: string; after?: () => void; base?: number }
 
 /** Общий экран «узнай на слух»: кнопка «Послушать», варианты ответа, счёт и серия */
 type Stats = Record<string, { ok: number; all: number }>
@@ -23,8 +24,10 @@ function weightedPick(ids: string[], stats: Stats) {
   return ids[ids.length - 1]
 }
 
-function Quiz({ id, family, title, intro, options, make, controls }: {
-  id: string; family: string; title: string; intro: string; options: Option[]; make: (pick: (ids: string[]) => string) => Question; controls?: React.ReactNode
+function Quiz({ id, family, title, intro, options, make, controls, answers }: {
+  id: string; family: string; title: string; intro: string; options: Option[]; make: (pick: (ids: string[]) => string) => Question; controls?: ReactNode
+  /** свой способ ответа вместо кнопок (например, клавиатура) */
+  answers?: (q: Question, picked: string | null, pick: (id: string) => void) => ReactNode
 }) {
   const [q, setQ] = useState<Question | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
@@ -65,7 +68,8 @@ function Quiz({ id, family, title, intro, options, make, controls }: {
           </span>
         </div>
         {picked && q && <p className={'verdict ' + (picked === q.answer ? 'ok-msg' : 'err')}>{picked === q.answer ? 'Верно — ' : 'Мимо — это '}{q.reveal}</p>}
-        {q && (
+        {q && answers && answers(q, picked, pick)}
+        {q && !answers && (
           <div className="answers">
             {options.map(o => {
               const cls = !picked ? '' : o.id === q.answer ? 'right' : o.id === picked ? 'wrong' : 'dim'
@@ -169,10 +173,14 @@ export function FunctionalQuiz() {
   const [set, setSet] = useStored('fq.set', 'triad')
   const pool = DEG_SETS[set]
   const options = pool.map(d => ({ id: String(d), label: `${d + 1} · ${SOLFEGE[d]}` }))
+  const [tryMode, setTryMode] = useStored('fq.try', false)
+  const [held, setHeld] = useState<number | null>(null)
   const make = (pick: (ids: string[]) => string): Question => {
-    const d = +pick(pool.map(String)), key = 48 + randInt(0, 11), m = nearest(key + degree(d), 62)
+    // на клавиатуре — простые тональности (До, Соль, Фа), чтобы ступени читались на белых клавишах
+    const d = +pick(pool.map(String)), key = 48 + [0, 7, 5][randInt(0, 2)], m = nearest(key + degree(d), 62)
+    setHeld(null)
     return {
-      answer: String(d),
+      answer: String(d), base: m - degree(d),
       reveal: `${d + 1}-я ступень (${SOLFEGE[d]}). Слышишь, как она тянется к тонике?`,
       play: () => { const t = playCadence(key, now()); engine.play(m, t + 0.3, 1.2, 75) },
       after: () => {
@@ -182,8 +190,39 @@ export function FunctionalQuiz() {
     }
   }
   return (
-    <Quiz id={`fq-${set}`} family="fq" title="Ступени на слух" options={options} make={make}
+    <Quiz id={`fq-${set}${tryMode ? '-try' : ''}`} family={tryMode ? 'fq-try' : 'fq'} title="Ступени на слух" options={options} make={make}
+      answers={(q, picked, pick) => {
+        const base = q.base!
+        // ступень клавиши относительно тоники; null — нота вне лада
+        const degOf = (m: number) => { const i = [0, 2, 4, 5, 7, 9, 11].indexOf(((m - base) % 12 + 12) % 12); return i < 0 ? null : i }
+        const press = (m: number) => {
+          engine.play(m, now(), 0.6, 70)
+          const d = degOf(m)
+          if (picked) return
+          if (tryMode) setHeld(m)
+          else if (d != null && pool.includes(d)) pick(String(d))
+        }
+        const heldDeg = held != null ? degOf(held) : null
+        return <>
+          <PianoKeys lo={base} hi={base + 12} onPress={press}
+            label={m => { const d = degOf(m); return d == null || m < base ? null : isBlack(m) ? String(d + 1) : `${d + 1} · ${SOLFEGE[d]}` }}
+            cls={m => {
+              const d = m < base ? null : degOf(m)
+              if (picked) return d === +q.answer ? 'right' : d === +picked && m === held ? 'wrong' : d === +picked && !tryMode ? 'wrong' : 'dim'
+              return (d == null || !pool.includes(d) ? 'dim' : '') + (m === held ? ' held' : '')
+            }} />
+          {tryMode && !picked && (
+            <div className="try-row">
+              <span className="muted small">{held == null ? 'Нажимай клавиши, чтобы подобрать ноту' : heldDeg == null || !pool.includes(heldDeg) ? 'Эта нота не из набора — выбери другую' : `Выбрано: ${heldDeg + 1} · ${SOLFEGE[heldDeg]}`}</span>
+              <button className="btn" disabled={heldDeg == null || !pool.includes(heldDeg)} onClick={() => pick(String(heldDeg))}>Ответить</button>
+            </div>
+          )}
+        </>
+      }}
       intro="Звучит каденция I–IV–V–I, затем одна нота. Определи, какая это ступень лада. После ответа нота разрешится в тонику — так запоминается её «характер» относительно тоники."
-      controls={<label>Ступени <span className="seg">{[['triad', '1 · 3 · 5'], ['penta', '+ 2 · 6'], ['all', 'Все 7']].map(([v, t]) => <button key={v} aria-pressed={set === v} onClick={() => setSet(v)}>{t}</button>)}</span></label>} />
+      controls={<>
+        <label>Ответ <span className="seg">{([[false, 'Сразу'], [true, 'С подбором']] as const).map(([v, t]) => <button key={t} aria-pressed={tryMode === v} onClick={() => setTryMode(v)}>{t}</button>)}</span></label>
+        <label>Ступени <span className="seg">{[['triad', '1 · 3 · 5'], ['penta', '+ 2 · 6'], ['all', 'Все 7']].map(([v, t]) => <button key={v} aria-pressed={set === v} onClick={() => setSet(v)}>{t}</button>)}</span></label>
+      </>} />
   )
 }

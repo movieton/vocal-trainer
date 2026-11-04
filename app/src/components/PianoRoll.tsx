@@ -79,7 +79,7 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
         g.globalAlpha = 1
       }
       // подписи нот
-      g.font = `${Math.min(12, Math.max(9, rh * 0.55))}px system-ui`; g.textBaseline = 'middle'; g.textAlign = 'left'
+      g.font = `${Math.min(12, Math.max(9, rh * 0.55))}px Manrope, system-ui`; g.textBaseline = 'middle'; g.textAlign = 'left'
       let cur = engine.current
       if (replay) { let last: number | null = null; for (const p of replay.history) { if (p.t > now) break; last = p.midi } cur = last }
       for (let m = lo; m <= hi; m++) {
@@ -119,7 +119,7 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
           g.globalAlpha = 1
           if (active) { g.strokeStyle = C.accent; g.lineWidth = 2; g.stroke() }
         }
-        g.font = `600 ${Math.max(11, Math.min(13, ph * 0.6))}px system-ui`
+        g.font = `600 ${Math.max(11, Math.min(13, ph * 0.6))}px Manrope, system-ui`
         if (tg.syl && x1 - x0 > g.measureText(tg.syl.toUpperCase()).width + 10) {
           g.fillStyle = tg.sing ? C.onTarget : C.text; g.textAlign = 'center'
           const ym = tg.midiEnd != null ? (y(tg.midi) + y(tg.midiEnd)) / 2 : y(tg.midi)
@@ -171,7 +171,7 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
       }
       const label = overlay?.()
       if (label) {
-        g.font = '700 20px system-ui'; g.textAlign = 'left'; g.textBaseline = 'top'
+        g.font = '700 20px Manrope, system-ui'; g.textAlign = 'left'; g.textBaseline = 'top'
         const w = g.measureText(label).width
         const lx = px + w + 30 > W ? Math.max(LABEL_W + 4, px - w - 22) : px + 6
         g.fillStyle = C.bg; g.globalAlpha = 0.85; g.beginPath(); g.roundRect(lx, 6, w + 16, 30, 8); g.fill(); g.globalAlpha = 1

@@ -1,6 +1,8 @@
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { HashRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
 import { Activity, BookOpen, Ear, Ellipsis, MoveVertical, Music, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
+import logo from './assets/brand/fasol-logo-cobalt.svg'
+import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
 import Home from './pages/Home'
 import Library from './pages/Library'
@@ -39,10 +41,11 @@ export default function App() {
       <UpdateBanner />
       <div className="shell">
         <aside className="side">
-          <div className="brand">Распевка</div>
+          <Link to="/" className="brand" aria-label="fasol.app — на главную"><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></Link>
           <nav>{NAV.map(n => <NavLink key={n.to} to={n.to} end={n.to === '/'}><n.icon size={20} strokeWidth={1.75} />{n.label}</NavLink>)}</nav>
         </aside>
         <main>
+          <header className="mhead"><NavLink to="/" aria-label="fasol.app — на главную"><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></NavLink></header>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/library" element={<Library />} />

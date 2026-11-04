@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Check, ChevronRight, Flame } from 'lucide-react'
+import { Check, ChevronRight, Flame, Play } from 'lucide-react'
+import { BeanWave } from '../components/Beans'
 import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
 import { noteName, plural } from '../lib/music'
 
@@ -49,8 +50,15 @@ export default function Home() {
   return (
     <div className="page">
       <div className="home-head">
-        <h1>Сегодня</h1>
+        <h1 className="hero-title">Пой в своём ритме</h1>
         <span className="streak"><Flame size={16} /> {st} {plural(st, ['день', 'дня', 'дней'])} подряд</span>
+      </div>
+      <div className="hero-card">
+        <BeanWave />
+        {next ? <>
+          <p className="hero-next"><b>{next.title}</b>{next.text}</p>
+          <button className="btn hero-btn" onClick={() => go(next.to)}>{doneN ? 'Продолжить' : 'Начать'} <Play size={18} fill="currentColor" /></button>
+        </> : <p className="hero-next"><b>Программа на сегодня выполнена</b>Можно потренировать слух или сочинить мелодию.</p>}
       </div>
       {!voice && (
         <Link to="/range" className="card cta">
@@ -74,8 +82,6 @@ export default function Home() {
             </li>
           ))}
         </ol>
-        {next ? <button className="btn" style={{ marginTop: 12 }} onClick={() => go(next.to)}>{doneN ? 'Продолжить программу' : 'Начать программу'}</button>
-          : <p className="ok-msg">Программа на сегодня выполнена.</p>}
       </div>
       <div className="chips">
         <span>Рабочий диапазон <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>

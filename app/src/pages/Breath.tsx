@@ -4,6 +4,7 @@ import { BREATH, BREATH_GROUPS, type BreathEx } from '../data/breath'
 import { engine } from '../lib/audio'
 import { logSession, useStored } from '../lib/store'
 import LongNote from './LongNote'
+import { BEAN_PATH, BEAN_VIEWBOX } from '../components/Beans'
 import { MicGate } from '../components/Mic'
 
 export const EVIDENCE = {
@@ -105,7 +106,7 @@ function Cycle({ ex }: { ex: BreathEx }) {
   return (
     <div className="card breath">
       <div className="orb-wrap">
-        <div className={'orb ' + (p?.kind ?? 'idle')} style={{ transform: `scale(${scale})` }} />
+        <svg viewBox={BEAN_VIEWBOX} className={'orb ' + (p?.kind ?? 'idle')} style={{ transform: `scale(${scale})` }} aria-hidden><path d={BEAN_PATH} /></svg>
         <div className="orb-text">
           <strong>{p ? p.label : 'Готов?'}</strong>
           <span>{state ? Math.ceil(state.left) : ''}</span>
@@ -140,7 +141,7 @@ function Stopwatch({ ex }: { ex: BreathEx }) {
   return (
     <div className="card breath">
       <div className="orb-wrap">
-        <div className={'orb ' + (on ? 'out' : 'idle')} style={{ transform: `scale(${on ? Math.max(0.4, 1 - t / 60) : 0.7})` }} />
+        <svg viewBox={BEAN_VIEWBOX} className={'orb ' + (on ? 'out' : 'idle')} style={{ transform: `scale(${on ? Math.max(0.4, 1 - t / 60) : 0.7})` }} aria-hidden><path d={BEAN_PATH} /></svg>
         <div className="orb-text"><strong className="big-num">{t.toFixed(1)}</strong><span>секунд</span></div>
       </div>
       <div className="breath-meta">
