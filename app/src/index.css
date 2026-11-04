@@ -732,3 +732,38 @@ img.logo-dark { display: none !important }
 @media (max-width: 560px) { .ev-key { flex-direction: column; gap: 6px } }
 .topics { flex-wrap: wrap; overflow: visible }
 .diagram.anat .glass { fill: none; stroke: #8A90A8; stroke-width: 2 } .diagram.anat .water { fill: #DCE6FF }
+
+/* игры с клавиатурой */
+.game-tile { text-align: left; font: inherit; color: var(--text); cursor: pointer }
+.game-tile .best { color: var(--accent); font-weight: 600; margin-top: 6px }
+.lesson-top { display: flex; align-items: center; gap: 16px; margin: 8px 0 16px }
+.lesson-bar { flex: 1; height: 14px; border-radius: 999px; background: var(--accent-soft); overflow: hidden }
+.lesson-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease-out }
+.hearts { display: inline-flex; gap: 4px; color: var(--line) }
+.hearts .on { color: var(--bad) }
+.lesson-task { font-size: 22px; font-weight: 800; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.streak-pill { font-size: 13px; font-weight: 800; color: var(--on-highlight); background: var(--highlight); padding: 4px 10px; border-radius: 999px }
+.key-games .keyboard { margin-top: 16px; height: 180px; max-width: 640px }
+.key-games .answers { max-width: 640px; margin-top: 12px }
+.answer.right { background: color-mix(in srgb, var(--good) 25%, var(--surface)); border-color: var(--good) }
+.lesson-end { text-align: center; max-width: 520px }
+.lesson-end .stars { display: flex; justify-content: center; gap: 8px; color: var(--line) }
+.lesson-end .stars .on { color: #F2C230 }
+.lesson-end .toolbar { justify-content: center }
+@media (prefers-reduced-motion: reduce) { .lesson-bar i { transition: none } }
+@media (max-width: 560px) { .key-games .keyboard { height: 150px } .lesson-task { font-size: 19px } }
+.key-games .lesson-top, .key-games .lesson-task { max-width: 640px }
+
+.lesson-feedback { min-height: 1.5em; margin: 10px 0 0; font-weight: 800; font-size: 17px }
+.lesson-feedback.ok { color: var(--good) } .lesson-feedback.bad { color: var(--bad) }
+.key-games .answers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
+@media (max-width: 560px) { .key-games .answers { grid-template-columns: repeat(2, 1fr) } }
+.hearts { color: color-mix(in srgb, var(--muted) 35%, transparent) }
+.mini-stars { display: inline-flex; gap: 2px; color: var(--line); margin-top: 6px }
+.mini-stars .on { color: #F2C230 }
+.lesson-end .mini-stars { margin: 0 }
+.game-ic { color: var(--accent); margin-bottom: 4px }
+.lesson-end .toolbar { align-items: center }
+.key-games .btn.ghost { display: inline-flex; align-items: center; gap: 8px }
+.slot s { display: block; font-size: 11px; font-weight: 600; color: var(--bad) }
+.lesson-end p { text-wrap: balance }
