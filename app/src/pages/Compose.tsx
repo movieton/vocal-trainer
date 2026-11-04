@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pause, Play, Plus, Trash2, X } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
 import MelodyEditor, { type MelNote } from '../components/MelodyEditor'
+import MelodyAnalysis from '../components/MelodyAnalysis'
 import PianoRoll from '../components/PianoRoll'
 import { MicGate, LiveNote, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
@@ -14,6 +15,24 @@ type Sketch = { id: number; name: string; sel: number; minor: boolean; prog: Key
 
 const ROLE_COLOR = { chord: '--good', scale: '--near', out: '--bad' } as const
 
+/**
+ * Контраст куплета и припева. В корпусах поп-песен припев обычно выше и «плотнее» куплета,
+ * часто начинается с тоники и короче по ритму слов (Summach 2011; de Clercq 2017 — анализ форм).
+ */
+function ContrastCheck({ parts }: { parts: { name: string; prog: KeyChord[]; melody: MelNote[] }[] }) {
+  const [v, c] = parts
+  if (!v?.melody.length || !c?.melody.length) return <span className="muted small">Напиши мелодии куплета и припева — появится проверка контраста.</span>
+  const mean = (m: MelNote[]) => m.reduce((a, n) => a + n.m, 0) / m.length
+  const dens = (p: { prog: KeyChord[]; melody: MelNote[] }) => p.melody.length / Math.max(1, p.prog.length)
+  const up = mean(c.melody) - mean(v.melody)
+  const checks = [
+    { ok: up >= 2, text: up >= 2 ? `Припев выше куплета на ${Math.round(up)} ${plural(Math.round(up), ['полутон', 'полутона', 'полутонов'])} — это добавляет подъёма.` : 'Припев не выше куплета. Обычно припев поднимают на 2–5 полутонов: попробуй.' },
+    { ok: c.prog[0]?.root === 0, text: c.prog[0]?.root === 0 ? 'Припев начинается с тоники — звучит как «приход домой».' : 'Припев начинается не с тоники. Так тоже бывает, но тоника в начале припева — самый частый ход.' },
+    { ok: Math.abs(dens(c) - dens(v)) >= 1, text: Math.abs(dens(c) - dens(v)) >= 1 ? 'Ритм частей различается — контраст слышен.' : 'Ритм куплета и припева похож. Контраст помогает: сделай одну часть плотнее, другую — длиннее нотами.' },
+  ]
+  return <span className="contrast">{checks.map(x => <span key={x.text} className={x.ok ? 'ok' : 'hint'}>{x.text}</span>)}</span>
+}
+
 export default function Compose() {
   useEngine(10)
   const work = useWorkRange()
@@ -25,6 +44,16 @@ export default function Compose() {
   const [sketches, setSketches] = useStored<Sketch[]>('cmp.sketches', [])
   const [playing, setPlaying] = useState(false)
   const [rec, setRec] = useState(false)
+  // части песни: у каждой своя гармония и мелодия; активная часть редактируется через prog/melody
+  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[] }[]>('cmp.parts', [{ name: 'Куплет', prog: [], melody: [] }, { name: 'Припев', prog: [], melody: [] }])
+  const [part, setPart] = useStored('cmp.part', 0)
+  const switchPart = (i: number) => {
+    if (i === part) return
+    stop()
+    const saved = parts.map((p, j) => (j === part ? { ...p, prog, melody } : p))
+    setParts(saved); setPart(i); setProg(saved[i].prog); setMelody(saved[i].melody)
+  }
+  const allParts = parts.map((p, j) => (j === part ? { ...p, prog, melody } : p))
 
   const keyPc = minor ? (CIRCLE[sel].pc + 9) % 12 : CIRCLE[sel].pc
   // бемольные тональности (Фа, Си♭…) и ♭-аккорды пишем через бемоли
@@ -212,9 +241,14 @@ export default function Compose() {
         </div>
       </div>
 
+      <div className="parts">
+        <span className="seg">{parts.map((p, i) => <button key={p.name} aria-pressed={i === part} onClick={() => switchPart(i)}>{p.name}</button>)}</span>
+        <ContrastCheck parts={allParts} />
+      </div>
+
       <div className="card">
         <div className="prog-head">
-          <h2>Гармония</h2>
+          <h2>Гармония · {parts[part]?.name.toLowerCase()}</h2>
           <span className="muted small">{prog.length ? `${prog.length} ${plural(prog.length, ['такт', 'такта', 'тактов'])} по 4 доли` : 'Нажимай на аккорды выше'}</span>
         </div>
         <div className="prog">
@@ -282,6 +316,8 @@ export default function Compose() {
         </div>
         <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
           pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} />
+        <h2 style={{ marginTop: 20 }}>Разбор мелодии</h2>
+        <MelodyAnalysis melody={melody} work={work} keyPc={keyPc} steps={steps} prog={prog} onTranspose={n => setMelody(melody.map(x => ({ ...x, m: x.m + n })))} />
         <button className="btn" onClick={save} disabled={!prog.length} style={{ marginTop: 14 }}>Сохранить набросок</button>
         <h2 style={{ marginTop: 24 }}>Сохранённые</h2>
         {sketches.length ? (

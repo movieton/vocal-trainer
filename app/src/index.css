@@ -339,6 +339,16 @@ ol.plain li::marker { color: var(--muted) }
 .note-box { background: color-mix(in srgb, var(--near) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--near) 35%, var(--line)); border-radius: 12px; padding: 12px 16px; font-size: 14px; max-width: 70ch }
 .vfe .card .btn { display: inline-flex; align-items: center; text-decoration: none; margin-top: 4px }
 .answers.two { grid-template-columns: 1fr 1fr }
+.parts { display: flex; flex-direction: column; gap: 8px; margin: 24px 0 0 }
+.contrast { display: grid; gap: 4px; font-size: 13px }
+.contrast .ok { color: var(--muted) } .contrast .ok::before { content: '✓ '; color: var(--good) }
+.contrast .hint { color: var(--text) } .contrast .hint::before { content: '→ '; color: var(--accent) }
+.analysis { display: grid; gap: 8px; margin-top: 8px }
+.an-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg); border-left: 3px solid var(--line) }
+.an-item.ok { border-left-color: var(--good) }
+.an-item.hint { border-left-color: var(--accent) }
+.an-item span { grid-column: 1; font-size: 14px; color: var(--muted) }
+.an-item small { grid-column: 2; grid-row: 1; font-size: 11px; color: var(--muted) }
 .mel-editor { margin-top: 8px }
 .mel-group { display: inline-flex; align-items: center; gap: 4px }
 .mel-group > span { font-size: 12px; color: var(--muted); margin-right: 2px }
@@ -358,6 +368,9 @@ ol.plain li::marker { color: var(--muted) }
 .mel-cell.out { background: color-mix(in srgb, var(--roll-black) 70%, transparent) }
 .mel-note { z-index: 3; margin: 2px 1px; border-radius: 6px; border: 0; background: var(--roll-target); color: var(--roll-on-target); font: 600 11px system-ui; cursor: pointer; padding: 0 4px; text-align: left; overflow: hidden }
 .mel-note.on { outline: 2px solid var(--accent); outline-offset: 1px }
+.mel-note { position: relative; touch-action: none; cursor: grab }
+.mel-note:active { cursor: grabbing }
+.mel-handle { position: absolute; top: 3px; bottom: 3px; right: 2px; width: 4px; border-radius: 2px; background: color-mix(in srgb, var(--roll-on-target) 45%, transparent); cursor: ew-resize }
 .mel-playhead { z-index: 4; width: 2px; background: var(--accent); pointer-events: none; justify-self: start }
 .mel-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; min-height: 40px }
 .mel-tools button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; display: grid; place-items: center }

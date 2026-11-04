@@ -8,6 +8,7 @@ import { DEFAULT_VOICE, useStored, useWorkRange, type Range } from '../lib/store
 
 export default function RangeTest() {
   const [range, setRange] = useStored<Range | null>('range', null)
+  const [rangeHist, setRangeHist] = useStored<{ date: number; lo: number; hi: number }[]>('rangeHist', [])
   const [measuring, setMeasuring] = useState(false)
   const [voice, setVoice] = useStored('voiceType', DEFAULT_VOICE)
   const work = useWorkRange()
@@ -35,7 +36,10 @@ export default function RangeTest() {
 
   const toggle = () => {
     if (measuring) {
-      if (found.current && found.current.hi - found.current.lo >= 5) setRange(found.current)
+      if (found.current && found.current.hi - found.current.lo >= 5) {
+        setRange(found.current)
+        setRangeHist([{ date: Date.now(), ...found.current }, ...rangeHist].slice(0, 24))
+      }
       setMeasuring(false)
     } else { found.current = null; setLive(null); setMeasuring(true) }
   }

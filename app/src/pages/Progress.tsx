@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Flame, Target, TrendingUp } from 'lucide-react'
 import { noteName, plural } from '../lib/music'
 import { dailyScores, problemNotes, streak, useStored, type SessionLog } from '../lib/store'
@@ -14,6 +15,16 @@ export default function Progress() {
   const avg = (a: typeof days) => (a.length ? Math.round(a.reduce((x, d) => x + d.avg!, 0) / a.length) : null)
   const wAvg = avg(week), pAvg = avg(prev)
   const probs = problemNotes(log)
+  // ежемесячные замеры: объективная картина прогресса раз в ~30 дней
+  const [thr] = useStored<{ date: number; cents: number }[]>('threshold', [])
+  const [rh] = useStored<{ date: number; lo: number; hi: number }[]>('rangeHist', [])
+  const [best] = useStored<Record<string, number>>('breathBest', {})
+  const MONTH = 30 * 86400000
+  const checks = [
+    { title: 'Порог слуха', to: '/ear/threshold', last: thr[0]?.date, value: thr[0] ? `${thr[0].cents} ц` + (thr[1] ? ` (было ${thr[1].cents})` : '') : null },
+    { title: 'Диапазон', to: '/range', last: rh[0]?.date, value: rh[0] ? `${noteName(rh[0].lo)}–${noteName(rh[0].hi)}` + (rh[1] ? ` (было ${noteName(rh[1].lo)}–${noteName(rh[1].hi)})` : '') : null },
+    { title: 'Длинное «с»', to: '/breath/long-s', last: undefined, value: best['long-s'] ? `рекорд ${best['long-s'].toFixed(1)} с` : null },
+  ]
   const counts = (Object.keys(KINDS) as (keyof typeof KINDS)[]).map(k => ({ k, n: log.filter(l => l.kind === k).length }))
   const totalN = Math.max(1, counts.reduce((a, c) => a + c.n, 0))
 
@@ -36,6 +47,19 @@ export default function Progress() {
   return (
     <div className="page">
       <h1>Прогресс</h1>
+      <div className="card monthly">
+        <h2>Ежемесячный замер</h2>
+        <p className="muted small">Раз в месяц — короткие замеры, чтобы видеть прогресс не по ощущениям, а по цифрам.</p>
+        <ul className="hist">{checks.map(c => {
+          const due = !c.last || Date.now() - c.last > MONTH
+          return (
+            <li key={c.title}>
+              <div><b>{c.title}</b><span className="muted small">{c.value ?? 'ещё не было'}{c.last ? ` · ${new Date(c.last).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}` : ''}</span></div>
+              <Link to={c.to} className={due && c.last !== undefined ? 'btn small-btn' : 'btn ghost small-btn'}>{due && c.last !== undefined ? 'Пора' : 'Открыть'}</Link>
+            </li>
+          )
+        })}</ul>
+      </div>
       <div className="kpis">
         <div className="kpi"><Flame size={18} /><b>{s}</b><span>{plural(s, ['день', 'дня', 'дней'])} подряд</span></div>
         <div className="kpi"><Target size={18} /><b>{wAvg != null ? wAvg + '%' : '—'}</b><span>точность за неделю</span></div>

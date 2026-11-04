@@ -1,7 +1,7 @@
 /** Нота упражнения: ступень в полутонах от тоники, длительность в долях */
 export type ExNote = { s: number; d: number; syl?: string; glide?: number; stacc?: boolean; rest?: boolean }
 
-export type Section = 'warmup' | 'calm' | 'mix' | 'belt' | 'agility'
+export type Section = 'warmup' | 'calm' | 'modes' | 'mix' | 'belt' | 'agility'
 
 export type Exercise = {
   id: string
@@ -22,6 +22,7 @@ export const SECTIONS: Record<Section, { title: string; text: string }> = {
   mix: { title: 'Микст', text: 'Соединяем грудной и головной регистры' },
   belt: { title: 'Бэлтинг', text: 'Звонкий, сильный верх без крика' },
   agility: { title: 'Подвижность', text: 'Стаккато, пассажи и мелизмы' },
+  modes: { title: 'Режимы голоса (CVT)', text: 'Нейтраль, плач, форсаж, острый и твэнг — по методике Complete Vocal Technique. Громкие режимы — только после разогрева и без боли.' },
 }
 
 /**
@@ -124,6 +125,19 @@ export const EXERCISES: Exercise[] = [
     goal: 'Классический R&B-ход', notes: p('12 9 7 4 2 0:1', 0.25, 'о') },
   { id: 'wave', title: 'Волна', section: 'agility', level: 3, syllable: 'а', bpm: 90,
     goal: 'Длинный мелизм на одном дыхании', notes: p('0 2 4 2 4 7 4 7 9 7 4 0:1', 0.25, 'а') },
+  // Режимы CVT (Complete Vocal Technique): от «без металла» к «полному металлу»
+  { id: 'cvt-neutral', title: 'Нейтраль: мягкое «у»', section: 'modes', level: 1, syllable: 'у', bpm: 90,
+    goal: 'Режим без «металла»: мягкий звук, ощущение лёгкости', notes: p('0 2 4 2 0:2', 1, 'у') },
+  { id: 'cvt-curbing', title: 'Плач: «ой»', section: 'modes', level: 2, syllable: 'ой', bpm: 90,
+    goal: 'Полуметалл: хныкающий, сдержанный звук для середины и верха', notes: p('0 2 4 2 0:2', 1, 'ой') },
+  { id: 'cvt-overdrive', title: 'Форсаж: «эй!»', section: 'modes', level: 3, syllable: 'эй', bpm: 90,
+    goal: 'Полный металл, прямой громкий речевой звук без крика', notes: p('0 4 7:2', 1, 'эй') },
+  { id: 'cvt-edge', title: 'Острый: «ня»', section: 'modes', level: 3, syllable: 'ня', bpm: 90,
+    goal: 'Полный металл, резкий яркий звук для самого верха', notes: p('0 4 7 4 0:2', 1, 'ня') },
+  { id: 'twang', title: 'Твэнг: «ня-ня»', section: 'modes', level: 2, syllable: 'ня', bpm: 100,
+    goal: 'Звонкость без громкости: сужение надгортанной воронки (Estill, CVT)', notes: p('0 0 0 0 0:2', 0.5, 'ня') },
+  { id: 'straight-vib', title: 'Прямой тон → вибрато', section: 'modes', level: 2, syllable: 'а', bpm: 60,
+    goal: 'Управлять вибрато: сначала ровно, потом отпустить', notes: p('0:4 0:4', 4, 'а') },
   { id: 'stacc-legato', title: 'Стаккато-легато', section: 'agility', level: 2, syllable: 'ма', bpm: 100,
     goal: 'Смена способа звукоизвлечения', notes: p('0. 4. 7. 12 7 4 0:2', 0.5, 'ма') },
 ]
