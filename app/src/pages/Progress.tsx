@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Flame, Target, TrendingUp } from 'lucide-react'
-import { noteName } from '../lib/music'
+import { noteName, plural } from '../lib/music'
 import { dailyScores, problemNotes, streak, useStored, type SessionLog } from '../lib/store'
 
 const KINDS = { exercise: 'Распевки', ear: 'Слух', breath: 'Дыхание' } as const
@@ -22,7 +22,9 @@ export default function Progress() {
   )
 
   // график средней точности по дням
-  const W = 640, H = 180, P = 28
+  // на телефоне — узкий viewBox: подписи остаются читаемыми без прокрутки
+  const narrow = innerWidth < 560
+  const W = narrow ? 340 : 640, H = narrow ? 200 : 180, P = 28
   const x = (i: number) => P + (i / (days.length - 1)) * (W - 2 * P)
   const vals = days.filter(d => d.avg != null).map(d => d.avg!)
   const yMin = Math.max(0, Math.floor((Math.min(...vals) - 10) / 10) * 10)
@@ -35,7 +37,7 @@ export default function Progress() {
     <div className="page">
       <h1>Прогресс</h1>
       <div className="kpis">
-        <div className="kpi"><Flame size={18} /><b>{s}</b><span>{s === 1 ? 'день' : s < 5 && s > 0 ? 'дня' : 'дней'} подряд</span></div>
+        <div className="kpi"><Flame size={18} /><b>{s}</b><span>{plural(s, ['день', 'дня', 'дней'])} подряд</span></div>
         <div className="kpi"><Target size={18} /><b>{wAvg != null ? wAvg + '%' : '—'}</b><span>точность за неделю</span></div>
         <div className="kpi"><TrendingUp size={18} /><b>{wAvg != null && pAvg != null ? (wAvg - pAvg > 0 ? '+' : '') + (wAvg - pAvg) : '—'}</b><span>к прошлой неделе</span></div>
       </div>

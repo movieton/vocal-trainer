@@ -50,7 +50,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
   const previewTargets = (): Target[] => {
     if (!preview) return []
     const t = engine.now() + 0.3
-    return preview.notes.map(n => ({ midi: n.m + shift, midiEnd: n.mEnd != null ? n.mEnd + shift : undefined, t0: t + n.t, t1: t + n.t + n.d, syl: n.syl, sing: false, rep: 0 }))
+    return preview.notes.filter(n => !n.hidden).map(n => ({ midi: n.m + shift, midiEnd: n.mEnd != null ? n.mEnd + shift : undefined, t0: t + n.t, t1: t + n.t + n.d, syl: n.syl, sing: false, rep: 0 }))
   }
 
   const stop = () => {

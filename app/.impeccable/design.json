@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T00:00:00Z",
+  "title": "Design System: Распевка",
+  "extensions": {
+    "colorMeta": {
+      "accent-dark": { "role": "primary", "displayName": "Терракота (тёмная тема)", "canonical": "#e57c4b" },
+      "accent-light": { "role": "primary", "displayName": "Терракота (светлая тема)", "canonical": "#c2562b" },
+      "good-dark": { "role": "secondary", "displayName": "Попал", "canonical": "#4cc47e" },
+      "near-dark": { "role": "secondary", "displayName": "Рядом", "canonical": "#e8b53a" },
+      "bad-dark": { "role": "secondary", "displayName": "Мимо", "canonical": "#ee6a5f" },
+      "bg-dark": { "role": "neutral", "displayName": "Тёплая ночь", "canonical": "#131210" },
+      "surface-dark": { "role": "neutral", "displayName": "Поверхность", "canonical": "#1c1b18" },
+      "bg-light": { "role": "neutral", "displayName": "Слоновая кость", "canonical": "#f4f2ee" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Живая нота", "purpose": "Только текущая нота в тюнере." },
+      "headline": { "displayName": "Заголовок страницы", "purpose": "h1; 24px на телефоне, 20px в режиме фокуса." }
+    },
+    "shadows": [
+      { "name": "floating-bar", "value": "0 8px 24px rgba(0,0,0,.35)", "purpose": "Только плавающая панель «Сочинения» на телефоне." }
+    ],
+    "motion": [
+      { "name": "border-hover", "value": "border-color .15s", "purpose": "Плитки: рамка в акцент при наведении." },
+      { "name": "meter", "value": "left .06s linear", "purpose": "Бегунок центов." }
+    ],
+    "breakpoints": [ { "name": "phone", "value": "760px" } ]
+  },
+  "components": [
+    { "name": "Primary Button", "kind": "button", "refersTo": "button-primary", "description": "Главное действие: Начать, Включить микрофон.",
+      "html": "<button class=\"ds-btn\">Начать</button>",
+      "css": ".ds-btn{border:0;border-radius:12px;padding:0 20px;min-height:44px;font:600 16px system-ui;cursor:pointer;background:var(--accent,#e57c4b);color:#fff}.ds-btn:hover{filter:brightness(1.05)}.ds-btn:focus-visible{outline:2px solid var(--accent,#e57c4b);outline-offset:2px}" },
+    { "name": "Ghost Button", "kind": "button", "refersTo": "button-ghost", "description": "Стоп, Прослушать попытку.",
+      "html": "<button class=\"ds-btn-ghost\">Стоп</button>",
+      "css": ".ds-btn-ghost{border:1px solid var(--line,#2f2d28);border-radius:12px;padding:0 20px;min-height:44px;font:600 16px system-ui;cursor:pointer;background:transparent;color:var(--text,#eeeae1)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#e57c4b);outline-offset:2px}" },
+    { "name": "Segmented", "kind": "chip", "refersTo": "seg-option-on", "description": "Переключатель режима/эталона.",
+      "html": "<span class=\"ds-seg\"><button aria-pressed=\"true\">Пианино</button><button aria-pressed=\"false\">Голос «а»</button></span>",
+      "css": ".ds-seg{display:inline-flex;background:var(--surface,#1c1b18);border:1px solid var(--line,#2f2d28);border-radius:10px;padding:3px;gap:2px}.ds-seg button{border:0;background:none;color:var(--muted,#9a9487);font:14px system-ui;padding:6px 12px;border-radius:8px;min-height:34px;cursor:pointer}.ds-seg button[aria-pressed=true]{background:var(--bg,#131210);color:var(--text,#eeeae1);font-weight:600}" },
+    { "name": "Card", "kind": "card", "refersTo": "card", "description": "Базовый контейнер секции.",
+      "html": "<div class=\"ds-card\"><h2>Программа на 15 минут</h2><p>0 из 5</p></div>",
+      "css": ".ds-card{background:var(--surface,#1c1b18);border:1px solid var(--line,#2f2d28);border-radius:16px;padding:20px;color:var(--text,#eeeae1);font:16px/1.5 system-ui}.ds-card h2{font-size:18px;margin:0 0 6px}.ds-card p{color:var(--muted,#9a9487);margin:0}" },
+    { "name": "Evidence Badges", "kind": "custom", "description": "Монохромная шкала доказательности.",
+      "html": "<span class=\"ds-ev ds-i\">исследования</span> <span class=\"ds-ev ds-s\">признанная школа</span> <span class=\"ds-ev ds-p\">практика педагогов</span> <span class=\"ds-ev ds-t\">традиция</span>",
+      "css": ".ds-ev{display:inline-block;font:600 11px system-ui;padding:2px 8px;border-radius:999px;border:1px solid transparent;color:var(--muted,#9a9487)}.ds-i{background:var(--text,#eeeae1);color:var(--bg,#131210)}.ds-s{border-color:var(--text,#eeeae1);color:var(--text,#eeeae1)}.ds-p{border-color:var(--line,#2f2d28)}.ds-t{border:1px dashed var(--line,#2f2d28);font-weight:500}" },
+    { "name": "Phase Pill", "kind": "chip", "refersTo": "pill-phase-on", "description": "Статус фазы в тулбаре.",
+      "html": "<span class=\"ds-pill\">Слушай</span> <span class=\"ds-pill on\">Пой</span>",
+      "css": ".ds-pill{padding:3px 12px;border-radius:999px;background:var(--line,#2f2d28);color:var(--text,#eeeae1);font:600 14px system-ui}.ds-pill.on{background:var(--accent,#e57c4b);color:#fff}" }
+  ],
+  "narrative": {
+    "northStar": "Пульт одного певца",
+    "keyCharacteristics": [
+      "Один оранжевый акцент на действие и фазу; зелёный/жёлтый/красный — только оценка точности.",
+      "Плоско: глубина задаётся тоном поверхности и линией 1px, теней почти нет.",
+      "Цифры — табличные (tabular-nums)."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Оранжевый означает «действуй» или «сейчас». Он не служит декором, не красит заголовки и не обозначает оценку.", "section": "colors" },
+      { "name": "The Traffic Light Is For Pitch Rule", "body": "Зелёный, жёлтый и красный зарезервированы под точность голоса и правильность ответа. Не использовать их для категорий, фаз или предупреждений.", "section": "colors" },
+      { "name": "The Monochrome Evidence Rule", "body": "Бейджи доказательности — одна монохромная шкала насыщенности: залитый → контур текстом → контур линией → пунктир. Без цвета.", "section": "colors" },
+      { "name": "The Steady Digits Rule", "body": "Любое меняющееся число набирается tabular-nums и получает min-width в ch.", "section": "typography" },
+      { "name": "The Line Not Shadow Rule", "body": "Новая поверхность отделяется рамкой 1px line и сменой тона, не тенью.", "section": "elevation" }
+    ]
+  }
+}

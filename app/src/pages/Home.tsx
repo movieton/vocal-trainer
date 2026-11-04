@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, Flame } from 'lucide-react'
 import { streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
-import { noteName } from '../lib/music'
+import { noteName, plural } from '../lib/music'
 
 // программа дня меняется по дням недели, слабое место подставляется из статистики
 const BREATH_ROT = [['hiss-metro', 'Шипящий метроном'], ['horizon', 'Апподжио «Горизонт»'], ['candle', 'Свеча'], ['long-s', 'Длинное «с»']]
@@ -47,7 +47,7 @@ export default function Home() {
     <div className="page">
       <div className="home-head">
         <h1>Сегодня</h1>
-        <span className="streak"><Flame size={16} /> {st} {st === 1 ? 'день' : st > 1 && st < 5 ? 'дня' : 'дней'} подряд</span>
+        <span className="streak"><Flame size={16} /> {st} {plural(st, ['день', 'дня', 'дней'])} подряд</span>
       </div>
       {!voice && (
         <Link to="/range" className="card cta">
@@ -77,7 +77,7 @@ export default function Home() {
       <div className="chips">
         <span>Рабочий диапазон <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>
         <span>Сегодня упражнений <b>{today.length}</b></span>
-        {log.length > 0 && <span>Точность, последние 10 <b>{Math.round(log.slice(0, 10).reduce((a, l) => a + l.score, 0) / Math.min(10, log.length))}%</b></span>}
+        {log.length > 0 && <span>Точность{log.length > 1 ? `, последние ${Math.min(10, log.length)}` : ''} <b>{Math.round(log.slice(0, 10).reduce((a, l) => a + l.score, 0) / Math.min(10, log.length))}%</b></span>}
       </div>
     </div>
   )

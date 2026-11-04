@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
 import { INTERVALS, noteName } from '../lib/music'
 import { logSession, useStored } from '../lib/store'
-import { CHORDS, randInt, type ChordQ } from '../lib/theory'
+import { CHORDS, degree, nearest, randInt, type ChordQ } from '../lib/theory'
 
 type Option = { id: string; label: string }
-type Question = { answer: string; play: () => void; reveal: string }
+/** after — звук после ответа (например, разрешение ступени в тонику) */
+type Question = { answer: string; play: () => void; reveal: string; after?: () => void }
 
 /** Общий экран «узнай на слух»: кнопка «Послушать», варианты ответа, счёт и серия */
 type Stats = Record<string, { ok: number; all: number }>
@@ -35,6 +36,7 @@ function Quiz({ id, family, title, intro, options, make, controls }: {
   const pick = (opt: string) => {
     if (!q || picked) return
     setPicked(opt)
+    q.after?.()
     const ok = opt === q.answer
     const s = { ok: stat.ok + (ok ? 1 : 0), all: stat.all + 1, streak: ok ? stat.streak + 1 : 0 }
     setStat(s)
@@ -140,5 +142,48 @@ function WeakSpots({ stats, options }: { stats: Stats; options: Option[] }) {
   if (!rows.length) return null
   return (
     <p className="muted small weak">Слабые места — встречаются чаще: {rows.map(r => `${r.o.label} ${Math.round(r.acc * 100)}%`).join(' · ')}</p>
+  )
+}
+
+// ---------- Функциональный слух: ступени после каденции ----------
+
+export const SOLFEGE = ['до', 'ре', 'ми', 'фа', 'соль', 'ля', 'си']
+const DEG_SETS: Record<string, number[]> = { triad: [0, 2, 4], penta: [0, 1, 2, 4, 5], all: [0, 1, 2, 3, 4, 5, 6] }
+
+/** Каденция I–IV–V–I задаёт тональность; дальше ухо слышит ноту как ступень, а не как абсолютную высоту */
+export function playCadence(key: number, t: number, beat = 0.55) {
+  ;[[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]].forEach((ch, i) => {
+    ch.forEach(x => engine.play(key - 12 + x, t + i * beat, beat * 0.95, 48))
+    engine.play(key - 24 + ch[0], t + i * beat, beat * 0.95, 55)
+  })
+  return t + 4 * beat
+}
+
+/** Разрешение ступени в тонику по ступеням вниз/вверх — так делает Functional Ear Trainer */
+function resolution(d: number) {
+  if (d <= 3) return Array.from({ length: d + 1 }, (_, i) => d - i)
+  return [...Array.from({ length: 7 - d }, (_, i) => d + i), 7]
+}
+
+export function FunctionalQuiz() {
+  const [set, setSet] = useStored('fq.set', 'triad')
+  const pool = DEG_SETS[set]
+  const options = pool.map(d => ({ id: String(d), label: `${d + 1} · ${SOLFEGE[d]}` }))
+  const make = (pick: (ids: string[]) => string): Question => {
+    const d = +pick(pool.map(String)), key = 48 + randInt(0, 11), m = nearest(key + degree(d), 62)
+    return {
+      answer: String(d),
+      reveal: `${d + 1}-я ступень (${SOLFEGE[d]}). Слышишь, как она тянется к тонике?`,
+      play: () => { const t = playCadence(key, now()); engine.play(m, t + 0.3, 1.2, 75) },
+      after: () => {
+        const t = now() + 0.1, base = m - degree(d)
+        resolution(d).forEach((x, i) => engine.play(base + degree(x), t + i * 0.4, 0.38, 70))
+      },
+    }
+  }
+  return (
+    <Quiz id={`fq-${set}`} family="fq" title="Ступени на слух" options={options} make={make}
+      intro="Звучит каденция I–IV–V–I, затем одна нота. Определи, какая это ступень лада. После ответа нота разрешится в тонику — так запоминается её «характер» относительно тоники."
+      controls={<label>Ступени <span className="seg">{[['triad', '1 · 3 · 5'], ['penta', '+ 2 · 6'], ['all', 'Все 7']].map(([v, t]) => <button key={v} aria-pressed={set === v} onClick={() => setSet(v)}>{t}</button>)}</span></label>} />
   )
 }

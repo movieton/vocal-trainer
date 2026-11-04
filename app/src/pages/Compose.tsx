@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pause, Play, Plus, Trash2, X } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
+import MelodyEditor, { type MelNote } from '../components/MelodyEditor'
 import PianoRoll from '../components/PianoRoll'
 import { MicGate, LiveNote, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
-import { isBlack, noteName } from '../lib/music'
+import { isBlack, noteName, plural } from '../lib/music'
 import type { Target } from '../lib/run'
 import { useStored, useWorkRange } from '../lib/store'
 import { borrowed, chordLabel, CHORDS, CIRCLE, diatonic, NEXT, noteRole, SCALES, TEMPLATES, type KeyChord } from '../lib/theory'
 
-type MelNote = { m: number; beat: number; d: number }
 type Sketch = { id: number; name: string; sel: number; minor: boolean; prog: KeyChord[]; melody: MelNote[]; bpm: number }
 
 const ROLE_COLOR = { chord: '--good', scale: '--near', out: '--bad' } as const
@@ -82,14 +82,56 @@ export default function Compose() {
   // ---- клавиатура: две октавы вокруг голоса ----
   const kLo = 12 * Math.floor(work.lo / 12) + (work.lo % 12 > 6 ? 12 : 0)
   const keys = Array.from({ length: 25 }, (_, i) => kLo + i)
+  // запись с клавиш: начало — по нажатию, длительность — по отпусканию, сетка восьмых
+  const held = useRef<{ m: number; beat: number; t: number } | null>(null)
+  const loopPos = () => (((engine.now() - t0.current) / beat) % (bars * 4) + bars * 4) % (bars * 4)
   const pressKey = (m: number) => {
     engine.play(m, engine.ensureCtx().currentTime, 0.6, 75)
-    if (rec && playing) {
-      const pos = (engine.now() - t0.current) / beat
-      const b = Math.round(pos * 2) / 2 % (bars * 4)
-      setMelody([...melody.filter(n => n.beat !== b), { m, beat: b, d: 1 }].sort((a, x) => a.beat - x.beat))
-    }
+    if (rec && playing) held.current = { m, beat: Math.round(loopPos() * 2) / 2 % (bars * 4), t: engine.now() }
   }
+  const releaseKey = () => {
+    const h = held.current
+    if (!h) return
+    held.current = null
+    const d = Math.max(0.5, Math.round(((engine.now() - h.t) / beat) * 2) / 2)
+    setMelody([...melody.filter(n => n.beat !== h.beat), { m: h.m, beat: h.beat, d: Math.min(d, bars * 4 - h.beat) }].sort((a, x) => a.beat - x.beat))
+  }
+
+  // «напой → ноты»: один круг гармонии слушаем голос и режем его на ноты по сетке восьмых
+  const [hum, setHum] = useState<{ start: number; end: number } | null>(null)
+  const startHum = () => {
+    const loop = 4 * beat * bars, k = Math.ceil((engine.now() - t0.current) / loop)
+    const start = t0.current + k * loop
+    setHum({ start, end: start + loop })
+  }
+  useEffect(() => {
+    if (!hum) return
+    const id = window.setInterval(() => {
+      if (engine.now() < hum.end + 0.2) return
+      clearInterval(id)
+      const frames = engine.history.filter(s => s.t >= hum.start && s.t < hum.end)
+      const notes: MelNote[] = []
+      let cur: { m: number; t0: number; t1: number } | null = null
+      const flush = () => {
+        if (cur && cur.t1 - cur.t0 >= 0.15) {
+          const b = Math.round(((cur.t0 - hum.start) / beat) * 2) / 2
+          const d = Math.max(0.5, Math.round(((cur.t1 - cur.t0) / beat) * 2) / 2)
+          if (b < bars * 4 && !notes.some(n => n.beat === b)) notes.push({ m: cur.m, beat: b, d: Math.min(d, bars * 4 - b) })
+        }
+        cur = null
+      }
+      for (const f of frames) {
+        const m = f.midi == null ? null : Math.round(f.midi)
+        if (m == null) { flush(); continue }
+        if (cur && cur.m === m) cur.t1 = f.t
+        else { flush(); cur = { m, t0: f.t, t1: f.t } }
+      }
+      flush()
+      if (notes.length) setMelody(notes)
+      setHum(null)
+    }, 100)
+    return () => clearInterval(id)
+  }, [hum]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- доска: аккорды и мелодия ближайших циклов ----
   const targets = (): Target[] => {
@@ -173,7 +215,7 @@ export default function Compose() {
       <div className="card">
         <div className="prog-head">
           <h2>Гармония</h2>
-          <span className="muted small">{prog.length ? `${prog.length} такт${prog.length < 5 ? 'а' : 'ов'} по 4 доли` : 'Нажимай на аккорды выше'}</span>
+          <span className="muted small">{prog.length ? `${prog.length} ${plural(prog.length, ['такт', 'такта', 'тактов'])} по 4 доли` : 'Нажимай на аккорды выше'}</span>
         </div>
         <div className="prog">
           {prog.map((c, i) => (
@@ -194,14 +236,14 @@ export default function Compose() {
         </div>
       </div>
 
-      <p className="muted small kb-caption">Клавиатура {noteName(kLo)} – {noteName(kLo + 24)}</p>
+      <p className="muted small kb-caption">Клавиатура {noteName(kLo)}–{noteName(kLo + 24)}</p>
       <div className="keyboard" role="group" aria-label="Клавиатура">
         {keys.map(m => {
           const role = noteRole(m, keyPc, steps, curChord ?? (prog[0] ?? null))
           const voiced = engine.current != null && Math.round(engine.current) === m
           return (
             <button key={m} className={'pk ' + (isBlack(m) ? 'black ' : 'white ') + role + (voiced ? ' voiced' : '')}
-              onPointerDown={e => { e.preventDefault(); pressKey(m) }} aria-label={noteName(m)}>
+              onPointerDown={e => { e.preventDefault(); pressKey(m) }} onPointerUp={releaseKey} onPointerLeave={releaseKey} aria-label={noteName(m)}>
               {!isBlack(m) && <span>{noteName(m).replace(/\d+$/, '')}</span>}
             </button>
           )
@@ -209,8 +251,8 @@ export default function Compose() {
       </div>
       <div className="legend cmp-legend">
         <span><i style={{ background: 'var(--good)' }} />опорная — звук аккорда</span>
-        <span><i style={{ background: 'var(--near)' }} />проходящая — нота лада</span>
-        <span><i style={{ background: 'var(--bad)' }} />чужая — вне тональности</span>
+        <span><i style={{ background: '#f2efe8' }} />проходящая — нота лада</span>
+        <span><i style={{ background: '#cfcac0' }} />чужая — вне тональности</span>
       </div>
 
       {playing && curChord && (
@@ -223,8 +265,8 @@ export default function Compose() {
       <div className="cmp-sing">
         <div className="prog-head"><h2>Напевай поверх</h2><LiveNote /></div>
         <MicGate />
-        <PianoRoll view={view} targets={targets} colorFor={colorFor} overlay={overlay} windowSec={Math.max(6, 4 * beat * 2)} playhead={0.4} className="tall" />
-        <p className="muted small">Линия голоса окрашивается по роли ноты в текущем аккорде. Записанная мелодия видна плашками и звучит вместе с гармонией.</p>
+        {engine.mic === 'on' && <><PianoRoll view={view} targets={targets} colorFor={colorFor} overlay={overlay} windowSec={Math.max(6, 4 * beat * 2)} playhead={0.4} className="tall" />
+        <p className="muted small">Линия голоса окрашивается по роли ноты в текущем аккорде. Записанная мелодия видна плашками и звучит вместе с гармонией.</p></>}
       </div>
 
       <div className="card">
@@ -232,8 +274,14 @@ export default function Compose() {
           <h2>Набросок</h2>
           {melody.length > 0 && <button className="textbtn" onClick={() => setMelody([])}><Trash2 size={14} /> Стереть мелодию</button>}
         </div>
-        {melody.length ? <div className="mel-chips">{melody.map((n, i) => <span key={i}>{noteName(n.m)}</span>)}</div>
-          : <p className="muted small">Включи «Играть по кругу» и «Записывать ноты с клавиш», затем нажимай клавиши в ритм.</p>}
+        <div className="row-btns" style={{ margin: '8px 0' }}>
+          <button className="btn ghost small-btn" disabled={!playing || !!hum} onClick={async () => { if (engine.mic !== 'on') await engine.startMic(); if (engine.mic === 'on') startHum() }}>
+            {hum ? (engine.now() < hum.start ? 'Со следующего круга…' : 'Пой! Слушаю круг…') : 'Напеть мелодию'}
+          </button>
+          <span className="muted small">{!playing ? 'Включи «Играть по кругу», затем «Напеть»: один круг пой — получатся ноты.' : ''}</span>
+        </div>
+        <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
+          pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} />
         <button className="btn" onClick={save} disabled={!prog.length} style={{ marginTop: 14 }}>Сохранить набросок</button>
         <h2 style={{ marginTop: 24 }}>Сохранённые</h2>
         {sketches.length ? (
@@ -241,7 +289,7 @@ export default function Compose() {
             {sketches.map(s => (
               <li key={s.id}>
                 <button className="link" onClick={() => load(s)}>{s.name}</button>
-                <span className="muted small">{s.melody.length} нот · {s.bpm} уд/мин</span>
+                <span className="muted small">{s.melody.length} {plural(s.melody.length, ['нота', 'ноты', 'нот'])} · {s.bpm} уд/мин</span>
                 <button aria-label="Удалить" className="icon" onClick={() => setSketches(sketches.filter(x => x.id !== s.id))}><Trash2 size={16} /></button>
               </li>
             ))}

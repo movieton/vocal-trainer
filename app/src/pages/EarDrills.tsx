@@ -232,3 +232,35 @@ export function SingInterval() {
       </>} />
   )
 }
+
+// ---------- Спой ступень после каденции ----------
+export function SingDegree() {
+  const r = useRange()
+  const [set, setSet] = useStored('sd.set', 'triad')
+  const [hints, setHints] = useState(false)
+  const pools: Record<string, number[]> = { triad: [0, 2, 4, 7], penta: [0, 1, 2, 4, 5, 7], all: [0, 1, 2, 3, 4, 5, 6, 7] }
+  const NAMES = ['до', 'ре', 'ми', 'фа', 'соль', 'ля', 'си', 'до']
+  const make = () => (i: number): Phrase | null => {
+    if (i >= 10) return null
+    const key = nearest(randInt(0, 11), r.lo + 3), b = 0.55, piano: Phrase['piano'] = []
+    ;[[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]].forEach((ch, k) => {
+      ch.forEach(x => piano.push({ m: key - 12 + x, t: k * b, d: b * 0.95, vel: 45 }))
+      piano.push({ m: key - 24 + ch[0], t: k * b, d: b * 0.95, vel: 55 })
+    })
+    const d = rand(pools[set]), m = key + degree(d)
+    return {
+      label: `${d + 1}-я (${NAMES[d]})`, piano, len: 4 * b + 0.6 + 2.2,
+      notes: [{ m, t: 4 * b + 0.6, d: 2.2, sing: true, hidden: !hints, syl: String(d + 1) }],
+      marks: [{ t: 0, text: 'Каденция' }, { t: 4 * b + 0.2, text: `${d + 1}-я ступень (${NAMES[d]})` }],
+    }
+  }
+  return (
+    <DrillPage id="sing-degree" title="Спой ступень" make={make} settingsKey={`${set}-${hints}`} windowSec={7}
+      intro="Звучит каденция, и тебе называют ступень — спой её, не слыша. Это сердце функционального слуха: держать тонику в голове и находить от неё любую ноту."
+      how={['Сначала мысленно спой тонику («до»), затем пройди к нужной ступени: до-ре-ми…', 'Начни с 1, 3, 5 — опор тональности. Потом добавь остальные.', 'Подсказка на доске выключена по умолчанию: твоя нота появится после того, как ты её споёшь.']}
+      controls={running => <>
+        <label>Ступени <Seg value={set} set={setSet} disabled={running} opts={[['triad', '1 · 3 · 5 · 8'], ['penta', '+ 2 · 6'], ['all', 'Все']]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту заранее</label>
+      </>} />
+  )
+}

@@ -69,3 +69,11 @@ export function analyzeTone(samples: { t: number; midi: number | null }[], targe
   const inTune = target == null ? null : slow.filter(x => Math.abs(x + (center - target) * 100) <= tol).length / slow.length
   return { sd, rate, extent: rms * Math.SQRT2, vibrato: rms * Math.SQRT2 > 12 && rate > 3.5 && rate < 8, center, inTune }
 }
+
+/** Русское склонение по числу: plural(21, ['день', 'дня', 'дней']) → «день» */
+export function plural(n: number, [one, few, many]: [string, string, string]) {
+  const a = Math.abs(n) % 100, b = a % 10
+  if (a > 10 && a < 20) return many
+  if (b === 1) return one
+  return b >= 2 && b <= 4 ? few : many
+}

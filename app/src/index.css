@@ -16,6 +16,10 @@
 }
 * { box-sizing: border-box }
 html { -webkit-text-size-adjust: 100% }
+/* без «резинки» и случайного выделения текста на кнопках — ощущение приложения */
+html { overscroll-behavior-y: none }
+button, .tile, .chordbtn, .pk, .answer, nav a { -webkit-user-select: none; user-select: none; touch-action: manipulation }
+@media (hover: hover) { .tile:hover { border-color: var(--accent) } }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent }
 a { color: inherit }
 h1 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.15 }
@@ -234,12 +238,12 @@ ol.plain li::marker { color: var(--muted) }
 .pk.white span { font-size: 11px; color: #555 }
 .pk.black { width: 0; z-index: 2 }
 .pk.black::before { content: ''; position: absolute; left: -14px; width: 28px; height: 92px; top: 0; background: #22201c; border-radius: 0 0 6px 6px; border: 1px solid #000 }
-.pk.white.chord { background: color-mix(in srgb, var(--good) 45%, #f2efe8) }
-.pk.white.scale { background: color-mix(in srgb, var(--near) 45%, #f2efe8) }
-.pk.white.out { background: color-mix(in srgb, var(--bad) 30%, #e8e3da) }
-.pk.black.out::before { background: color-mix(in srgb, var(--bad) 45%, #22201c) }
-.pk.black.chord::before { background: color-mix(in srgb, var(--good) 70%, #22201c) }
-.pk.black.scale::before { background: color-mix(in srgb, var(--near) 45%, #22201c) }
+.pk.white.chord { background: color-mix(in srgb, var(--good) 25%, #f2efe8) }
+.pk.white.scale { background: #f2efe8 }
+.pk.white.out { background: #cfcac0 }
+
+.pk.black.chord::before { background: color-mix(in srgb, var(--good) 40%, #22201c) }
+.pk.black.scale::before { background: #3a3730 }
 .pk.voiced { box-shadow: inset 0 -6px 0 var(--accent) }
 .pk.black.voiced::before { box-shadow: inset 0 -6px 0 var(--accent) }
 .pk:active { filter: brightness(.9) }
@@ -334,6 +338,30 @@ ol.plain li::marker { color: var(--muted) }
 .tile-top { display: flex; justify-content: space-between; align-items: center; gap: 8px }
 .note-box { background: color-mix(in srgb, var(--near) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--near) 35%, var(--line)); border-radius: 12px; padding: 12px 16px; font-size: 14px; max-width: 70ch }
 .vfe .card .btn { display: inline-flex; align-items: center; text-decoration: none; margin-top: 4px }
+.answers.two { grid-template-columns: 1fr 1fr }
+.mel-editor { margin-top: 8px }
+.mel-group { display: inline-flex; align-items: center; gap: 4px }
+.mel-group > span { font-size: 12px; color: var(--muted); margin-right: 2px }
+.mel-tools .mel-del { width: auto; padding: 0 12px; gap: 6px; display: inline-flex; margin-left: auto }
+.thr-big { display: flex; flex-direction: column; margin: 16px 0 4px }
+.thr-big b { font-size: 32px; font-variant-numeric: tabular-nums }
+.thr-big span { font-size: 13px; color: var(--muted) }
+.answer svg { vertical-align: -3px; margin-right: 4px }
+.mel-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--roll-bg) }
+.mel-grid { display: grid; grid-auto-rows: 28px; position: relative; min-width: max-content }
+.mel-label { position: sticky; left: 0; z-index: 2; font-size: 11px; color: var(--muted); background: var(--surface); display: flex; align-items: center; padding-left: 8px; border-bottom: 1px solid var(--roll-line) }
+.mel-label.black { color: color-mix(in srgb, var(--muted) 55%, transparent) }
+.mel-cell { border-bottom: 1px solid var(--roll-line); border-left: 1px solid transparent; cursor: pointer; min-width: 18px }
+.mel-cell.beat { border-left-color: var(--roll-line) }
+.mel-cell.bar { border-left-color: var(--roll-cline) }
+.mel-cell.chord { background: color-mix(in srgb, var(--good) 10%, transparent) }
+.mel-cell.out { background: color-mix(in srgb, var(--roll-black) 70%, transparent) }
+.mel-note { z-index: 3; margin: 2px 1px; border-radius: 6px; border: 0; background: var(--roll-target); color: var(--roll-on-target); font: 600 11px system-ui; cursor: pointer; padding: 0 4px; text-align: left; overflow: hidden }
+.mel-note.on { outline: 2px solid var(--accent); outline-offset: 1px }
+.mel-playhead { z-index: 4; width: 2px; background: var(--accent); pointer-events: none; justify-self: start }
+.mel-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; min-height: 40px }
+.mel-tools button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; display: grid; place-items: center }
+@media (hover: hover) { .mel-cell:hover { background: color-mix(in srgb, var(--accent) 18%, transparent) } }
 .takebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0 }
 .takebar .muted { max-width: 60ch }
 .result ul { margin: 8px 0 0; padding-left: 20px }
@@ -342,7 +370,6 @@ ol.plain li::marker { color: var(--muted) }
 .lib-sec h2 { margin: 0 }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px }
 .tile { display: flex; flex-direction: column; gap: 4px; text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; transition: border-color .15s }
-.tile:hover { border-color: var(--accent) }
 .tile .lvl { font-size: 10px; letter-spacing: 2px; color: var(--accent) }
 .tile .syl { margin-top: auto; padding-top: 6px; font-size: 13px; color: var(--muted) }
 
@@ -365,6 +392,7 @@ th { color: var(--muted); font-weight: 500 }
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr }
   .side { display: none }
+  main { padding-top: env(safe-area-inset-top) }
   .page { padding: 20px 16px calc(88px + env(safe-area-inset-bottom)) }
   h1 { font-size: 24px }
   .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
@@ -387,11 +415,12 @@ th { color: var(--muted); font-weight: 500 }
   .modes { grid-template-columns: 1fr }
   .howto { grid-template-columns: 1fr }
   .breath { gap: 24px }
+  .mel-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none }
+  .mel-cur { display: none }
   .circle-wrap { grid-template-columns: 1fr }
   .cmp-top { grid-template-columns: 1fr }
   .two-col { grid-template-columns: 1fr }
   .diagram { min-width: 520px }
-  .chart { min-width: 600px }
   .plan li a { grid-template-columns: 56px 1fr 20px }
   .plan li a .muted { grid-column: 2 }
   .plan li a .chev { grid-row: 1 / span 2; grid-column: 3; align-self: center }
