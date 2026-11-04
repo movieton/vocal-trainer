@@ -276,7 +276,7 @@ export default function Compose() {
       <div className="legend cmp-legend">
         <span><i style={{ background: 'var(--good)' }} />опорная — звук аккорда</span>
         <span><i style={{ background: '#f2efe8' }} />проходящая — нота лада</span>
-        <span><i style={{ background: '#cfcac0' }} />чужая — вне тональности</span>
+        <span><i style={{ background: 'var(--bad)' }} />чужая — вне тональности</span>
       </div>
 
       {playing && curChord && (

@@ -240,7 +240,8 @@ ol.plain li::marker { color: var(--muted) }
 .pk.black::before { content: ''; position: absolute; left: -14px; width: 28px; height: 92px; top: 0; background: #22201c; border-radius: 0 0 6px 6px; border: 1px solid #000 }
 .pk.white.chord { background: color-mix(in srgb, var(--good) 25%, #f2efe8) }
 .pk.white.scale { background: #f2efe8 }
-.pk.white.out { background: #cfcac0 }
+.pk.white.out { background: color-mix(in srgb, var(--bad) 45%, #f2efe8) }
+.pk.black.out::before { background: color-mix(in srgb, var(--bad) 70%, #22201c) }
 
 .pk.black.chord::before { background: color-mix(in srgb, var(--good) 40%, #22201c) }
 .pk.black.scale::before { background: #3a3730 }
@@ -369,7 +370,7 @@ ol.plain li::marker { color: var(--muted) }
 .mel-cell.beat { border-left-color: var(--roll-line) }
 .mel-cell.bar { border-left-color: var(--roll-cline) }
 .mel-cell.chord { background: color-mix(in srgb, var(--good) 10%, transparent) }
-.mel-cell.out { background: color-mix(in srgb, var(--roll-black) 70%, transparent) }
+.mel-cell.out { background: color-mix(in srgb, var(--bad) 10%, transparent) }
 .mel-note { z-index: 3; margin: 2px 1px; border-radius: 6px; border: 0; background: var(--roll-target); color: var(--roll-on-target); font: 600 11px system-ui; cursor: pointer; padding: 0 4px; text-align: left; overflow: hidden }
 .mel-note.on { outline: 2px solid var(--accent); outline-offset: 1px }
 .mel-note { position: relative; touch-action: none; cursor: grab }
