@@ -180,7 +180,7 @@ export default function Trainer() {
           </span>
         </label>
       </div>
-      <p className="muted small">Рабочий диапазон: {noteName(r.lo)} – {noteName(r.hi)} ({r.source}) · <Link to="/range">изменить</Link> · Пробел — старт и стоп</p>
+      <p className="muted small">Рабочий диапазон: {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">изменить</Link> · Пробел — старт и стоп</p>
 
       {TEXTS[ex.id] && (
         <div className="howto">
