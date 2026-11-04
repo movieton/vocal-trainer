@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, Flame } from 'lucide-react'
-import { streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
+import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
 import { noteName, plural } from '../lib/music'
 
 // программа дня меняется по дням недели, слабое место подставляется из статистики
@@ -24,10 +24,13 @@ function dayPlan(log: SessionLog[]) {
   // слух слабее пения — больше времени слуху
   const earWeak = ear != null && sing != null && ear < sing - 10
   const [eTo, eT] = earWeak ? ['/ear/levels', '10 уровней точности'] : pick(EAR_ROT, 3)
+  const weak = problemNotes(log)[0]
   return [
     { min: 2, title: 'Дыхание', text: b1t, to: `/breath/${b1}`, id: b1 },
     { min: 3, title: 'Разогрев', text: wT, to: `/ex/${wId}`, id: wId },
-    { min: 3, title: 'Спокойный звук', text: cT, to: `/ex/${cId}`, id: cId },
+    // есть устойчивая ошибка на ноте — вместо спокойного звука точечная работа над ней
+    ...(weak ? [{ min: 3, title: 'Твоя трудная нота', text: `${noteName(weak.m)}: ${weak.c > 0 ? 'завышаешь' : 'занижаешь'} на ${Math.round(Math.abs(weak.c))} ц — длинная нота`, to: `/breath/long-note?note=${weak.m}`, id: 'long-note' }]
+      : [{ min: 3, title: 'Спокойный звук', text: cT, to: `/ex/${cId}`, id: cId }]),
     { min: earWeak ? 3 : 4, title: `Блок дня: ${bName.toLowerCase()}`, text: bEx, to: `/ex/${bId}`, id: bId },
     { min: earWeak ? 4 : 3, title: earWeak ? 'Слух — слабое место' : 'Слух', text: eT, to: eTo, id: EAR_IDS[eTo] },
   ]

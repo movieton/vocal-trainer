@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pause, Play, Plus, Trash2, X } from 'lucide-react'
+import { Dices, Download, Pause, Play, Plus, Trash2, X } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
 import MelodyEditor, { type MelNote } from '../components/MelodyEditor'
 import MelodyAnalysis from '../components/MelodyAnalysis'
@@ -10,7 +10,8 @@ import { engine } from '../lib/audio'
 import { isBlack, noteName, plural, transcribe } from '../lib/music'
 import type { Target } from '../lib/run'
 import { useStored, useWorkRange } from '../lib/store'
-import { borrowed, chordLabel, CHORDS, CIRCLE, diatonic, NEXT, noteRole, SCALES, TEMPLATES, type KeyChord } from '../lib/theory'
+import { borrowed, chordLabel, CHORDS, CIRCLE, diatonic, diceProgression, GROOVES, NEXT, noteRole, SCALES, syllabify, TEMPLATES, type KeyChord } from '../lib/theory'
+import { downloadBytes, toMidi, type MidiNote } from '../lib/midi'
 
 type Sketch = { id: number; name: string; sel: number; minor: boolean; prog: KeyChord[]; melody: MelNote[]; bpm: number }
 
@@ -46,15 +47,25 @@ export default function Compose() {
   const [playing, setPlaying] = useState(false)
   const [rec, setRec] = useState(false)
   // части песни: у каждой своя гармония и мелодия; активная часть редактируется через prog/melody
-  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[] }[]>('cmp.parts', [{ name: 'Куплет', prog: [], melody: [] }, { name: 'Припев', prog: [], melody: [] }])
+  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[]; lyrics?: string }[]>('cmp.parts', [{ name: 'Куплет', prog: [], melody: [] }, { name: 'Припев', prog: [], melody: [] }])
   const [part, setPart] = useStored('cmp.part', 0)
   const switchPart = (i: number) => {
     if (i === part) return
     stop()
-    const saved = parts.map((p, j) => (j === part ? { ...p, prog, melody } : p))
-    setParts(saved); setPart(i); setProg(saved[i].prog); setMelody(saved[i].melody)
+    const saved = parts.map((p, j) => (j === part ? { ...p, prog, melody, lyrics } : p))
+    setParts(saved); setPart(i); setProg(saved[i].prog); setMelody(saved[i].melody); setLyrics(saved[i].lyrics ?? '')
   }
-  const allParts = parts.map((p, j) => (j === part ? { ...p, prog, melody } : p))
+  const [lyrics, setLyrics] = useStored('cmp.lyrics', '')
+  const [groove, setGroove] = useStored('cmp.groove', 'none')
+  const allParts = parts.map((p, j) => (j === part ? { ...p, prog, melody, lyrics } : p))
+  // слоги текста по порядку нот
+  const syls = syllabify(lyrics)
+  const order = melody.map((n, i) => ({ n, i })).sort((a, b) => a.n.beat - b.n.beat).map(x => x.i)
+  const sylOf: (string | undefined)[] = []
+  order.forEach((idx, k) => { const sy = syls[k]; sylOf[idx] = sy ? (sy.stress ? sy.s.toUpperCase() : sy.s) : undefined })
+  // просодия: ударный слог должен приходиться на сильную долю (Pattison, «Writing Better Lyrics»)
+  const weakStress = order.filter((idx, k) => syls[k]?.stress && melody[idx].beat % 1 !== 0).length
+  const strongStress = order.filter((idx, k) => syls[k]?.stress && melody[idx].beat % 1 === 0).length
 
   const keyPc = minor ? (CIRCLE[sel].pc + 9) % 12 : CIRCLE[sel].pc
   // бемольные тональности (Фа, Си♭…) и ♭-аккорды пишем через бемоли
@@ -71,8 +82,8 @@ export default function Compose() {
 
   // ---- транспорт: цикл по тактам, планируем на такт вперёд ----
   const t0 = useRef(0), scheduled = useRef(-1), timer = useRef(0)
-  const live = useRef({ prog, melody, beat, base, tonic })
-  live.current = { prog, melody, beat, base, tonic }
+  const live = useRef({ prog, melody, beat, base, tonic, groove: 'none' })
+  live.current = { prog, melody, beat, base, tonic, groove }
   const barAt = (t: number) => Math.floor((t - t0.current) / (4 * live.current.beat))
   const chordAt = (t: number): KeyChord | null => {
     const p = live.current.prog
@@ -87,7 +98,14 @@ export default function Compose() {
       const ch = prog[n % L]
       CHORDS[ch.q].iv.forEach(x => engine.play(base + ch.root + x, T, 4 * beat * 0.95, 34))
       engine.play(base - 12 + ch.root, T, 4 * beat * 0.95, 48)
-    } else if (n % L === 0) engine.click(true, T) // без гармонии — щелчок в начале круга
+    } else if (n % L === 0 && live.current.groove === 'none') engine.click(true, T) // без гармонии — щелчок в начале круга
+    const gr = GROOVES[live.current.groove]
+    for (let e = 0; e < 8; e++) {
+      const te = T + e * beat / 2
+      if (gr.k.includes(e)) engine.drum('kick', te)
+      if (gr.s.includes(e)) engine.drum('snare', te)
+      if (gr.h.includes(e)) engine.drum('hat', te, e % 2 ? 0.6 : 1)
+    }
     for (const nt of melody) {
       if (Math.floor(nt.beat / 4) === n % L) engine.play(nt.m, T + (nt.beat % 4) * beat, nt.d * beat * 0.95, 72)
     }
@@ -192,6 +210,34 @@ export default function Compose() {
     const name = `${minor ? CIRCLE[sel].minor + ' минор' : CIRCLE[sel].major + ' мажор'} · ${prog.map(c => c.roman).join('–')}`
     setSketches([{ id: Date.now(), name, sel, minor, prog, melody, bpm }, ...sketches].slice(0, 30))
   }
+  // экспорт всех частей подряд в MIDI: мелодия, аккорды, бас, барабаны
+  const exportMidi = () => {
+    const mel: MidiNote[] = [], ch: MidiNote[] = [], bass: MidiNote[] = [], dr: MidiNote[] = []
+    let off = 0
+    for (const p of allParts) {
+      const nb = p.prog.length || (p.melody.length ? 4 : 0)
+      p.melody.forEach(n => mel.push({ m: n.m, beat: off + n.beat, d: n.d, vel: 100 }))
+      p.prog.forEach((c, i) => {
+        CHORDS[c.q].iv.forEach(x => ch.push({ m: base + c.root + x, beat: off + i * 4, d: 4, vel: 70 }))
+        bass.push({ m: base - 12 + c.root, beat: off + i * 4, d: 4, vel: 85 })
+      })
+      const gr = GROOVES[groove]
+      for (let b = 0; b < nb; b++) for (let e = 0; e < 8; e++) {
+        const beatPos = off + b * 4 + e / 2
+        if (gr.k.includes(e)) dr.push({ m: 36, beat: beatPos, d: 0.25, vel: 100 })
+        if (gr.s.includes(e)) dr.push({ m: 38, beat: beatPos, d: 0.25, vel: 95 })
+        if (gr.h.includes(e)) dr.push({ m: 42, beat: beatPos, d: 0.25, vel: e % 2 ? 60 : 85 })
+      }
+      off += nb * 4
+    }
+    const keyName = minor ? CIRCLE[sel].minor + '-minor' : CIRCLE[sel].major + '-major'
+    downloadBytes(toMidi([
+      { name: 'Мелодия', channel: 0, notes: mel, program: 52 },
+      { name: 'Аккорды', channel: 1, notes: ch, program: 0 },
+      { name: 'Бас', channel: 2, notes: bass, program: 33 },
+      { name: 'Барабаны', channel: 9, notes: dr },
+    ], bpm), `raspevka-${keyName}-${bpm}bpm.mid`)
+  }
   const load = (s: Sketch) => { stop(); setSel(s.sel); setMinor(s.minor); setProg(s.prog); setMelody(s.melody); setBpm(s.bpm) }
 
   return (
@@ -255,6 +301,10 @@ export default function Compose() {
             {playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Играть по кругу</>}
           </button>
           <label className="chk"><input type="checkbox" checked={rec} disabled={!playing} onChange={e => setRec(e.target.checked)} /> Записывать ноты с клавиш</label>
+          <label className="tempo"><span>Барабаны</span>
+            <select value={groove} onChange={e => setGroove(e.target.value)}>{Object.entries(GROOVES).map(([k, g]) => <option key={k} value={k}>{g.name}</option>)}</select>
+          </label>
+          <button className="btn ghost small-btn" title="Случайная гармония из частых переходов" onClick={() => { setProg(diceProgression(dia, borrow, 4)); engine.ensureCtx() }}><Dices size={16} /> Кубик</button>
           <label className="tempo"><span>Темп {bpm}</span><input type="range" min={60} max={140} step={2} value={bpm} disabled={playing} onChange={e => setBpm(+e.target.value)} /></label>
           {prog.length > 0 && <button className="textbtn" onClick={() => { if (confirm('Очистить гармонию и мелодию?')) { stop(); setProg([]); setMelody([]) } }}><Trash2 size={14} /> Очистить</button>}
         </div>
@@ -307,10 +357,21 @@ export default function Compose() {
           <span className="muted small">{playing ? 'Напев запишется со следующего круга.' : `Без гармонии: такт отсчёта, затем ${bars} такта пой — получатся ноты.`}</span>
         </div>
         <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
-          pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} />
+          pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} labels={sylOf} />
+        <h2 style={{ marginTop: 20 }}>Текст</h2>
+        <textarea className="lyrics" value={lyrics} onChange={e => setLyrics(e.target.value)} rows={3}
+          placeholder="Пиши строку — слоги встанут под ноты по порядку. Ударение отмечай «+» после гласной: «гори+ в ночи+»" />
+        {lyrics.trim() && <CheckList items={[
+          { ok: syls.length === melody.length, text: syls.length === melody.length ? `Слогов столько же, сколько нот: ${melody.length}.` : `Слогов ${syls.length}, нот ${melody.length}. ${syls.length > melody.length ? 'Добавь нот или сократи строку.' : 'Лишние ноты — распевы на одном слоге; это нормально, если так задумано.'}` },
+          ...(strongStress + weakStress ? [{ ok: weakStress === 0, text: weakStress === 0 ? 'Все ударные слоги на долях — текст ложится естественно.' : `${weakStress} ${plural(weakStress, ['ударный слог', 'ударных слога', 'ударных слогов'])} между долями. Ударения лучше ставить на сильные доли, иначе слово звучит «с неправильным ударением».`, src: 'Pattison, Writing Better Lyrics' }] : []),
+        ]} />}
         <h2 style={{ marginTop: 20 }}>Разбор мелодии</h2>
         <MelodyAnalysis melody={melody} work={work} keyPc={keyPc} steps={steps} prog={prog} onTranspose={n => setMelody(melody.map(x => ({ ...x, m: x.m + n })))} />
-        <button className="btn" onClick={save} disabled={!prog.length && !melody.length} style={{ marginTop: 14 }}>Сохранить набросок</button>
+        <div className="row-btns" style={{ marginTop: 14 }}>
+          <button className="btn" onClick={save} disabled={!prog.length && !melody.length}>Сохранить набросок</button>
+          <button className="btn ghost" onClick={exportMidi} disabled={!allParts.some(p => p.prog.length || p.melody.length)}><Download size={16} /> Скачать MIDI</button>
+        </div>
+        <p className="muted small">MIDI: все части подряд — мелодия, аккорды, бас и барабаны отдельными дорожками. Открывается в GarageBand, Logic, Ableton, FL Studio.</p>
         <h2 style={{ marginTop: 24 }}>Сохранённые</h2>
         {sketches.length ? (
           <ul className="sketches">

@@ -17,6 +17,8 @@ type Props = {
   /** Позиция воспроизведения в долях, null — стоим */
   pos: number | null
   onPreview: (m: number) => void
+  /** Подписи нот (слоги текста) по индексу в melody */
+  labels?: (string | undefined)[]
 }
 
 const STEP = 0.5 // сетка — восьмые
@@ -25,7 +27,7 @@ const STEP = 0.5 // сетка — восьмые
  * Пианоролл для мелодии: клик по пустой клетке — нота на долю, клик по ноте — выбор.
  * Длительность, сдвиг и высота — кнопками или стрелками; фон клеток показывает роль ноты в аккорде такта.
  */
-export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, keyPc, steps, prog, pos, onPreview }: Props) {
+export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, keyPc, steps, prog, pos, onPreview, labels }: Props) {
   const [sel, setSel] = useState<number | null>(null)
   const cols = (bars * 4) / STEP
   const total = bars * 4
@@ -114,7 +116,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
               <button key={i} className={'mel-note' + (i === sel ? ' on' : '')} aria-label={`${noteName(n.m)}, ${n.d} доли`}
                 style={{ gridRow: row + 1, gridColumn: `${2 + n.beat / STEP} / span ${Math.max(1, n.d / STEP)}` }}
                 onPointerDown={e => onNoteDown(e, i)} onPointerMove={onNoteMove} onPointerUp={onNoteUp} onPointerCancel={() => { drag.current = null }}>
-                {noteName(n.m).replace(/\d+$/, '')}<span className="mel-handle" aria-hidden />
+                {labels?.[i] ?? noteName(n.m).replace(/\d+$/, '')}<span className="mel-handle" aria-hidden />
               </button>
             )
           })}

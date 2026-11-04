@@ -127,3 +127,61 @@ export function noteRole(midi: number, keyPc: number, steps: readonly number[], 
   if (chord && CHORDS[chord.q].iv.some(x => (chord.root + x) % 12 === pc)) return 'chord'
   return steps.includes(pc) ? 'scale' : 'out'
 }
+
+/** Барабанные рисунки на такт из 8 восьмых: k — бочка, s — малый, h — хэт */
+export const GROOVES: Record<string, { name: string; k: number[]; s: number[]; h: number[] }> = {
+  none: { name: 'Без барабанов', k: [], s: [], h: [] },
+  pop: { name: 'Поп', k: [0, 4, 5], s: [2, 6], h: [0, 1, 2, 3, 4, 5, 6, 7] },
+  ballad: { name: 'Баллада', k: [0, 5], s: [4], h: [0, 2, 4, 6] },
+  rock: { name: 'Рок', k: [0, 3, 4], s: [2, 6], h: [0, 1, 2, 3, 4, 5, 6, 7] },
+  half: { name: 'Половинный', k: [0], s: [4], h: [0, 2, 4, 6] },
+}
+
+/**
+ * «Кубик» гармонии: цепочка от тоники по частым переходам (NEXT), последний аккорд тянет обратно к I.
+ * Частотность переходов — по корпусам популярной музыки (de Clercq & Temperley 2011).
+ */
+export function diceProgression(dia: KeyChord[], extra: KeyChord[], len = 4, bold = 0.2): KeyChord[] {
+  const out: number[] = [0]
+  while (out.length < len) {
+    const opts = NEXT[out[out.length - 1]].filter(x => !(out.length === len - 1 && x === 0))
+    out.push(rand(opts.length ? opts : [3, 4]))
+  }
+  const prog = out.map(i => dia[i])
+  // иногда — один аккорд «взаймы» для краски, не на первом месте
+  if (extra.length && Math.random() < bold) prog[randInt(1, len - 1)] = rand(extra)
+  return prog
+}
+
+const VOWELS = 'аеёиоуыэюяАЕЁИОУЫЭЮЯaeiouyAEIOUY'
+
+/**
+ * Делит русский текст на слоги для подписи под нотами. Ударение пользователь отмечает «+» после гласной («мо+я»).
+ * Правило: на слог одна гласная; одиночная согласная между гласными уходит в следующий слог, из группы — первая остаётся.
+ */
+export function syllabify(text: string): { s: string; stress: boolean }[] {
+  const out: { s: string; stress: boolean }[] = []
+  let prefix = ''
+  for (const raw of text.split(/[\s\-—]+/).filter(Boolean)) {
+    const w = raw.replace(/[.,!?;:«»"()]/g, '')
+    const chars = [...w], vIdx: number[] = []
+    chars.forEach((c, i) => { if (VOWELS.includes(c)) vIdx.push(i) })
+    // слово без гласных («в», «к», «с») поётся вместе со следующим словом
+    if (!vIdx.length) { prefix += w.replace(/\+/g, '') + ' '; continue }
+    let start = 0
+    vIdx.forEach((v, k) => {
+      let end: number
+      if (k === vIdx.length - 1) end = chars.length
+      else {
+        const next = vIdx[k + 1]
+        const cons = chars.slice(v + 1, next).filter(c => c !== '+').length
+        end = v + 1 + (chars[v + 1] === '+' ? 1 : 0) + (cons >= 2 ? 1 : 0)
+      }
+      const piece = chars.slice(start, end).join('')
+      out.push({ s: (k === 0 ? prefix : '') + piece.replace(/\+/g, ''), stress: piece.includes('+') })
+      if (k === 0) prefix = ''
+      start = end
+    })
+  }
+  return out
+}

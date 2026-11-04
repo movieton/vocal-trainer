@@ -352,7 +352,16 @@ ol.plain li::marker { color: var(--muted) }
 .anchors { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: -8px 0 8px }
 .anchors a { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; font-size: 13px; color: var(--muted) }
 .analysis { display: grid; gap: 8px; margin-top: 8px }
+.dict-slots { display: flex; gap: 8px; align-items: center; margin: 16px 0 4px; flex-wrap: wrap }
+.dict-slots .slot { width: 48px; height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 22px system-ui; font-variant-numeric: tabular-nums }
+.dict-slots .slot small { font-size: 11px; font-weight: 600; color: var(--good) }
+.dict-slots .slot.right { border-color: var(--good) }
+.dict-slots .slot.wrong { border-color: var(--bad) }
+.answers.degs { grid-template-columns: repeat(8, 1fr) }
+.answers.degs .answer { display: flex; flex-direction: column; align-items: center; font-weight: 700; font-size: 18px }
+.answers.degs small { font-size: 11px; font-weight: 400; color: var(--muted) }
 .mel-editor { margin-top: 8px }
+.lyrics { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; resize: vertical; margin-top: 8px }
 .mel-group { display: inline-flex; align-items: center; gap: 4px }
 .mel-group > span { font-size: 12px; color: var(--muted); margin-right: 2px }
 .mel-tools .mel-del { width: auto; padding: 0 12px; gap: 6px; display: inline-flex; margin-left: auto }
@@ -433,6 +442,7 @@ th { color: var(--muted); font-weight: 500 }
   .modes { grid-template-columns: 1fr }
   .howto { grid-template-columns: 1fr }
   .breath { gap: 24px }
+  .answers.degs { grid-template-columns: repeat(4, 1fr) }
   .library .lib-sec .grid { gap: 6px }
   .library .lib-sec .tile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 10px; padding: 12px 14px; min-height: 56px }
   .library .lib-sec .tile .muted.small { display: none }

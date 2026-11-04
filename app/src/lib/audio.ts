@@ -184,6 +184,27 @@ class Engine {
     })
   }
 
+  /** Синтез барабанов: бочка — падающий синус, малый и хэт — отфильтрованный шум */
+  drum(kind: 'kick' | 'snare' | 'hat', time: number, vel = 1) {
+    const ctx = this.ensureCtx(), g = ctx.createGain()
+    g.connect(this.master!)
+    if (kind === 'kick') {
+      const o = ctx.createOscillator()
+      o.frequency.setValueAtTime(140, time); o.frequency.exponentialRampToValueAtTime(45, time + 0.12)
+      g.gain.setValueAtTime(0.55 * vel, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.25)
+      o.connect(g); o.start(time); o.stop(time + 0.3)
+      return
+    }
+    const len = kind === 'snare' ? 0.18 : 0.05
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate), d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter()
+    src.buffer = buf
+    f.type = kind === 'snare' ? 'bandpass' : 'highpass'; f.frequency.value = kind === 'snare' ? 1800 : 7000
+    g.gain.setValueAtTime((kind === 'snare' ? 0.35 : 0.12) * vel, time); g.gain.exponentialRampToValueAtTime(0.001, time + len)
+    src.connect(f).connect(g); src.start(time)
+  }
+
   /** Короткий щелчок метронома */
   click(accent = false, time = this.ensureCtx().currentTime) {
     const ctx = this.ensureCtx()

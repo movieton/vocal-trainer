@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine, SIM } from '../lib/audio'
@@ -15,7 +16,9 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
   const r = useWorkRange()
   // «до» рабочей октавы: для мужских голосов малая, для женских первая
   const base = r.lo < 52 ? 48 : 60
-  const [note, setNote] = useState(presets ? base + presets[0] : Math.round((r.lo + r.hi) / 2) - 2)
+  const [params] = useSearchParams()
+  const fromPlan = Number(params.get('note')) || null
+  const [note, setNote] = useState(presets ? base + presets[0] : fromPlan ?? Math.round((r.lo + r.hi) / 2) - 2)
   const bestKey = presets ? `${id}:${note}` : id
   const [best, setBest] = useStored<Record<string, number>>('breathBest', {})
   const [res, setRes] = useState<{ sec: number; stable: number; tone: ReturnType<typeof analyzeTone> } | null>(null)

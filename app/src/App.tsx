@@ -17,6 +17,7 @@ import Circle from './pages/Circle'
 import Rhythm from './pages/Rhythm'
 import Drone from './pages/Drone'
 import Threshold from './pages/Threshold'
+import Dictation from './pages/Dictation'
 import { Levels, Melody } from './pages/EarMore'
 
 const NAV = [
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/ear/drone" element={<Drone />} />
             <Route path="/ear/degrees" element={<FunctionalQuiz />} />
             <Route path="/ear/threshold" element={<Threshold />} />
+            <Route path="/ear/dictation" element={<Dictation />} />
             <Route path="/ear/sing-degree" element={<SingDegree />} />
             <Route path="/breath" element={<BreathList />} />
             <Route path="/breath/:id" element={<BreathRun />} />
