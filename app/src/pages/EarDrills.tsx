@@ -158,7 +158,7 @@ export function Harmony() {
       for (const x of [0, 4, 7]) piano.push({ m: key - 12 + x, t: 0, d: 2 * b, vel: 40 })
       const A = 2 * b, B = A + len * b + b
       degs.forEach((d, n) => {
-        piano.push({ m: key + degree(d), t: A + n * b, d: b * 0.9, vel: 70 })
+        piano.push({ m: key + degree(d), t: A + n * b, d: b * 0.9, vel: 70, voice: true })
         notes.push({ m: key + degree(d), t: A + n * b, d: b * 0.9, sing: false })
         piano.push({ m: key + degree(d), t: B + n * b, d: b * 0.9, vel: 55 })
         notes.push({ m: key + degree(d), t: B + n * b, d: b * 0.9, sing: false })
@@ -188,7 +188,7 @@ export function PitchMatch() {
   const make = () => (i: number): Phrase | null => {
     if (i >= 12) return null
     const m = randInt(r.lo + 2, r.hi - 2)
-    return { label: noteName(m), piano: [{ m, t: 0, d: 1.2, vel: 70 }], notes: [{ m, t: 1.5, d: 1.8, sing: true, hidden: !hints }], len: 3.3 }
+    return { label: noteName(m), piano: [{ m, t: 0, d: 1.2, vel: 70, voice: true }], notes: [{ m, t: 1.5, d: 1.8, sing: true, hidden: !hints }], len: 3.3 }
   }
   return (
     <DrillPage id="pitch-match" settingsKey={String(hints)} title="Повтори ноту" make={make} windowSec={6}
@@ -215,7 +215,7 @@ export function SingInterval() {
     const name = INTERVALS[st - 1].name
     return {
       label: `${name} ${down ? 'вниз' : 'вверх'}`,
-      piano: [{ m: root, t: 0, d: 1, vel: 70 }],
+      piano: [{ m: root, t: 0, d: 1, vel: 70, voice: true }],
       notes: [{ m: root, t: 1.1, d: 0.8, sing: true }, { m: to, t: 2, d: 1.4, sing: true, hidden: !hints }],
       marks: [{ t: 0, text: `${name} ${down ? '↓' : '↑'}` }],
       len: 3.5,

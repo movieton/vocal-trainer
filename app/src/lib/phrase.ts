@@ -5,7 +5,8 @@ import { targetAt, type NoteResult, type Target } from './run'
 /** Фраза упражнения в секундах от её начала */
 export type Phrase = {
   label?: string
-  piano: { m: number; t: number; d: number; vel?: number }[]
+  /** voice: эталонная мелодическая нота — звучит выбранным тембром эталона */
+  piano: { m: number; t: number; d: number; vel?: number; voice?: boolean }[]
   /** sing: false — нота-ориентир (контур), hidden — твоя нота скрыта до момента, пока не пройдёт */
   notes: { m: number; mEnd?: number; t: number; d: number; syl?: string; sing: boolean; hidden?: boolean }[]
   len: number
@@ -21,6 +22,7 @@ export class PhraseRun {
   tolerance: number
   i = 0
   targets: Target[] = []
+  all: Target[] = []
   results: PhraseResult[] = []
   label = ''
   done = false
@@ -56,8 +58,11 @@ export class PhraseRun {
     this.t0 = t
     this.label = p.label ?? ''
     const k = this.shift
-    for (const e of p.piano) engine.play(e.m + k, t + e.t, e.d, e.vel ?? 60)
-    for (const n of p.notes) this.targets.push({ midi: n.m + k, midiEnd: n.mEnd != null ? n.mEnd + k : undefined, t0: t + n.t, t1: t + n.t + n.d, syl: n.syl, sing: n.sing, hidden: n.hidden, rep: this.i })
+    for (const e of p.piano) (e.voice ? engine.ref : engine.play).call(engine, e.m + k, t + e.t, e.d, e.vel ?? 60)
+    for (const n of p.notes) {
+      const tg = { midi: n.m + k, midiEnd: n.mEnd != null ? n.mEnd + k : undefined, t0: t + n.t, t1: t + n.t + n.d, syl: n.syl, sing: n.sing, hidden: n.hidden, rep: this.i }
+      this.targets.push(tg); this.all.push(tg)
+    }
     const sung = p.notes.filter(n => n.sing)
     this.singStart = t + (sung.length ? Math.min(...sung.map(n => n.t)) : p.len)
     this.targets = this.targets.filter(g => g.rep >= this.i - 1)

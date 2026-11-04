@@ -316,6 +316,26 @@ ol.plain li::marker { color: var(--muted) }
 .bar-row div { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden }
 .bar-row i { display: block; height: 100%; background: var(--accent); border-radius: 5px }
 .bar-row b { text-align: right; font-variant-numeric: tabular-nums }
+.tone-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 }
+.tone-stats div { background: var(--bg); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column }
+.tone-stats b { font-size: 18px; font-variant-numeric: tabular-nums } .tone-stats span { font-size: 12px; color: var(--muted) }
+/* доказательность — одна шкала по насыщенности: залитая → контур → текст → пунктир */
+.ev { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid transparent; color: var(--muted); white-space: nowrap }
+.ev-И { background: var(--text); color: var(--bg) }
+.ev-Ш { border-color: var(--text); color: var(--text) }
+.ev-П { border-color: var(--line) }
+.ev-Т { border: 1px dashed var(--line); font-weight: 500 }
+.ev-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -8px 0 8px }
+.goal-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.task-big { font-size: 22px; margin: 8px 0 4px } .task-big b { color: var(--accent) }
+.settings > label.chk { flex-direction: row; align-items: center; color: var(--text); font-size: 14px }
+.btn:disabled { background: var(--line); color: var(--muted); opacity: 1 }
+.btn.ghost:disabled, .btn.stop:disabled { background: transparent }
+.tile-top { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.note-box { background: color-mix(in srgb, var(--near) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--near) 35%, var(--line)); border-radius: 12px; padding: 12px 16px; font-size: 14px; max-width: 70ch }
+.vfe .card .btn { display: inline-flex; align-items: center; text-decoration: none; margin-top: 4px }
+.takebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0 }
+.takebar .muted { max-width: 60ch }
 .result ul { margin: 8px 0 0; padding-left: 20px }
 
 .lib-sec { margin: 28px 0 }
@@ -398,6 +418,7 @@ th { color: var(--muted); font-weight: 500 }
   .breath-meta .btn { width: 100% }
   [data-focus] .howto,
   [data-focus] .modes,
+  [data-focus] .drill-controls, [data-focus] .trainer .howto,
   [data-focus] .tabbar, [data-focus] .trainer .crumbs, [data-focus] .trainer-head p, [data-focus] .trainer .settings, [data-focus] .trainer > .small { display: none }
   [data-focus] .trainer { padding-bottom: 16px }
   [data-focus] .trainer h1 { font-size: 20px }

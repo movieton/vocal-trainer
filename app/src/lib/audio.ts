@@ -1,14 +1,16 @@
 import { PitchDetector } from 'pitchy'
 import { SplendidGrandPiano } from 'smplr'
 import { ftom, median, mtof } from './music'
+import { read } from './store'
 
 // ?sim — синтетический «голос» вместо микрофона, для проверки без певца
 export const SIM = new URLSearchParams(location.search).has('sim')
 
 export type PitchSample = { t: number; midi: number | null }
 export type MicState = 'off' | 'starting' | 'on' | 'error'
+export type Take = { url: string; t0: number; t1: number; history: PitchSample[] }
 
-const HISTORY_SEC = 40
+const HISTORY_SEC = 180
 
 class Engine {
   ctx: AudioContext | null = null
@@ -30,6 +32,11 @@ class Engine {
   private recent: number[] = []
   private listeners = new Set<() => void>()
   private running = false
+  private recSource: MediaStream | null = null
+  private recorder: MediaRecorder | null = null
+  private recChunks: Blob[] = []
+  private recT0 = 0
+  private droneNodes: AudioScheduledSourceNode[] = []
 
   now() { return this.ctx?.currentTime ?? 0 }
 
@@ -59,12 +66,16 @@ class Engine {
         this.simGain = ctx.createGain()
         this.simGain.gain.value = 0
         this.simOsc.connect(this.simGain).connect(this.analyser)
+        const dest = ctx.createMediaStreamDestination()
+        this.simGain.connect(dest)
+        this.recSource = dest.stream
         this.simOsc.start()
       } else {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         })
         ctx.createMediaStreamSource(stream).connect(this.analyser)
+        this.recSource = stream
       }
       this.buf = new Float32Array(this.analyser.fftSize)
       this.detector = PitchDetector.forFloat32Array(this.buf.length)
@@ -99,6 +110,79 @@ class Engine {
   }
 
   stopAll() { this.piano?.stop() }
+
+  /** Эталонная нота: пианино или голосовой тембр — по настройке */
+  ref(midi: number, time: number, dur: number, velocity = 70) {
+    if (read('refVoice', false)) this.playVoice(midi, time, dur, velocity)
+    else this.play(midi, time, dur, velocity)
+  }
+
+  /**
+   * «Голосовой» эталон: пила через форманты гласной «а», лёгкое вибрато и мягкая атака.
+   * Подражать голосовому тембру проще, чем фортепианному (Hutchins & Peretz 2012).
+   */
+  playVoice(midi: number, time: number, dur: number, velocity = 70) {
+    const ctx = this.ensureCtx()
+    const o = ctx.createOscillator(), vib = ctx.createOscillator(), vibG = ctx.createGain(), out = ctx.createGain()
+    o.type = 'sawtooth'; o.frequency.value = mtof(midi)
+    vib.frequency.value = 5.5; vibG.gain.value = mtof(midi) * 0.008
+    vib.connect(vibG).connect(o.frequency)
+    for (const [f, q, g] of [[750, 6, 1], [1150, 8, 0.6], [2600, 10, 0.25]] as const) {
+      const bp = ctx.createBiquadFilter(), fg = ctx.createGain()
+      bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; fg.gain.value = g
+      o.connect(bp).connect(fg).connect(out)
+    }
+    const peak = 0.5 * (velocity / 70)
+    out.gain.setValueAtTime(0, time)
+    out.gain.linearRampToValueAtTime(peak, time + 0.06)
+    out.gain.setValueAtTime(peak, time + Math.max(0.06, dur - 0.08))
+    out.gain.linearRampToValueAtTime(0, time + dur)
+    out.connect(this.master!)
+    o.start(time); vib.start(time); o.stop(time + dur + 0.05); vib.stop(time + dur + 0.05)
+  }
+
+  /** Непрерывный фон (тоника + квинта) для пения под дрон */
+  drone(midi: number | null) {
+    const ctx = this.ensureCtx()
+    this.droneNodes.forEach(n => { try { n.stop() } catch { /* уже остановлен */ } })
+    this.droneNodes = []
+    if (midi == null) return
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0, ctx.currentTime); g.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.5)
+    g.connect(this.master!)
+    for (const [m, type, a] of [[midi, 'sawtooth', 0.5], [midi + 7, 'sawtooth', 0.3], [midi - 12, 'triangle', 0.8]] as const) {
+      const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), og = ctx.createGain()
+      o.type = type; o.frequency.value = mtof(m); lp.type = 'lowpass'; lp.frequency.value = 1200; og.gain.value = a
+      o.connect(lp).connect(og).connect(g); o.start()
+      this.droneNodes.push(o)
+    }
+  }
+
+  // ---- запись попытки (для прослушивания с кривой высоты) ----
+  startRecording() {
+    if (!this.recSource || typeof MediaRecorder === 'undefined') return false
+    this.recChunks = []
+    this.recorder = new MediaRecorder(this.recSource)
+    this.recorder.ondataavailable = e => { if (e.data.size) this.recChunks.push(e.data) }
+    this.recorder.start()
+    this.recT0 = this.now()
+    return true
+  }
+
+  stopRecording(): Promise<Take | null> {
+    const rec = this.recorder
+    if (!rec || rec.state === 'inactive') return Promise.resolve(null)
+    const t0 = this.recT0, t1 = this.now()
+    const history = this.history.filter(s => s.t >= t0 && s.t <= t1)
+    return new Promise(res => {
+      rec.onstop = () => {
+        const blob = new Blob(this.recChunks, { type: rec.mimeType || 'audio/webm' })
+        res({ url: URL.createObjectURL(blob), t0, t1, history })
+      }
+      rec.stop()
+      this.recorder = null
+    })
+  }
 
   /** Короткий щелчок метронома */
   click(accent = false, time = this.ensureCtx().currentTime) {

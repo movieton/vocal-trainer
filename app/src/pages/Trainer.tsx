@@ -7,10 +7,11 @@ import { noteName } from '../lib/music'
 import { buildRoots, ExerciseRun, type Key, type Mode, type Phase, type Target } from '../lib/run'
 import { logSession, useStored, useWorkRange } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
+import { RefTimbre, TakeBar, useTake } from '../components/Take'
 import { TEXTS } from '../data/exerciseTexts'
 import KeySelect from '../components/KeySelect'
 
-const PHASE: Record<Phase, string> = { idle: '', cue: 'Тональность…', listen: 'Слушай', breath: 'Вдох', sing: 'Пой', done: '' }
+const PHASE: Record<Phase, string> = { idle: '', cue: 'Тональность…', listen: 'Слушай', inner: 'Услышь про себя', breath: 'Вдох', sing: 'Пой', done: '' }
 const MODES: { id: Mode; title: string; text: string }[] = [
   { id: 'together', title: 'Вместе', text: 'Поёшь сразу под пианино' },
   { id: 'call', title: 'Повтори один', text: 'Пианино, затем ты без него' },
@@ -27,6 +28,9 @@ export default function Trainer() {
   const [shift, setShift] = useState(0)
   const [key, setKey] = useStored<Key>('exKey', 'auto')
   const [repeat, setRepeat] = useState(false)
+  const [inner, setInner] = useStored('exInner', false)
+  const [fade, setFade] = useStored('exFade', false)
+  const tk = useTake()
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState({ phase: 'idle' as Phase, rep: 0, total: 0, last: null as number | null })
   const [result, setResult] = useState<Summary | null>(null)
@@ -38,6 +42,7 @@ export default function Trainer() {
     const cur = run.current
     if (!cur) return
     cur.stop(); run.current = null; setRunning(false)
+    void tk.end(cur.all)
     setStatus(s => ({ ...s, phase: 'idle' }))
     if (cur.results.length && ex) {
       const sum = cur.summary()
@@ -49,8 +54,9 @@ export default function Trainer() {
   const start = () => {
     if (!ex) return
     setResult(null)
-    const x = new ExerciseRun(ex, { range: r, mode, tempo, tolerance: tol, shift, key })
+    const x = new ExerciseRun(ex, { range: r, mode, tempo, tolerance: tol, shift, key, inner, fade })
     x.repeat = repeat
+    tk.stop(); tk.begin()
     run.current = x; x.start(); setRunning(true)
   }
 
@@ -102,6 +108,10 @@ export default function Trainer() {
   }
 
   const view = () => {
+    if (tk.replay && tk.take?.targets.length) {
+      const ms = tk.take.targets.flatMap(t => [t.midi, t.midiEnd ?? t.midi])
+      return { lo: Math.min(...ms) - 2, hi: Math.max(Math.max(...ms) + 2, Math.min(...ms) + 9) }
+    }
     const x = run.current
     const root = x ? x.root : buildRoots(ex, r, shift, key)[0]
     const notes = ex.notes.filter(n => !n.rest).flatMap(n => [n.s, n.glide ?? n.s])
@@ -130,7 +140,8 @@ export default function Trainer() {
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
-          <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>
+          {tk.playing ? <button className="btn stop" onClick={tk.stop}>■ Остановить запись</button>
+            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>}
           <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> Повторять фразу</label>
           <span className="status">
             {running && <span>Круг {status.rep} / {status.total}</span>}
@@ -138,10 +149,14 @@ export default function Trainer() {
           </span>
         </div>
       )}
-      <PianoRoll view={view} targets={() => run.current?.targets ?? preview()} tolerance={tol} windowSec={windowSec} playhead={0.2}
-        overlay={() => (run.current ? PHASE[run.current.phase] : '')} className="tall" />
+      <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? preview())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.2}
+        overlay={() => (tk.replay ? 'Запись' : run.current ? PHASE[run.current.phase] : '')} className="tall" />
+      {!running && <TakeBar t={tk} />}
 
       <div className="settings">
+        <RefTimbre disabled={running} />
+        <label className="chk"><input type="checkbox" checked={inner} disabled={running} onChange={e => setInner(e.target.checked)} /> Пауза «услышь про себя»</label>
+        <label className="chk"><input type="checkbox" checked={fade} disabled={running} onChange={e => setFade(e.target.checked)} /> Подсказка через круг</label>
         <label>Темп {Math.round(tempo * 100)}%
           <input type="range" min={0.6} max={1.4} step={0.05} value={tempo} onChange={e => setTempo(+e.target.value)} disabled={running} />
         </label>

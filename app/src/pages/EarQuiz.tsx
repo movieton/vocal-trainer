@@ -3,27 +3,43 @@ import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
 import { INTERVALS, noteName } from '../lib/music'
 import { logSession, useStored } from '../lib/store'
-import { CHORDS, rand, randInt, type ChordQ } from '../lib/theory'
+import { CHORDS, randInt, type ChordQ } from '../lib/theory'
 
 type Option = { id: string; label: string }
 type Question = { answer: string; play: () => void; reveal: string }
 
 /** Общий экран «узнай на слух»: кнопка «Послушать», варианты ответа, счёт и серия */
-function Quiz({ id, title, intro, options, make, controls }: {
-  id: string; title: string; intro: string; options: Option[]; make: () => Question; controls?: React.ReactNode
+type Stats = Record<string, { ok: number; all: number }>
+
+/**
+ * Взвешенный выбор: чаще то, где ошибаешься, и то, что давно не встречалось.
+ * Интервальные повторения и перемешивание дают более прочное обучение (Cepeda 2006; Rohrer & Taylor 2007).
+ */
+function weightedPick(ids: string[], stats: Stats) {
+  const w = ids.map(id => { const s = stats[id]; return s && s.all >= 3 ? 0.3 + 2.5 * (1 - s.ok / s.all) : 1.5 })
+  let r = Math.random() * w.reduce((a, x) => a + x, 0)
+  for (let i = 0; i < ids.length; i++) { r -= w[i]; if (r <= 0) return ids[i] }
+  return ids[ids.length - 1]
+}
+
+function Quiz({ id, family, title, intro, options, make, controls }: {
+  id: string; family: string; title: string; intro: string; options: Option[]; make: (pick: (ids: string[]) => string) => Question; controls?: React.ReactNode
 }) {
   const [q, setQ] = useState<Question | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [stat, setStat] = useState({ ok: 0, all: 0, streak: 0 })
   const [best, setBest] = useStored<Record<string, number>>('quizBest', {})
 
-  const next = () => { const n = make(); setQ(n); setPicked(null); n.play() }
+  const [stats, setStats] = useStored<Stats>('qs:' + family, {})
+  const next = () => { const n = make(ids => weightedPick(ids, stats)); setQ(n); setPicked(null); n.play() }
   const pick = (opt: string) => {
     if (!q || picked) return
     setPicked(opt)
     const ok = opt === q.answer
     const s = { ok: stat.ok + (ok ? 1 : 0), all: stat.all + 1, streak: ok ? stat.streak + 1 : 0 }
     setStat(s)
+    const cur = stats[q.answer] ?? { ok: 0, all: 0 }
+    setStats({ ...stats, [q.answer]: { ok: cur.ok + (ok ? 1 : 0), all: cur.all + 1 } })
     if (s.streak > (best[id] ?? 0)) setBest({ ...best, [id]: s.streak })
     if (s.all % 10 === 0) logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round((s.ok / s.all) * 100), reps: s.all })
   }
@@ -55,6 +71,7 @@ function Quiz({ id, title, intro, options, make, controls }: {
             })}
           </div>
         )}
+        <WeakSpots stats={stats} options={options} />
       </div>
     </div>
   )
@@ -67,8 +84,8 @@ export function IntervalQuiz() {
   const [mode, setMode] = useStored<'up' | 'down' | 'harm'>('iq.mode', 'up')
   const pool = set === 'easy' ? [2, 4, 5, 7, 12] : set === 'mid' ? [2, 3, 4, 5, 7, 8, 9, 12] : [...Array(12).keys()].map(i => i + 1)
   const options = pool.map(st => ({ id: String(st), label: INTERVALS[st - 1].name }))
-  const make = (): Question => {
-    const st = rand(pool), root = randInt(52, 64), to = mode === 'down' ? root - st : root + st
+  const make = (pick: (ids: string[]) => string): Question => {
+    const st = +pick(pool.map(String)), root = randInt(52, 64), to = mode === 'down' ? root - st : root + st
     return {
       answer: String(st),
       reveal: `${INTERVALS[st - 1].name}: ${noteName(root)} → ${noteName(to)}`,
@@ -80,7 +97,7 @@ export function IntervalQuiz() {
     }
   }
   return (
-    <Quiz id={`iq-${set}-${mode}`} title="Узнай интервал" options={options} make={make}
+    <Quiz id={`iq-${set}-${mode}`} family={`iq-${mode}`} title="Узнай интервал" options={options} make={make}
       intro="Звучат две ноты, выбери расстояние между ними. Мелодический интервал — ноты по очереди, гармонический — вместе."
       controls={<>
         <label>Набор <span className="seg">{[['easy', 'Лёгкие'], ['mid', 'Средние'], ['all', 'Все 12']].map(([v, t]) => <button key={v} aria-pressed={set === v} onClick={() => setSet(v)}>{t}</button>)}</span></label>
@@ -96,8 +113,8 @@ export function ChordQuiz() {
   const [arp, setArp] = useStored('cq.arp', false)
   const pool = CHORD_SETS[set]
   const options = pool.map(q => ({ id: q, label: CHORDS[q].name }))
-  const make = (): Question => {
-    const q = rand(pool), root = randInt(48, 60)
+  const make = (pick: (ids: string[]) => string): Question => {
+    const q = pick(pool) as ChordQ, root = randInt(48, 60)
     return {
       answer: q,
       reveal: `${noteName(root)} ${CHORDS[q].name}`,
@@ -108,11 +125,20 @@ export function ChordQuiz() {
     }
   }
   return (
-    <Quiz id={`cq-${set}`} title="Узнай аккорд" options={options} make={make}
+    <Quiz id={`cq-${set}`} family="cq" title="Узнай аккорд" options={options} make={make}
       intro="Звучит аккорд — определи его вид. Мажор звучит светло, минор — грустно, уменьшённый — тревожно, увеличенный — «подвешенно»."
       controls={<>
         <label>Набор <span className="seg">{[['basic', 'Мажор / минор'], ['triads', 'Все трезвучия'], ['sevenths', 'Септаккорды']].map(([v, t]) => <button key={v} aria-pressed={set === v} onClick={() => setSet(v)}>{t}</button>)}</span></label>
         <label className="chk"><input type="checkbox" checked={arp} onChange={e => setArp(e.target.checked)} /> Играть по нотам (арпеджио)</label>
       </>} />
+  )
+}
+
+function WeakSpots({ stats, options }: { stats: Stats; options: Option[] }) {
+  const rows = options.map(o => ({ o, s: stats[o.id] })).filter(x => x.s && x.s.all >= 3)
+    .map(x => ({ ...x, acc: x.s!.ok / x.s!.all })).sort((a, b) => a.acc - b.acc).slice(0, 4)
+  if (!rows.length) return null
+  return (
+    <p className="muted small weak">Слабые места — встречаются чаще: {rows.map(r => `${r.o.label} ${Math.round(r.acc * 100)}%`).join(' · ')}</p>
   )
 }

@@ -4,6 +4,16 @@ import { BREATH, BREATH_GROUPS, type BreathEx } from '../data/breath'
 import { engine } from '../lib/audio'
 import { logSession, useStored } from '../lib/store'
 import LongNote from './LongNote'
+import { MicGate } from '../components/Mic'
+
+export const EVIDENCE = {
+  И: { label: 'исследования', title: 'Эффект подтверждён исследованиями' },
+  Ш: { label: 'признанная школа', title: 'Входит в признанные вокальные методики' },
+  П: { label: 'практика педагогов', title: 'Распространённая практика, строгих исследований нет' },
+  Т: { label: 'традиция', title: 'Традиция без доказательств пользы для голоса' },
+} as const
+
+export const Evidence = ({ e }: { e: keyof typeof EVIDENCE }) => <span className={'ev ev-' + e} title={EVIDENCE[e].title}>{EVIDENCE[e].label}</span>
 
 export function BreathList() {
   const [best] = useStored<Record<string, number>>('breathBest', {})
@@ -11,16 +21,17 @@ export function BreathList() {
     <div className="page">
       <h1>Дыхание</h1>
       <p className="muted">Опора, вдох и контроль выдоха. Делай стоя, плечи свободны. 2–3 упражнения перед распевкой достаточно. Если закружится голова, остановись.</p>
+      <p className="ev-legend small muted">Доказательность: <Evidence e="И" /> <Evidence e="Ш" /> <Evidence e="П" /> <Evidence e="Т" /> — от подтверждённого исследованиями к традиции без доказательств. <Link to="/theory/hygiene">Подробнее о здоровье голоса</Link></p>
       {(Object.keys(BREATH_GROUPS) as (keyof typeof BREATH_GROUPS)[]).map(g => (
         <section key={g} className="lib-sec">
           <h2>{BREATH_GROUPS[g]}</h2>
           <div className="grid">
             {BREATH.filter(b => b.group === g).map(b => (
               <Link key={b.id} to={`/breath/${b.id}`} className="tile">
-                <span className="lvl">{'●'.repeat(b.level)}{'○'.repeat(3 - b.level)}</span>
+                <span className="tile-top"><span className="lvl">{'●'.repeat(b.level)}{'○'.repeat(3 - b.level)}</span><Evidence e={b.evidence} /></span>
                 <strong>{b.title}</strong>
                 <span className="muted small">{b.goal}</span>
-                <span className="syl">{b.type === 'cycle' ? `${totalSec(b)} с` : b.type === 'stopwatch' ? (best[b.id] ? `Рекорд ${best[b.id].toFixed(1)} с` : 'Замер') : 'С микрофоном'}</span>
+                <span className="syl">{b.type === 'cycle' ? `${totalSec(b)} с` : b.type === 'stopwatch' ? (best[b.id] ? `Рекорд ${best[b.id].toFixed(1)} с` : 'Замер') : b.type === 'vfe' ? '4 упражнения' : 'С микрофоном'}</span>
               </Link>
             ))}
           </div>
@@ -40,10 +51,12 @@ export function BreathRun() {
     <div className="page">
       <div className="crumbs"><Link to="/breath">Дыхание</Link> / {BREATH_GROUPS[ex.group]}</div>
       <h1>{ex.title}</h1>
-      <p className="muted">{ex.goal}</p>
+      <p className="muted goal-line"><span>{ex.goal}</span><Evidence e={ex.evidence} /></p>
+      {ex.evidence === 'Т' && <p className="note-box">Это традиционная методика: строгих данных о её пользе для голоса нет. Можно делать как общую дыхательную разминку, но для голоса надёжнее упражнения из «Здоровья голоса» и «Дыхания в пении».</p>}
       {ex.type === 'cycle' && <Cycle ex={ex} />}
       {ex.type === 'stopwatch' && <Stopwatch ex={ex} />}
       {ex.type === 'longnote' && <LongNote />}
+      {ex.type === 'vfe' && <Vfe />}
       <div className="howto">
         <div><h2>Как делать</h2><ol>{ex.how.map(t => <li key={t}>{t}</li>)}</ol></div>
         {ex.mistakes && <div><h2>Частые ошибки</h2><ul>{ex.mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>}
@@ -133,6 +146,31 @@ function Stopwatch({ ex }: { ex: BreathEx }) {
       <div className="breath-meta">
         <span className="muted">Рекорд: <b>{best[ex.id] ? best[ex.id].toFixed(1) + ' с' : '—'}</b>. Хороший ориентир для начала — 20 секунд, для тренированного певца — 40 и больше.</span>
         <button className={'btn' + (on ? ' stop' : '')} onClick={toggle}>{on ? 'Стоп' : 'Старт'}</button>
+      </div>
+    </div>
+  )
+}
+
+/** Vocal Function Exercises (Stemple): 4 упражнения, по 2 раза, утром и вечером */
+function Vfe() {
+  return (
+    <div className="vfe">
+      <MicGate />
+      <div className="card"><h2>1. Разогрев: «и» на одной ноте</h2>
+        <p className="muted small">Тихо, с вибрацией на губах, как можно дольше без напряжения. Нота для твоего голоса — Фа.</p>
+        <LongNote presets={[5]} id="vfe1" noGate />
+      </div>
+      <div className="card"><h2>2. Растяжка: глиссандо вверх</h2>
+        <p className="muted small">На слове «ноль» (звук «о» с губами в «у») плавно от самой низкой ноты к самой высокой. Без рывков на переходах.</p>
+        <Link to="/ex/ng-siren" className="btn ghost">Открыть сирену на доске</Link>
+      </div>
+      <div className="card"><h2>3. Сжатие: глиссандо вниз</h2>
+        <p className="muted small">Так же на «ноль», но сверху вниз, до самой низкой ноты.</p>
+        <Link to="/ex/yawn-sigh" className="btn ghost">Открыть спуск на доске</Link>
+      </div>
+      <div className="card"><h2>4. Сила: длинные ноты До–Соль</h2>
+        <p className="muted small">Каждую ноту — «и» как можно дольше, тихо и ровно. Рекорд сохраняется для каждой ноты.</p>
+        <LongNote presets={[0, 2, 4, 5, 7]} id="vfe4" noGate />
       </div>
     </div>
   )

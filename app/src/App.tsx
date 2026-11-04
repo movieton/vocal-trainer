@@ -15,6 +15,7 @@ import { ChordSing, Harmony, PitchMatch, ScaleSing, SingInterval } from './pages
 import { ChordQuiz, IntervalQuiz } from './pages/EarQuiz'
 import Circle from './pages/Circle'
 import Rhythm from './pages/Rhythm'
+import Drone from './pages/Drone'
 import { Levels, Melody } from './pages/EarMore'
 
 const NAV = [
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/ear/levels" element={<Levels />} />
             <Route path="/ear/melody" element={<Melody />} />
             <Route path="/ear/rhythm" element={<Rhythm />} />
+            <Route path="/ear/drone" element={<Drone />} />
             <Route path="/breath" element={<BreathList />} />
             <Route path="/breath/:id" element={<BreathRun />} />
             <Route path="/theory" element={<TheoryList />} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { engine } from '../lib/audio'
+import { engine, type PitchSample } from '../lib/audio'
 import { isBlack, noteName } from '../lib/music'
 import { targetAt, type Target } from '../lib/run'
 
@@ -19,21 +19,28 @@ type Props = {
   neutral?: boolean
   /** Своя раскраска голоса: имя CSS-переменной цвета для высоты в момент t */
   colorFor?: (midi: number, t: number) => string | null
+  /** Прослушивание записи: своё время и своя история высоты вместо живых */
+  replay?: { clock: () => number; history: PitchSample[] } | null
+  /** Дополнительная подпись строки (например, номер ступени); null — строка вне лада, приглушается */
+  rowLabel?: (m: number) => string | null
   className?: string
 }
 
-const LABEL_W = 58
+const LABEL_W = 72
 
-export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, className }: Props) {
+export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
-  const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor })
-  props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor }
+  const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
+  props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
 
   useEffect(() => {
+    // новый экран — без следа голоса с прошлого
+    engine.history = []
     const cv = ref.current!
     const g = cv.getContext('2d')!
     const draw = () => {
-      const { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor } = props.current
+      const { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
+      const hist = replay?.history ?? engine.history
       const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight
       if (!W || !H) return
       if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
@@ -46,13 +53,13 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
 
       let { lo, hi } = view()
       // голос всегда в кадре: если ушёл за край, доска раздвигается (не больше трёх октав)
-      const v = engine.current
+      const v = replay ? null : engine.current
       if (v != null) {
         if (v < lo + 0.5) lo = Math.max(Math.floor(v) - 1, hi - 36)
         if (v > hi - 0.5) hi = Math.min(Math.ceil(v) + 1, lo + 36)
       }
       const rows = hi - lo + 1, rh = H / rows
-      const now = engine.now()
+      const now = replay ? replay.clock() : engine.now()
       const t0 = now - windowSec * playhead
       const x = (t: number) => LABEL_W + ((t - t0) / windowSec) * (W - LABEL_W)
       const y = (m: number) => H - (m - lo + 0.5) * rh
@@ -73,13 +80,16 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
       }
       // подписи нот
       g.font = `${Math.min(12, Math.max(9, rh * 0.55))}px system-ui`; g.textBaseline = 'middle'; g.textAlign = 'left'
-      const cur = engine.current
+      let cur = engine.current
+      if (replay) { let last: number | null = null; for (const p of replay.history) { if (p.t > now) break; last = p.midi } cur = last }
       for (let m = lo; m <= hi; m++) {
         const active = cur != null && Math.round(cur) === m
         if (rh < 11 && !active && m % 12 !== 0 && m % 12 !== 7) continue
         g.fillStyle = active ? C.accent : C.label
         g.globalAlpha = isBlack(m) && !active ? 0.55 : 1
-        g.fillText(noteName(m), 8, y(m))
+        const extra = rowLabel?.(m)
+        if (rowLabel && extra === null && !active) g.globalAlpha = 0.3
+        g.fillText(noteName(m) + (extra ? ' · ' + extra : ''), 8, y(m))
       }
       g.globalAlpha = 1
       g.strokeStyle = C.line; g.beginPath(); g.moveTo(LABEL_W + 0.5, 0); g.lineTo(LABEL_W + 0.5, H); g.stroke()
@@ -120,7 +130,8 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
       g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round'
       let prev: [number, number] | null = null
       const sing = list.filter(t => t.sing)
-      for (const s of engine.history) {
+      for (const s of hist) {
+        if (s.t > now) break
         if (s.t < t0 - 0.1) continue
         if (s.midi == null) { prev = null; continue }
         const pt: [number, number] = [x(s.t), y(s.midi)]
@@ -162,8 +173,9 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
       if (label) {
         g.font = '700 20px system-ui'; g.textAlign = 'left'; g.textBaseline = 'top'
         const w = g.measureText(label).width
-        g.fillStyle = C.bg; g.globalAlpha = 0.85; g.beginPath(); g.roundRect(px + 6, 6, w + 16, 30, 8); g.fill(); g.globalAlpha = 1
-        g.fillStyle = C.accent; g.fillText(label, px + 14, 11)
+        const lx = px + w + 30 > W ? Math.max(LABEL_W + 4, px - w - 22) : px + 6
+        g.fillStyle = C.bg; g.globalAlpha = 0.85; g.beginPath(); g.roundRect(lx, 6, w + 16, 30, 8); g.fill(); g.globalAlpha = 1
+        g.fillStyle = C.accent; g.fillText(label, lx + 8, 11)
       }
     }
     draw()

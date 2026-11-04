@@ -12,7 +12,7 @@ function callResponse(key: number, degs: number[], beat: number, hidden = false,
   const piano: Phrase['piano'] = [], notes: Phrase['notes'] = []
   const A = 0, B = degs.length * beat + beat
   degs.forEach((d, i) => {
-    piano.push({ m: key + degree(d), t: A + i * beat, d: beat * 0.9, vel: 70 })
+    piano.push({ m: key + degree(d), t: A + i * beat, d: beat * 0.9, vel: 70, voice: true })
     notes.push({ m: key + degree(d), t: A + i * beat, d: beat * 0.9, sing: false })
     notes.push({ m: key + degree(d), t: B + i * beat, d: beat * 0.9, sing: true, hidden })
   })

@@ -5,6 +5,7 @@ import { LiveNote, MicGate, useEngine } from './Mic'
 import { engine } from '../lib/audio'
 import { PhraseRun, type Phrase } from '../lib/phrase'
 import type { Target } from '../lib/run'
+import { RefTimbre, TakeBar, useTake } from './Take'
 import { logSession, useStored, useWorkRange } from '../lib/store'
 import { noteName } from '../lib/music'
 
@@ -40,6 +41,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
   const [status, setStatus] = useState<{ n: number; last: number | null }>({ n: 0, last: null })
   const [result, setResult] = useState<{ score: number; reps: number; lines: string[] } | null>(null)
   const run = useRef<PhraseRun | null>(null)
+  const tk = useTake()
   const finishRef = useRef(onFinish)
   finishRef.current = onFinish
   // до старта — приглушённое превью первой фразы, след прошлого голоса стираем
@@ -55,6 +57,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
     const x = run.current
     if (!x) return
     x.stop(); run.current = null; setRunning(false)
+    void tk.end(x.all)
     // затухающий хвост звука успевает попасть в историю — чистим ещё раз чуть позже
     engine.history = []; setTimeout(() => { engine.history = [] }, 500)
     if (x.results.length) {
@@ -69,6 +72,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
     const x = new PhraseRun(make(), tol)
     x.repeat = repeat
     x.shift = shift
+    tk.stop(); tk.begin()
     run.current = x; x.start(); setRunning(true)
   }
 
@@ -92,7 +96,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
   // по вертикали — все видимые цели текущей и прошлой фразы с запасом
   const span = useRef({ lo: 52, hi: 64 })
   const view = () => {
-    const all = run.current?.targets ?? previewTargets()
+    const all = tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets()
     // по текущей фразе: от нижней ноты −2 до верхней +2, не меньше 9 рядов
     const lastRep = Math.max(...all.map(t => t.rep))
     const ts = all.filter(t => t.rep === lastRep)
@@ -107,6 +111,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
   }
   const overlay = () => {
     const x = run.current
+    if (tk.replay) return 'Запись'
     if (!x) return ''
     const mark = x.mark(engine.now())
     const ph = x.phase === 'sing' ? 'Пой' : 'Слушай'
@@ -123,6 +128,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
       {extra}
       <div className="settings drill-controls">
         {controls?.(running)}
+        <RefTimbre disabled={running} />
         {tolerance == null && <label>Строгость
           <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
             <option value={50}>Мягко, ±50 ц</option><option value={25}>Обычно, ±25 ц</option><option value={12}>Строго, ±12 ц</option>
@@ -142,7 +148,8 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
-          <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>
+          {tk.playing ? <button className="btn stop" onClick={tk.stop}>■ Остановить запись</button>
+            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>}
           <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> Повторять фразу</label>
           <span className="status">
             {running && <span>Фраза {status.n}</span>}
@@ -150,7 +157,8 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
           </span>
         </div>
       )}
-      <PianoRoll view={view} targets={() => run.current?.targets ?? previewTargets()} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" />
+      <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" />
+      {!running && <TakeBar t={tk} />}
       <div className="howto">
         {how && <div><h2>Как делать</h2><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></div>}
         {result && (

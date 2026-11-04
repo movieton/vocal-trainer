@@ -44,3 +44,28 @@ export const median = (a: number[]) => {
   const s = [...a].sort((x, y) => x - y)
   return s[s.length >> 1]
 }
+
+/**
+ * Анализ выдержанного звука по отсчётам высоты:
+ * sd — разброс вокруг средней высоты (центы, без учёта вибрато),
+ * rate/extent — частота (Гц) и размах (±центы) вибрато. Норма у певцов ~4,5–6,5 Гц, ±25–100 ц.
+ */
+export function analyzeTone(samples: { t: number; midi: number | null }[], target?: number, tol = 15) {
+  const pts = samples.filter(s => s.midi != null) as { t: number; midi: number }[]
+  if (pts.length < 20) return null
+  const dur = pts[pts.length - 1].t - pts[0].t
+  const center = median(pts.map(p => p.midi))
+  const cents = pts.map(p => (p.midi - center) * 100)
+  // медленный дрейф — скользящее среднее ~0,4 с; остаток — колебания вибрато
+  const win = Math.max(3, Math.round((pts.length / dur) * 0.4))
+  const slow = cents.map((_, i) => avg(cents.slice(Math.max(0, i - win), i + win + 1)))
+  const fast = cents.map((c, i) => c - slow[i])
+  let crossings = 0
+  for (let i = 1; i < fast.length; i++) if ((fast[i - 1] < 0) !== (fast[i] < 0)) crossings++
+  const rms = Math.sqrt(avg(fast.map(x => x * x)))
+  const rate = crossings / 2 / dur
+  const sd = Math.sqrt(avg(slow.map(x => x * x)))
+  // попадание по центру вибрато, а не по каждому колебанию
+  const inTune = target == null ? null : slow.filter(x => Math.abs(x + (center - target) * 100) <= tol).length / slow.length
+  return { sd, rate, extent: rms * Math.SQRT2, vibrato: rms * Math.SQRT2 > 12 && rate > 3.5 && rate < 8, center, inTune }
+}

@@ -18,13 +18,17 @@ export type Target = {
 
 /** together — сразу вместе с пианино; call — пианино, потом ты один; echo — пианино, потом снова пианино и ты сверху */
 export type Mode = 'together' | 'call' | 'echo'
-export type Phase = 'idle' | 'cue' | 'listen' | 'breath' | 'sing' | 'done'
+export type Phase = 'idle' | 'cue' | 'listen' | 'inner' | 'breath' | 'sing' | 'done'
 export type NoteResult = { m: number; score: number; cents: number | null }
 export type RepResult = { root: number; score: number; notes: NoteResult[] }
 
 /** key: 'auto' — тональность идёт по диапазону вверх и вниз; число — фиксированная тональность (0 = до) */
 export type Key = 'auto' | number
-export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key }
+/**
+ * inner — пауза «услышь про себя» между показом и пением (внутренний слух, Pfordresher & Halpern 2013);
+ * fade — затухающая подсказка: звук эталона во время пения только через круг
+ */
+export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key; inner?: boolean; fade?: boolean }
 
 /** Высота цели в момент t (с учётом глиссандо) */
 export const targetAt = (g: Target, t: number) =>
@@ -51,10 +55,13 @@ export class ExerciseRun {
   rep = 0
   repeat = false
   targets: Target[] = []
+  /** Все цели прогона — для прослушивания записи */
+  all: Target[] = []
   results: RepResult[] = []
   phase: Phase = 'idle'
   private repStart = 0
   private listenStart = 0
+  private listenEnd = 0
   private singStart = 0
   private singEnd = 0
 
@@ -90,25 +97,31 @@ export class ExerciseRun {
         const len = n.d * b
         if (!n.rest) {
           const t1 = cur + (n.stacc ? len * 0.5 : len)
-          this.targets.push({ midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.rep })
+          const tg = { midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.rep }
+          this.targets.push(tg); this.all.push(tg)
           if (playPiano) {
-            engine.play(root + n.s, cur, t1 - cur, vel)
-            if (n.glide != null) engine.play(root + n.glide, cur + len * 0.85, len * 0.3, vel - 15)
+            engine.ref(root + n.s, cur, t1 - cur, vel)
+            if (n.glide != null) engine.ref(root + n.glide, cur + len * 0.85, len * 0.3, vel - 15)
           }
         }
         cur += len
       }
     }
+    const hint = !this.opts.fade || this.rep % 2 === 0
     if (this.opts.mode !== 'together') {
       this.listenStart = cur
       place(false, true, 75)
+      this.listenEnd = cur
+      if (this.opts.inner) cur += 2 * b // услышь про себя
       cur += b // вдох
       this.singStart = cur
-      place(true, this.opts.mode === 'echo', 50)
+      place(true, this.opts.mode === 'echo' && hint, 50)
     } else {
       this.listenStart = cur
+      this.listenEnd = cur
+      if (this.opts.inner) { place(false, true, 75); this.listenEnd = cur; cur += 2 * b + b }
       this.singStart = cur
-      place(true, true, 50)
+      place(true, hint, 50)
     }
     this.singEnd = cur
     // держим в памяти только текущий и прошлый круг
@@ -120,7 +133,8 @@ export class ExerciseRun {
     if (this.phase === 'done' || this.repStart === 0) return false
     const prev = this.phase
     if (now < this.listenStart) this.phase = 'cue'
-    else if (now < this.singStart) this.phase = now < this.singStart - this.beat ? 'listen' : 'breath'
+    else if (now < this.listenEnd) this.phase = 'listen'
+    else if (now < this.singStart) this.phase = now < this.singStart - this.beat ? 'inner' : 'breath'
     else this.phase = 'sing'
     if (now > this.singEnd + 0.3) {
       this.scoreRep()
