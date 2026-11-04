@@ -1,64 +1,294 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-11-04T00:00:00Z",
-  "title": "Design System: Распевка",
+  "title": "Design System: fasol.app",
   "extensions": {
     "colorMeta": {
-      "accent-dark": { "role": "primary", "displayName": "Терракота (тёмная тема)", "canonical": "#e57c4b" },
-      "accent-light": { "role": "primary", "displayName": "Терракота (светлая тема)", "canonical": "#c2562b" },
-      "good-dark": { "role": "secondary", "displayName": "Попал", "canonical": "#4cc47e" },
-      "near-dark": { "role": "secondary", "displayName": "Рядом", "canonical": "#e8b53a" },
-      "bad-dark": { "role": "secondary", "displayName": "Мимо", "canonical": "#ee6a5f" },
-      "bg-dark": { "role": "neutral", "displayName": "Тёплая ночь", "canonical": "#131210" },
-      "surface-dark": { "role": "neutral", "displayName": "Поверхность", "canonical": "#1c1b18" },
-      "bg-light": { "role": "neutral", "displayName": "Слоновая кость", "canonical": "#f4f2ee" }
+      "cobalt": {
+        "role": "primary",
+        "displayName": "Cobalt",
+        "canonical": "#3454F4",
+        "tonalRamp": [
+          "#0E1A5C",
+          "#1A2C9A",
+          "#2540D0",
+          "#3454F4",
+          "#5C77F6",
+          "#8EA0FF",
+          "#C2CDFC",
+          "#E8ECFE"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Мягкий кобальт",
+        "canonical": "#E8ECFE"
+      },
+      "butter": {
+        "role": "secondary",
+        "displayName": "Butter",
+        "canonical": "#F6E69C",
+        "tonalRamp": [
+          "#5A4E12",
+          "#8C7A1E",
+          "#C2A934",
+          "#E3CB5E",
+          "#F6E69C",
+          "#F9EDB8",
+          "#FBF3D2",
+          "#FDF9EC"
+        ]
+      },
+      "good": {
+        "role": "tertiary",
+        "displayName": "Попал",
+        "canonical": "#1F9D57"
+      },
+      "near": {
+        "role": "tertiary",
+        "displayName": "Рядом",
+        "canonical": "#C98A00"
+      },
+      "bad": {
+        "role": "tertiary",
+        "displayName": "Мимо",
+        "canonical": "#D93F3F"
+      },
+      "chalk": {
+        "role": "neutral",
+        "displayName": "Chalk",
+        "canonical": "#F7F8FC"
+      },
+      "midnight": {
+        "role": "neutral",
+        "displayName": "Midnight",
+        "canonical": "#182044",
+        "tonalRamp": [
+          "#0A0E24",
+          "#0E1330",
+          "#182044",
+          "#2A3466",
+          "#45508A",
+          "#5B6488",
+          "#A3ABCF",
+          "#E2E6F3"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Поверхность",
+        "canonical": "#FFFFFF"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Линия",
+        "canonical": "#E2E6F3"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Приглушённый",
+        "canonical": "#5B6488"
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Живая нота", "purpose": "Только текущая нота в тюнере." },
-      "headline": { "displayName": "Заголовок страницы", "purpose": "h1; 24px на телефоне, 20px в режиме фокуса." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Заголовок главной, живая нота тюнера."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "h1 страницы, кобальт."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "h2 карточек."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Основной текст ≤ 70ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Подписи, легенды, чипы; без капса."
+      }
     },
     "shadows": [
-      { "name": "floating-bar", "value": "0 8px 24px rgba(0,0,0,.35)", "purpose": "Только плавающая панель «Сочинения» на телефоне." }
+      {
+        "name": "floating",
+        "value": "0 8px 24px rgba(0,0,0,.35)",
+        "purpose": "Только плавающие панели поверх контента: баннер обновления, липкая панель «Сочинения»."
+      }
     ],
     "motion": [
-      { "name": "border-hover", "value": "border-color .15s", "purpose": "Плитки: рамка в акцент при наведении." },
-      { "name": "meter", "value": "left .06s linear", "purpose": "Бегунок центов." }
+      {
+        "name": "bean-breathe",
+        "value": "scale 1→1.12, 2.8s ease-in-out infinite, задержка 0.1s на фасолину",
+        "purpose": "Дыхание волны фасолин; выключается prefers-reduced-motion."
+      },
+      {
+        "name": "border-hover",
+        "value": "border-color .15s",
+        "purpose": "Наведение на плитки."
+      }
     ],
-    "breakpoints": [ { "name": "phone", "value": "760px" } ]
+    "breakpoints": [
+      {
+        "name": "small-quiz",
+        "value": "560px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      }
+    ]
   },
   "components": [
-    { "name": "Primary Button", "kind": "button", "refersTo": "button-primary", "description": "Главное действие: Начать, Включить микрофон.",
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Главное действие.",
       "html": "<button class=\"ds-btn\">Начать</button>",
-      "css": ".ds-btn{border:0;border-radius:12px;padding:0 20px;min-height:44px;font:600 16px system-ui;cursor:pointer;background:var(--accent,#e57c4b);color:#fff}.ds-btn:hover{filter:brightness(1.05)}.ds-btn:focus-visible{outline:2px solid var(--accent,#e57c4b);outline-offset:2px}" },
-    { "name": "Ghost Button", "kind": "button", "refersTo": "button-ghost", "description": "Стоп, Прослушать попытку.",
-      "html": "<button class=\"ds-btn-ghost\">Стоп</button>",
-      "css": ".ds-btn-ghost{border:1px solid var(--line,#2f2d28);border-radius:12px;padding:0 20px;min-height:44px;font:600 16px system-ui;cursor:pointer;background:transparent;color:var(--text,#eeeae1)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#e57c4b);outline-offset:2px}" },
-    { "name": "Segmented", "kind": "chip", "refersTo": "seg-option-on", "description": "Переключатель режима/эталона.",
-      "html": "<span class=\"ds-seg\"><button aria-pressed=\"true\">Пианино</button><button aria-pressed=\"false\">Голос «а»</button></span>",
-      "css": ".ds-seg{display:inline-flex;background:var(--surface,#1c1b18);border:1px solid var(--line,#2f2d28);border-radius:10px;padding:3px;gap:2px}.ds-seg button{border:0;background:none;color:var(--muted,#9a9487);font:14px system-ui;padding:6px 12px;border-radius:8px;min-height:34px;cursor:pointer}.ds-seg button[aria-pressed=true]{background:var(--bg,#131210);color:var(--text,#eeeae1);font-weight:600}" },
-    { "name": "Card", "kind": "card", "refersTo": "card", "description": "Базовый контейнер секции.",
-      "html": "<div class=\"ds-card\"><h2>Программа на 15 минут</h2><p>0 из 5</p></div>",
-      "css": ".ds-card{background:var(--surface,#1c1b18);border:1px solid var(--line,#2f2d28);border-radius:16px;padding:20px;color:var(--text,#eeeae1);font:16px/1.5 system-ui}.ds-card h2{font-size:18px;margin:0 0 6px}.ds-card p{color:var(--muted,#9a9487);margin:0}" },
-    { "name": "Evidence Badges", "kind": "custom", "description": "Монохромная шкала доказательности.",
-      "html": "<span class=\"ds-ev ds-i\">исследования</span> <span class=\"ds-ev ds-s\">признанная школа</span> <span class=\"ds-ev ds-p\">практика педагогов</span> <span class=\"ds-ev ds-t\">традиция</span>",
-      "css": ".ds-ev{display:inline-block;font:600 11px system-ui;padding:2px 8px;border-radius:999px;border:1px solid transparent;color:var(--muted,#9a9487)}.ds-i{background:var(--text,#eeeae1);color:var(--bg,#131210)}.ds-s{border-color:var(--text,#eeeae1);color:var(--text,#eeeae1)}.ds-p{border-color:var(--line,#2f2d28)}.ds-t{border:1px dashed var(--line,#2f2d28);font-weight:500}" },
-    { "name": "Phase Pill", "kind": "chip", "refersTo": "pill-phase-on", "description": "Статус фазы в тулбаре.",
-      "html": "<span class=\"ds-pill\">Слушай</span> <span class=\"ds-pill on\">Пой</span>",
-      "css": ".ds-pill{padding:3px 12px;border-radius:999px;background:var(--line,#2f2d28);color:var(--text,#eeeae1);font:600 14px system-ui}.ds-pill.on{background:var(--accent,#e57c4b);color:#fff}" }
+      "css": ".ds-btn{background:#3454F4;color:#fff;border:0;border-radius:999px;padding:0 24px;min-height:48px;font:800 16px/1.25 Manrope,system-ui,sans-serif;cursor:pointer}.ds-btn:hover{background:#2540D0}.ds-btn:focus-visible{outline:2px solid #3454F4;outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Вторичное действие, «Стоп».",
+      "html": "<button class=\"ds-ghost\">Стоп</button>",
+      "css": ".ds-ghost{background:transparent;color:#182044;border:1px solid #E2E6F3;border-radius:999px;padding:0 24px;min-height:48px;font:800 16px Manrope,system-ui,sans-serif;cursor:pointer}.ds-ghost:hover{border-color:#3454F4}.ds-ghost:focus-visible{outline:2px solid #3454F4;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented",
+      "kind": "chip",
+      "refersTo": "seg",
+      "description": "Однострочный выбор, пилюля.",
+      "html": "<span class=\"ds-seg\"><button aria-pressed=\"true\">Сразу</button><button aria-pressed=\"false\">С подбором</button></span>",
+      "css": ".ds-seg{display:inline-flex;background:#E8ECFE;border-radius:999px;padding:4px;gap:2px}.ds-seg button{border:0;background:none;color:#182044;font:700 14px Manrope,system-ui,sans-serif;padding:8px 16px;border-radius:999px;min-height:34px;cursor:pointer}.ds-seg button[aria-pressed=true]{background:#3454F4;color:#fff;font-weight:800}.ds-seg button:focus-visible{outline:2px solid #3454F4;outline-offset:2px}"
+    },
+    {
+      "name": "Mode Tiles",
+      "kind": "custom",
+      "refersTo": "seg-modes",
+      "description": "Выбор режима упражнения — плитки с радиусом, не пилюля.",
+      "html": "<div class=\"ds-modes\"><button aria-pressed=\"true\"><b>Вместе</b><span>Поёшь сразу под пианино</span></button><button aria-pressed=\"false\"><b>Повтори один</b><span>Пианино, затем ты без него</span></button></div>",
+      "css": ".ds-modes{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#E8ECFE;border-radius:20px;padding:4px}.ds-modes button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:0;background:none;color:#182044;border-radius:16px;padding:10px 14px;font-family:Manrope,system-ui,sans-serif;cursor:pointer;text-align:left}.ds-modes b{font-size:14px;font-weight:700}.ds-modes span{font-size:12px;font-weight:500;color:#5B6488}.ds-modes button[aria-pressed=true]{background:#3454F4;color:#fff}.ds-modes button[aria-pressed=true] span{color:inherit}"
+    },
+    {
+      "name": "Hero Card",
+      "kind": "card",
+      "refersTo": "hero-card",
+      "description": "Жёлтая карточка следующего шага на главной.",
+      "html": "<div class=\"ds-hero\"><p><b>Разогрев</b>Губная трель</p><button>Начать</button></div>",
+      "css": ".ds-hero{background:#F6E69C;color:#182044;border-radius:24px;padding:28px;display:grid;gap:18px;font-family:Manrope,system-ui,sans-serif}.ds-hero p{margin:0;display:flex;flex-direction:column;gap:2px;font-size:15px}.ds-hero b{font-size:22px;font-weight:800}.ds-hero button{background:#3454F4;color:#fff;border:0;border-radius:999px;min-height:56px;font:800 18px Manrope,system-ui,sans-serif;cursor:pointer}.ds-hero button:hover{background:#2540D0}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Базовая поверхность.",
+      "html": "<div class=\"ds-card\"><h2>Программа на 15 минут</h2><p>5 шагов</p></div>",
+      "css": ".ds-card{background:#fff;border:1px solid #E2E6F3;border-radius:24px;padding:24px;color:#182044;font:500 16px/1.5 Manrope,system-ui,sans-serif}.ds-card h2{margin:0 0 6px;font-size:20px;font-weight:800}.ds-card p{margin:0;color:#5B6488}"
+    },
+    {
+      "name": "Quiz Answer",
+      "kind": "button",
+      "refersTo": "answer",
+      "description": "Ответ викторины, светофор правильности.",
+      "html": "<button class=\"ds-ans\">Терция</button><button class=\"ds-ans right\">Квинта</button><button class=\"ds-ans wrong\">Кварта</button>",
+      "css": ".ds-ans{min-height:52px;border-radius:20px;border:1px solid #E2E6F3;background:#F7F8FC;color:#182044;font:500 15px Manrope,system-ui,sans-serif;padding:8px 12px;margin:4px;cursor:pointer}.ds-ans:hover{border-color:#3454F4}.ds-ans.right{background:color-mix(in srgb,#1F9D57 25%,#F7F8FC);border-color:#1F9D57}.ds-ans.wrong{background:color-mix(in srgb,#D93F3F 22%,#F7F8FC);border-color:#D93F3F}"
+    },
+    {
+      "name": "Bean Wave",
+      "kind": "custom",
+      "refersTo": "hero-card",
+      "description": "Волна фасолин с дужками, кобальт, мягкое дыхание.",
+      "html": "<div class=\"ds-wave\"><svg viewBox=\"8 2 86 64\" style=\"height:40px\"><path d=\"M14 34C10 14 26 4 40 10C46 13 54 13 60 10C76 3 92 14 88 34C85 52 66 62 50 62C32 62 17 52 14 34Z\" fill=\"currentColor\"/></svg><svg viewBox=\"0 0 20 40\" style=\"height:48px\"><path d=\"M15 4C6 10 6 30 15 36\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"6\" stroke-linecap=\"round\"/></svg><svg viewBox=\"8 2 86 64\" style=\"height:96px;transform:rotate(90deg)\"><path d=\"M14 34C10 14 26 4 40 10C46 13 54 13 60 10C76 3 92 14 88 34C85 52 66 62 50 62C32 62 17 52 14 34Z\" fill=\"currentColor\"/></svg></div>",
+      "css": ".ds-wave{display:flex;align-items:center;justify-content:center;gap:10px;height:120px;color:#3454F4;background:#F6E69C;border-radius:24px}.ds-wave svg{animation:ds-breathe 2.8s ease-in-out infinite}@keyframes ds-breathe{0%,100%{scale:1}50%{scale:1.12}}@media (prefers-reduced-motion:reduce){.ds-wave svg{animation:none}}"
+    }
   ],
   "narrative": {
-    "northStar": "Пульт одного певца",
+    "northStar": "Ритм фасолин",
+    "overview": "Айдентика fasol.app v1.0: chalk-фон, кобальтовые заголовки и кнопки-пилюли, одна жёлтая карточка «сейчас», фасолина как знак, дыхательный шар и звуковая волна. Тёмная тема на midnight следует системе. Громкое на экране — действие, «сейчас» или оценка голоса.",
     "keyCharacteristics": [
-      "Один оранжевый акцент на действие и фазу; зелёный/жёлтый/красный — только оценка точности.",
-      "Плоско: глубина задаётся тоном поверхности и линией 1px, теней почти нет.",
-      "Цифры — табличные (tabular-nums)."
+      "Cobalt, butter, chalk, midnight + светофор точности",
+      "Плоско: тон и линия 1px",
+      "Радиусы 24/20/10, пилюли у кнопок",
+      "Фасолина только пропорционально",
+      "Табличные цифры"
     ],
     "rules": [
-      { "name": "The One Voice Rule", "body": "Оранжевый означает «действуй» или «сейчас». Он не служит декором, не красит заголовки и не обозначает оценку.", "section": "colors" },
-      { "name": "The Traffic Light Is For Pitch Rule", "body": "Зелёный, жёлтый и красный зарезервированы под точность голоса и правильность ответа. Не использовать их для категорий, фаз или предупреждений.", "section": "colors" },
-      { "name": "The Monochrome Evidence Rule", "body": "Бейджи доказательности — одна монохромная шкала насыщенности: залитый → контур текстом → контур линией → пунктир. Без цвета.", "section": "colors" },
-      { "name": "The Steady Digits Rule", "body": "Любое меняющееся число набирается tabular-nums и получает min-width в ch.", "section": "typography" },
-      { "name": "The Line Not Shadow Rule", "body": "Новая поверхность отделяется рамкой 1px line и сменой тона, не тенью.", "section": "elevation" }
+      {
+        "name": "The One Blue Rule",
+        "body": "Кобальт — действие, выбор, «пой»; не оценка.",
+        "section": "colors"
+      },
+      {
+        "name": "The Butter Is Now Rule",
+        "body": "Жёлтый — только карточка или фаза «сейчас».",
+        "section": "colors"
+      },
+      {
+        "name": "The Traffic Light Is For Pitch Rule",
+        "body": "Зелёный/жёлтый/красный — только точность и правильность (исключение владельца).",
+        "section": "colors"
+      },
+      {
+        "name": "The Foreign Note Rule",
+        "body": "В «Сочинении» нота вне лада красная, звук аккорда зелёный (решение владельца).",
+        "section": "colors"
+      },
+      {
+        "name": "The Monochrome Evidence Rule",
+        "body": "Бейджи доказательности монохромны.",
+        "section": "colors"
+      },
+      {
+        "name": "The Steady Digits Rule",
+        "body": "Меняющиеся числа — tabular-nums и min-width в ch.",
+        "section": "typography"
+      },
+      {
+        "name": "The 800 Ceiling Rule",
+        "body": "Вес Manrope не выше 800.",
+        "section": "typography"
+      },
+      {
+        "name": "The Line Not Shadow Rule",
+        "body": "Поверхности разделяются линией и тоном; тень только у плавающих панелей.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Bean Proportion Rule",
+        "body": "Фасолина-почка масштабируется только целиком.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Tile Not Pill Rule",
+        "body": "Переключатель режимов — плитки с радиусом, не пилюля.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Home Is Today Rule",
+        "body": "Главная = программа дня, без сегментов разделов из концепта.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do брать цвета из CSS-переменных, в том числе в канве",
+      "Do белый мелкий текст на кобальте",
+      "Do различать «слушай» и «пой» формой",
+      "Do клавиатуру квиза ступеней только в До/Соль/Фа, режимы «Сразу»/«С подбором»",
+      "Do цели касания ≥ 44px"
+    ],
+    "donts": [
+      "Don't растягивать фасолину и логотип",
+      "Don't светофор вне точности",
+      "Don't жёлтый текст на белом",
+      "Don't пилюлю для многострочного выбора режима",
+      "Don't сегменты разделов на главной",
+      "Don't капс с разрядкой над заголовками"
     ]
   }
 }
