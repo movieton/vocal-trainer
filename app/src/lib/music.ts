@@ -77,3 +77,58 @@ export function plural(n: number, [one, few, many]: [string, string, string]) {
   if (b === 1) return one
   return b >= 2 && b <= 4 ? few : many
 }
+
+/**
+ * Голос → ноты. Голос «плавает» и скачет, поэтому:
+ * 1) медиана по 5 кадрам гасит выбросы; 2) новая нота начинается, только если высота ушла от текущей
+ *    больше чем на 0,6 полутона и держится ≥ 90 мс; 3) ноты короче восьмой сливаются с соседями;
+ * 4) высота ноты — медиана сегмента, при желании притягивается к ладу; 5) начало и длина — по сетке восьмых.
+ */
+export function transcribe(
+  frames: { t: number; midi: number | null }[], t0: number, beat: number, totalBeats: number,
+  scale?: { keyPc: number; steps: readonly number[] },
+) {
+  const pts = frames.map((f, i) => {
+    if (f.midi == null) return { t: f.t, m: null as number | null }
+    const win = frames.slice(Math.max(0, i - 2), i + 3).map(x => x.midi).filter((x): x is number => x != null)
+    return { t: f.t, m: median(win) }
+  })
+  type Seg = { t0: number; t1: number; ms: number[] }
+  const segs: Seg[] = []
+  let cur: Seg | null = null, pend: Seg | null = null
+  for (const p of pts) {
+    if (p.m == null) { if (cur) segs.push(cur); cur = null; pend = null; continue }
+    if (!cur) { cur = { t0: p.t, t1: p.t, ms: [p.m] }; continue }
+    const center = median(cur.ms)
+    if (Math.abs(p.m - center) <= 0.6) { cur.t1 = p.t; cur.ms.push(p.m); pend = null; continue }
+    const pv = pend as Seg | null
+    pend = pv && Math.abs(p.m - median(pv.ms)) <= 0.6 ? { t0: pv.t0, t1: p.t, ms: [...pv.ms, p.m] } : { t0: p.t, t1: p.t, ms: [p.m] }
+    if (pend.t1 - pend.t0 >= 0.09) { segs.push(cur); cur = pend; pend = null }
+  }
+  if (cur) segs.push(cur)
+  const q = (x: number) => Math.round(x * 2) / 2
+  const snap = (m: number) => {
+    if (!scale) return Math.round(m)
+    let best = Math.round(m), bd = 99
+    for (let k = Math.floor(m) - 2; k <= Math.ceil(m) + 2; k++) {
+      const pc = (((k - scale.keyPc) % 12) + 12) % 12
+      if (scale.steps.includes(pc) && Math.abs(k - m) < bd) { bd = Math.abs(k - m); best = k }
+    }
+    // притягиваем к ладу, только если до него не дальше 0,7 полутона — иначе оставляем как спето
+    return bd <= 0.7 ? best : Math.round(m)
+  }
+  const notes: { m: number; beat: number; d: number }[] = []
+  for (const s of segs) {
+    const b0 = q((s.t0 - t0) / beat), b1 = q((s.t1 - t0) / beat)
+    if (b0 < 0 || b0 >= totalBeats) continue
+    const m = snap(median(s.ms)), d = Math.max(0.5, b1 - b0)
+    const last = notes[notes.length - 1]
+    // слишком короткие — склеиваем с соседом; одинаковые подряд с маленьким зазором — одна нота
+    if (last && (b1 - b0 < 0.5 || (last.m === m && b0 - (last.beat + last.d) <= 0.5))) { last.d = Math.min(totalBeats - last.beat, Math.max(last.d, b1 - last.beat)); continue }
+    if (b1 - b0 < 0.5 && !last) continue
+    if (last && b0 < last.beat + last.d) last.d = Math.max(0.5, b0 - last.beat)
+    if (last && b0 <= last.beat) continue
+    notes.push({ m, beat: b0, d: Math.min(d, totalBeats - b0) })
+  }
+  return notes
+}

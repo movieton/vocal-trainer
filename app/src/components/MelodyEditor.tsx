@@ -99,7 +99,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
         <div className="mel-grid" ref={gridRef} style={{ gridTemplateColumns: `56px repeat(${cols}, minmax(18px, 1fr))` }}>
           {pitches.map((m, r) => {
             // явные позиции: иначе автораскладка сетки сдвигает клетки вокруг нот
-            const label = <div key={'l' + m} style={{ gridRow: r + 1, gridColumn: 1 }} className={'mel-label' + (isBlack(m) ? ' black' : '')}>{noteName(m)}</div>
+            const label = <div key={'l' + m} style={{ gridRow: r + 1, gridColumn: 1 }} className={'mel-label' + (isBlack(m) ? ' black' : '')} role="button" tabIndex={0} title="Послушать ноту" onPointerDown={() => onPreview(m)}>{noteName(m)}</div>
             const cells = Array.from({ length: cols }, (_, c) => {
               const beat = c * STEP, bar = Math.floor(beat / 4)
               const role = noteRole(m, keyPc, steps, prog[bar % Math.max(1, prog.length)] ?? null)
@@ -128,7 +128,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
           <span className="mel-group"><span>Сдвиг</span><button onClick={() => update(sel!, { beat: s.beat - STEP })} aria-label="Раньше"><ArrowLeft size={16} /></button><button onClick={() => update(sel!, { beat: s.beat + STEP })} aria-label="Позже"><ArrowRight size={16} /></button></span>
           <span className="mel-group"><span>Высота</span><button onClick={() => update(sel!, { m: s.m - 1 })} aria-label="Ниже"><ArrowDown size={16} /></button><button onClick={() => update(sel!, { m: s.m + 1 })} aria-label="Выше"><ArrowUp size={16} /></button></span>
           <button className="mel-del" onClick={() => remove(sel!)} aria-label="Удалить"><Trash2 size={16} /> Удалить</button>
-        </> : <span className="muted small">Нажми на клетку — нота на долю. Нажми на ноту — удалить. Зажми ноту и тяни — двигается; тяни за правый край — меняется длина. Зелёные клетки — звуки аккорда этого такта.</span>}
+        </> : <span className="muted small">Нажми на название ноты слева — услышишь её. Нажми на клетку — нота на долю. Нажми на ноту — удалить. Зажми ноту и тяни — двигается; тяни за правый край — меняется длина. Зелёные клетки — звуки аккорда этого такта.</span>}
       </div>
     </div>
   )

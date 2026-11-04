@@ -7,7 +7,7 @@ import CheckList from '../components/CheckList'
 import PianoRoll from '../components/PianoRoll'
 import { MicGate, LiveNote, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
-import { isBlack, noteName, plural } from '../lib/music'
+import { isBlack, noteName, plural, transcribe } from '../lib/music'
 import type { Target } from '../lib/run'
 import { useStored, useWorkRange } from '../lib/store'
 import { borrowed, chordLabel, CHORDS, CIRCLE, diatonic, NEXT, noteRole, SCALES, TEMPLATES, type KeyChord } from '../lib/theory'
@@ -64,7 +64,8 @@ export default function Compose() {
   const dia = useMemo(() => diatonic(steps), [steps])
   const borrow = useMemo(() => borrowed(minor), [minor])
   const beat = 60 / bpm
-  const bars = Math.max(1, prog.length)
+  // без гармонии мелодию пишем на 4 такта
+  const bars = prog.length || 4
   const tonic = 12 * Math.floor((work.lo + work.hi) / 24) + keyPc // тоника в середине голоса
   const base = tonic - 12
 
@@ -81,16 +82,18 @@ export default function Compose() {
 
   const scheduleBar = (n: number) => {
     const { prog, melody, beat, base } = live.current
-    if (!prog.length) return
-    const L = prog.length, ch = prog[n % L], T = t0.current + n * 4 * beat
-    CHORDS[ch.q].iv.forEach(x => engine.play(base + ch.root + x, T, 4 * beat * 0.95, 34))
-    engine.play(base - 12 + ch.root, T, 4 * beat * 0.95, 48)
+    const L = prog.length || 4, T = t0.current + n * 4 * beat
+    if (prog.length) {
+      const ch = prog[n % L]
+      CHORDS[ch.q].iv.forEach(x => engine.play(base + ch.root + x, T, 4 * beat * 0.95, 34))
+      engine.play(base - 12 + ch.root, T, 4 * beat * 0.95, 48)
+    } else if (n % L === 0) engine.click(true, T) // без гармонии — щелчок в начале круга
     for (const nt of melody) {
       if (Math.floor(nt.beat / 4) === n % L) engine.play(nt.m, T + (nt.beat % 4) * beat, nt.d * beat * 0.95, 72)
     }
   }
   const play = () => {
-    if (!prog.length) return
+    if (!prog.length && !melody.length) return
     const ctx = engine.ensureCtx()
     t0.current = ctx.currentTime + 0.2
     scheduled.current = -1
@@ -103,7 +106,6 @@ export default function Compose() {
   }
   const stop = () => { clearInterval(timer.current); engine.stopAll(); setPlaying(false); setRec(false) }
   useEffect(() => () => clearInterval(timer.current), [])
-  useEffect(() => { if (playing && !prog.length) stop() }, [prog.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const now = engine.now()
   const curChord = chordAt(now)
@@ -127,11 +129,16 @@ export default function Compose() {
     setMelody([...melody.filter(n => n.beat !== h.beat), { m: h.m, beat: h.beat, d: Math.min(d, bars * 4 - h.beat) }].sort((a, x) => a.beat - x.beat))
   }
 
-  // «напой → ноты»: один круг гармонии слушаем голос и режем его на ноты по сетке восьмых
+  // «напой → ноты»: под гармонию — со следующего круга; без неё — после такта отсчёта метронома
   const [hum, setHum] = useState<{ start: number; end: number } | null>(null)
   const startHum = () => {
-    const loop = 4 * beat * bars, k = Math.ceil((engine.now() - t0.current) / loop)
-    const start = t0.current + k * loop
+    const loop = 4 * beat * bars
+    if (playing) {
+      const k = Math.ceil((engine.now() - t0.current) / loop), start = t0.current + k * loop
+      setHum({ start, end: start + loop }); return
+    }
+    const now = engine.ensureCtx().currentTime + 0.2, start = now + 4 * beat
+    for (let i = 0; i < 4 + bars * 4; i++) engine.click(i % 4 === 0, now + i * beat)
     setHum({ start, end: start + loop })
   }
   useEffect(() => {
@@ -139,33 +146,18 @@ export default function Compose() {
     const id = window.setInterval(() => {
       if (engine.now() < hum.end + 0.2) return
       clearInterval(id)
-      const frames = engine.history.filter(s => s.t >= hum.start && s.t < hum.end)
-      const notes: MelNote[] = []
-      let cur: { m: number; t0: number; t1: number } | null = null
-      const flush = () => {
-        if (cur && cur.t1 - cur.t0 >= 0.15) {
-          const b = Math.round(((cur.t0 - hum.start) / beat) * 2) / 2
-          const d = Math.max(0.5, Math.round(((cur.t1 - cur.t0) / beat) * 2) / 2)
-          if (b < bars * 4 && !notes.some(n => n.beat === b)) notes.push({ m: cur.m, beat: b, d: Math.min(d, bars * 4 - b) })
-        }
-        cur = null
-      }
-      for (const f of frames) {
-        const m = f.midi == null ? null : Math.round(f.midi)
-        if (m == null) { flush(); continue }
-        if (cur && cur.m === m) cur.t1 = f.t
-        else { flush(); cur = { m, t0: f.t, t1: f.t } }
-      }
-      flush()
+      const frames = engine.history.filter(s => s.t >= hum.start - 0.1 && s.t < hum.end)
+      const notes = transcribe(frames, hum.start, beat, bars * 4, snapScale ? { keyPc, steps } : undefined)
       if (notes.length) setMelody(notes)
       setHum(null)
     }, 100)
     return () => clearInterval(id)
   }, [hum]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [snapScale, setSnapScale] = useStored('cmp.snap', true)
 
   // ---- доска: аккорды и мелодия ближайших циклов ----
   const targets = (): Target[] => {
-    if (!playing || !prog.length) return []
+    if (!playing) return []
     const loop = 4 * beat * bars, k = Math.floor((engine.now() - t0.current) / loop)
     const out: Target[] = []
     for (const it of [k - 1, k, k + 1]) for (const nt of melody) {
@@ -259,7 +251,7 @@ export default function Compose() {
         </div>
         <ContrastCheck parts={allParts} />
         <div className="toolbar">
-          <button className={'btn' + (playing ? ' stop' : '')} onClick={playing ? stop : play} disabled={!prog.length}>
+          <button className={'btn' + (playing ? ' stop' : '')} onClick={playing ? stop : play} disabled={!prog.length && !melody.length}>
             {playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Играть по кругу</>}
           </button>
           <label className="chk"><input type="checkbox" checked={rec} disabled={!playing} onChange={e => setRec(e.target.checked)} /> Записывать ноты с клавиш</label>
@@ -307,16 +299,18 @@ export default function Compose() {
           {melody.length > 0 && <button className="textbtn" onClick={() => setMelody([])}><Trash2 size={14} /> Стереть мелодию</button>}
         </div>
         <div className="row-btns" style={{ margin: '8px 0' }}>
-          <button className="btn ghost small-btn" disabled={!playing || !!hum} onClick={async () => { if (engine.mic !== 'on') await engine.startMic(); if (engine.mic === 'on') startHum() }}>
-            {hum ? (engine.now() < hum.start ? 'Со следующего круга…' : 'Пой! Слушаю круг…') : 'Напеть мелодию'}
+          <button className="btn ghost small-btn" disabled={!!hum} onClick={async () => { if (engine.mic !== 'on') await engine.startMic(); if (engine.mic === 'on') startHum() }}>
+            {hum ? (engine.now() < hum.start ? (playing ? 'Со следующего круга…' : 'Отсчёт…') : 'Пой! Слушаю…') : 'Напеть мелодию'}
           </button>
-          <span className="muted small">{!playing ? 'Включи «Играть по кругу», затем «Напеть»: один круг пой — получатся ноты.' : ''}</span>
+          <label className="chk small"><input type="checkbox" checked={snapScale} onChange={e => setSnapScale(e.target.checked)} /> Притягивать к ладу</label>
+          <button className={'btn small-btn' + (playing ? ' stop' : '')} disabled={!melody.length && !prog.length} onClick={playing ? stop : play}>{playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Проиграть</>}</button>
+          <span className="muted small">{playing ? 'Напев запишется со следующего круга.' : `Без гармонии: такт отсчёта, затем ${bars} такта пой — получатся ноты.`}</span>
         </div>
         <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
           pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} />
         <h2 style={{ marginTop: 20 }}>Разбор мелодии</h2>
         <MelodyAnalysis melody={melody} work={work} keyPc={keyPc} steps={steps} prog={prog} onTranspose={n => setMelody(melody.map(x => ({ ...x, m: x.m + n })))} />
-        <button className="btn" onClick={save} disabled={!prog.length} style={{ marginTop: 14 }}>Сохранить набросок</button>
+        <button className="btn" onClick={save} disabled={!prog.length && !melody.length} style={{ marginTop: 14 }}>Сохранить набросок</button>
         <h2 style={{ marginTop: 24 }}>Сохранённые</h2>
         {sketches.length ? (
           <ul className="sketches">

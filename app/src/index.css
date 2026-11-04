@@ -362,6 +362,8 @@ ol.plain li::marker { color: var(--muted) }
 .mel-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--roll-bg) }
 .mel-grid { display: grid; grid-auto-rows: 28px; position: relative; min-width: max-content }
 .mel-label { position: sticky; left: 0; z-index: 2; font-size: 11px; color: var(--muted); background: var(--surface); display: flex; align-items: center; padding-left: 8px; border-bottom: 1px solid var(--roll-line) }
+.mel-label { cursor: pointer; user-select: none }
+.mel-label:active { color: var(--accent) }
 .mel-label.black { color: color-mix(in srgb, var(--muted) 55%, transparent) }
 .mel-cell { border-bottom: 1px solid var(--roll-line); border-left: 1px solid transparent; cursor: pointer; min-width: 18px }
 .mel-cell.beat { border-left-color: var(--roll-line) }
