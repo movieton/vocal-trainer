@@ -54,8 +54,8 @@ export default function Dictation() {
       </div>
       <div className="card quiz">
         <div className="quiz-top">
-          {!task || done != null ? <button className="btn" onClick={next}>{task ? 'Следующая' : 'Начать'}</button> : null}
           {task && <button className="btn ghost" onClick={() => play(task)}>Ещё раз</button>}
+          {!task || done != null ? <button className="btn" onClick={next}>{task ? 'Дальше' : 'Начать'}</button> : null}
           <span className="status"><span>Верно <b>{stat.ok} / {stat.all}</b></span></span>
         </div>
         {task && (
@@ -63,14 +63,14 @@ export default function Dictation() {
             <div className="dict-slots">
               {task.degs.map((d, i) => (
                 <span key={i} className={'slot' + (done == null ? '' : ans[i] === d ? ' right' : ' wrong')}>
-                  {ans[i] != null ? ans[i] + 1 : '·'}
-                  {done != null && ans[i] !== d && <small>{d + 1}</small>}
+                  {done != null && ans[i] !== d ? d + 1 : ans[i] != null ? ans[i] + 1 : '·'}
+                  {done != null && ans[i] !== d && <s>{ans[i] + 1}</s>}
                 </span>
               ))}
               {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns(ans.slice(0, -1))} aria-label="Стереть"><Delete size={16} /></button>}
               {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns([])} aria-label="Заново"><RotateCcw size={16} /></button>}
             </div>
-            {done != null && <p className={'verdict ' + (done ? 'ok-msg' : 'err')}>{done ? 'Верно!' : `Было: ${task.degs.map(d => d + 1).join(' – ')}`}</p>}
+            {done != null && <p className={'verdict' + (done ? ' ok-msg' : '')}>{done ? 'Верно!' : `Правильно: ${task.degs.map(d => d + 1).join('–')}`}</p>}
             <div className="answers degs">
               {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
                 <button key={d} className="answer" disabled={done != null} onClick={() => tap(d)}>{d + 1}<small>{SOLFEGE[d % 7]}</small></button>

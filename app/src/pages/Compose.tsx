@@ -304,7 +304,7 @@ export default function Compose() {
           <label className="tempo"><span>Барабаны</span>
             <select value={groove} onChange={e => setGroove(e.target.value)}>{Object.entries(GROOVES).map(([k, g]) => <option key={k} value={k}>{g.name}</option>)}</select>
           </label>
-          <button className="btn ghost small-btn" title="Случайная гармония из частых переходов" onClick={() => { setProg(diceProgression(dia, borrow, 4)); engine.ensureCtx() }}><Dices size={16} /> Кубик</button>
+          <button className="btn ghost small-btn" title="Случайная гармония из частых переходов" onClick={() => { setProg(diceProgression(dia, borrow, 4)); engine.ensureCtx() }}><Dices size={16} /> Случайная гармония</button>
           <label className="tempo"><span>Темп {bpm}</span><input type="range" min={60} max={140} step={2} value={bpm} disabled={playing} onChange={e => setBpm(+e.target.value)} /></label>
           {prog.length > 0 && <button className="textbtn" onClick={() => { if (confirm('Очистить гармонию и мелодию?')) { stop(); setProg([]); setMelody([]) } }}><Trash2 size={14} /> Очистить</button>}
         </div>
@@ -353,14 +353,15 @@ export default function Compose() {
             {hum ? (engine.now() < hum.start ? (playing ? 'Со следующего круга…' : 'Отсчёт…') : 'Пой! Слушаю…') : 'Напеть мелодию'}
           </button>
           <label className="chk small"><input type="checkbox" checked={snapScale} onChange={e => setSnapScale(e.target.checked)} /> Притягивать к ладу</label>
-          <button className={'btn small-btn' + (playing ? ' stop' : '')} disabled={!melody.length && !prog.length} onClick={playing ? stop : play}>{playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Проиграть</>}</button>
+          <button className={'btn ghost small-btn' + (playing ? ' stop' : '')} disabled={!melody.length && !prog.length} onClick={playing ? stop : play}>{playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Проиграть</>}</button>
           <span className="muted small">{playing ? 'Напев запишется со следующего круга.' : `Без гармонии: такт отсчёта, затем ${bars} такта пой — получатся ноты.`}</span>
         </div>
         <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
           pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} labels={sylOf} />
         <h2 style={{ marginTop: 20 }}>Текст</h2>
         <textarea className="lyrics" value={lyrics} onChange={e => setLyrics(e.target.value)} rows={3}
-          placeholder="Пиши строку — слоги встанут под ноты по порядку. Ударение отмечай «+» после гласной: «гори+ в ночи+»" />
+          placeholder="гори+ в ночи+ — плюс после ударной гласной" />
+        <p className="muted small">Слоги встают под ноты по порядку. Ударение — «+» после ударной гласной, такие слоги показываются ЗАГЛАВНЫМИ.</p>
         {lyrics.trim() && <CheckList items={[
           { ok: syls.length === melody.length, text: syls.length === melody.length ? `Слогов столько же, сколько нот: ${melody.length}.` : `Слогов ${syls.length}, нот ${melody.length}. ${syls.length > melody.length ? 'Добавь нот или сократи строку.' : 'Лишние ноты — распевы на одном слоге; это нормально, если так задумано.'}` },
           ...(strongStress + weakStress ? [{ ok: weakStress === 0, text: weakStress === 0 ? 'Все ударные слоги на долях — текст ложится естественно.' : `${weakStress} ${plural(weakStress, ['ударный слог', 'ударных слога', 'ударных слогов'])} между долями. Ударения лучше ставить на сильные доли, иначе слово звучит «с неправильным ударением».`, src: 'Pattison, Writing Better Lyrics' }] : []),
