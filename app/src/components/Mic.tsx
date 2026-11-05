@@ -31,7 +31,7 @@ export function LiveNote({ big }: { big?: boolean }) {
   useEngine(15)
   if (engine.mic !== 'on') return null
   const m = engine.current
-  if (m == null) return null
+  // место под ноту есть всегда: появление голоса не сдвигает экран
   const cents = m == null ? null : Math.round((m - Math.round(m)) * 100)
   return (
     <div className={'livenote' + (big ? ' big' : '') + (m == null ? ' silent' : '')}>

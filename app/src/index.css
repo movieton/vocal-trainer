@@ -767,3 +767,36 @@ img.logo-dark { display: none !important }
 .key-games .btn.ghost { display: inline-flex; align-items: center; gap: 8px }
 .slot s { display: block; font-size: 11px; font-weight: 600; color: var(--bad) }
 .lesson-end p { text-wrap: balance }
+/* нотоносец */
+.staff-fig { max-width: 640px }
+.staff { display: block; width: 100%; height: auto; background: #fff; border-radius: var(--radius-ctl); border: 1px solid var(--line) }
+.staff .st-line { stroke: #182044; stroke-width: 1.2 }
+.staff .clef { font-family: 'Noto Music', 'Apple Symbols', 'Segoe UI Symbol', serif; fill: #182044 }
+.staff .clef.treble { font-size: 72px }
+.staff .clef.bass { font-size: 50px }
+.staff .acc { font-size: 22px; fill: #182044; font-family: 'Apple Symbols', 'Segoe UI Symbol', serif }
+.staff .time text { font: 800 24px var(--font); fill: #182044 }
+.staff .note-fill { fill: #182044 }
+.staff .note-hollow { fill: #fff; stroke: #182044; stroke-width: 2 }
+.staff .stem { stroke: #182044; stroke-width: 1.6 }
+.staff .flag { fill: none; stroke: #182044; stroke-width: 2 }
+.staff .rest-glyph { font-size: 34px; fill: #182044; font-family: 'Apple Symbols', 'Segoe UI Symbol', serif }
+.staff .st-lbl { font: 600 12px var(--font); fill: #5B6280 }
+.staff .note.on .note-fill, .staff .note.on .stem { fill: #3454F4; stroke: #3454F4 }
+.staff .note.on .note-hollow { stroke: #3454F4 }
+.staff .note.ok .note-fill { fill: #1E9E5A } .staff .note.bad .note-fill { fill: #E5484D }
+.staff-cap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.staff-cap .listen { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700 }
+
+/* живая нота занимает постоянное место — экран не дёргается, когда голос появляется и пропадает */
+.livenote { flex: none; width: 9.5em; height: 40px; overflow: hidden; white-space: nowrap }
+.livenote.big { width: auto; height: auto }
+.livenote.silent .c { visibility: hidden }
+.trainer-head { flex-wrap: nowrap; align-items: center }
+.trainer-head > div:first-child { min-width: 0; flex: 1 }
+[data-focus] .trainer-head h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+@media (max-width: 560px) { .livenote { width: 7.5em } .livenote .n { font-size: 22px } .livenote .c { font-size: 13px } }
+.trainer-head { width: 100%; align-items: baseline }
+.trainer-head .livenote { margin-left: auto }
+@media (max-width: 560px) { .livenote { width: 6.6em } }
+.trainer-head > .livenote { flex: none }
