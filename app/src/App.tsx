@@ -1,10 +1,14 @@
 import { HashRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
-import { Activity, BookOpen, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
+import { Activity, BookOpen, UserRound, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
 import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
 import Home from './pages/Home'
+import Account from './pages/Account'
+import Privacy from './pages/Privacy'
+import { useEffect } from 'react'
+import { initAccount } from './lib/account'
 import Library from './pages/Library'
 import LibItem from './pages/LibItem'
 import Trainer from './pages/Trainer'
@@ -35,9 +39,11 @@ const NAV = [
   { to: '/theory', label: 'Теория', icon: BookOpen },
   { to: '/range', label: 'Диапазон', icon: MoveVertical },
   { to: '/progress', label: 'Прогресс', icon: TrendingUp },
+  { to: '/account', label: 'Аккаунт', icon: UserRound },
 ]
 
 export default function App() {
+  useEffect(() => { initAccount() }, [])
   return (
     <HashRouter>
       <UpdateBanner />
@@ -81,6 +87,8 @@ export default function App() {
             <Route path="/progress" element={<Progress />} />
             <Route path="/compose" element={<Compose />} />
             <Route path="/more" element={<More />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Routes>
         </main>
         <nav className="tabbar">

@@ -3,7 +3,7 @@ import { InstallCard } from '../components/Pwa'
 
 export function More() {
   const links = [
-    ['/compose', 'Сочинение'], ['/range', 'Голос и диапазон'], ['/breath', 'Дыхание'], ['/theory', 'Теория'], ['/progress', 'Прогресс'],
+    ['/compose', 'Сочинение'], ['/range', 'Голос и диапазон'], ['/breath', 'Дыхание'], ['/theory', 'Теория'], ['/progress', 'Прогресс'], ['/account', 'Аккаунт'],
   ]
   return (
     <div className="page">

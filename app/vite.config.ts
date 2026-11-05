@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // в разработке запросы /api идут на локальный сервер аккаунтов (server/index.mjs)
+  server: { proxy: { '/api': 'http://localhost:8787' } },
   plugins: [
     react(),
     // PWA: устанавливается на экран «Домой», работает без сети; новая версия — по кнопке «Обновить»
@@ -30,6 +32,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,jpg,woff2}'],
         navigateFallback: 'index.html',
+        // вход через Google/Яндекс — это переходы на /api, их не подменяем приложением из кэша
+        navigateFallbackDenylist: [/^\/api\//],
         // сэмплы рояля с CDN — в кэш при первом проигрывании, дальше работают без сети
         runtimeCaching: [{
           urlPattern: /^https:\/\/(?!lalo-app\.com).*\.(ogg|mp3|m4a|json)(\?.*)?$/,

@@ -16,10 +16,36 @@ export function read<T>(key: string, fallback: T): T {
   return v
 }
 
-export function write<T>(key: string, value: T) {
+const writeHooks = new Set<(key: string) => void>()
+/** Подписка на изменения сохранённых данных (для синхронизации с аккаунтом) */
+export const onWrite = (f: (key: string) => void) => { writeHooks.add(f); return () => writeHooks.delete(f) }
+
+export function write<T>(key: string, value: T, silent = false) {
   cache.set(key, value)
   try { localStorage.setItem(PREFIX + key, JSON.stringify(value)) } catch { /* нет хранилища */ }
   listeners.forEach(l => l())
+  if (!silent) writeHooks.forEach(h => h(key))
+}
+
+/** Стереть сохранённые данные приложения, кроме настроек устройства */
+export function clearSynced(keep: Set<string>) {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith(PREFIX) && !keep.has(k.slice(PREFIX.length))) localStorage.removeItem(k)
+  } catch { /* нет хранилища */ }
+  cache.clear()
+  listeners.forEach(l => l())
+}
+
+/** Все сохранённые данные приложения одним объектом */
+export function snapshot(): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k?.startsWith(PREFIX)) out[k.slice(PREFIX.length)] = JSON.parse(localStorage.getItem(k)!)
+    }
+  } catch { /* нет хранилища */ }
+  return out
 }
 
 const subscribe = (l: () => void) => { listeners.add(l); return () => listeners.delete(l) }
