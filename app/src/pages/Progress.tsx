@@ -6,6 +6,58 @@ import { dailyScores, problemNotes, streak, useStored, type SessionLog } from '.
 
 const KINDS = { exercise: 'Распевки', ear: 'Слух', breath: 'Дыхание' } as const
 
+const dayKey = (t: number) => new Date(t).toDateString()
+/** Самая длинная серия дней подряд за всё время */
+function bestStreak(log: SessionLog[]) {
+  const days = [...new Set(log.map(l => dayKey(l.date)))].map(d => +new Date(d)).sort((a, b) => a - b)
+  let best = 0, cur = 0
+  days.forEach((d, i) => { cur = i && Math.round((d - days[i - 1]) / 864e5) === 1 ? cur + 1 : 1; best = Math.max(best, cur) })
+  return best
+}
+
+/**
+ * «Твой рост» — прогресс человеческими словами: что было в начале, что сейчас.
+ * Сравниваем первые и последние 5 дней занятий, чтобы случайный день не искажал картину.
+ */
+function Growth({ log }: { log: SessionLog[] }) {
+  const [rh] = useStored<{ date: number; lo: number; hi: number }[]>('rangeHist', [])
+  const [thr] = useStored<{ date: number; cents: number }[]>('threshold', [])
+  const scored = log.filter(l => l.kind !== 'breath')
+  const byDay = new Map<string, number[]>()
+  for (const l of [...scored].reverse()) byDay.set(dayKey(l.date), [...(byDay.get(dayKey(l.date)) ?? []), l.score])
+  const dayAvg = [...byDay.values()].map(v => v.reduce((a, x) => a + x, 0) / v.length)
+  const k = Math.min(5, Math.floor(dayAvg.length / 2))
+  const mean = (a: number[]) => Math.round(a.reduce((x, y) => x + y, 0) / a.length)
+  const first = k ? mean(dayAvg.slice(0, k)) : null, last = k ? mean(dayAvg.slice(-k)) : null
+  const spanDays = log.length ? Math.max(1, Math.round((log[0].date - log[log.length - 1].date) / 864e5)) : 0
+  const rows: { big: string; text: string; good?: boolean }[] = []
+  if (first != null && last != null) rows.push({ big: `${first}% → ${last}%`, text: last > first ? `точность выросла на ${last - first} ${plural(last - first, ['пункт', 'пункта', 'пунктов'])} за ${spanDays} ${plural(spanDays, ['день', 'дня', 'дней'])}` : last === first ? 'точность держится ровно — попробуй уровень сложнее' : 'точность чуть просела — это нормально, когда берёшь упражнения сложнее', good: last > first })
+  if (rh.length >= 2) {
+    const a = rh[rh.length - 1], b = rh[0], wider = (b.hi - b.lo) - (a.hi - a.lo)
+    rows.push({ big: wider > 0 ? `+${wider} ${plural(wider, ['полутон', 'полутона', 'полутонов'])}` : 'диапазон', text: `${noteName(a.lo)}–${noteName(a.hi)} → ${noteName(b.lo)}–${noteName(b.hi)}${wider > 0 ? ': диапазон шире, чем в первый замер' : ': пока как в первый замер'}`, good: wider > 0 })
+  }
+  if (thr.length >= 2) {
+    const a = thr[thr.length - 1].cents, b = thr[0].cents
+    rows.push({ big: `${a} → ${b}`, text: `центов — самая маленькая разница в высоте, которую ты слышишь. Чем меньше, тем тоньше слух${b < a ? '' : '; пока как в первый замер'}`, good: b < a })
+  }
+  const days = new Set(log.map(l => dayKey(l.date))).size
+  const records = [
+    { v: `${bestStreak(log)}`, t: plural(bestStreak(log), ['день', 'дня', 'дней']) + ' подряд — рекорд' },
+    { v: dayAvg.length ? `${Math.round(Math.max(...dayAvg))}%` : '—', t: 'лучший день по точности' },
+    { v: `${days}`, t: plural(days, ['день', 'дня', 'дней']) + ' занятий' },
+    { v: `≈${Math.round(log.length * 3)}`, t: 'минут практики' },
+  ]
+  return (
+    <div className="card growth">
+      <h2>Твой рост</h2>
+      {rows.length ? <ul className="growth-rows">{rows.map(r => (
+        <li key={r.text}><b className={r.good ? 'up' : ''}>{r.big}</b><span>{r.text}</span></li>
+      ))}</ul> : <p className="muted">Позанимайся несколько дней — здесь появится, как растёт точность. Для диапазона и слуха раз в месяц делай замеры ниже.</p>}
+      <div className="records">{records.map(r => <div key={r.t}><b>{r.v}</b><span>{r.t}</span></div>)}</div>
+    </div>
+  )
+}
+
 export default function Progress() {
   const [log, setLog] = useStored<SessionLog[]>('log', [])
   const [shown, setShown] = useState(innerWidth < 760 ? 5 : 12)
@@ -50,6 +102,7 @@ export default function Progress() {
   return (
     <div className="page">
       <h1>Прогресс</h1>
+      <Growth log={log} />
       <div className="card monthly">
         <h2>Ежемесячный замер</h2>
         <p className="muted small">Раз в месяц — короткие замеры, чтобы видеть прогресс не по ощущениям, а по цифрам.</p>
