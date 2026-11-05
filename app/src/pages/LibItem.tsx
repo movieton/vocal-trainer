@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ExternalLink, Play, RotateCcw } from 'lucide-react'
-import { libItem, TOPICS, topicOf } from '../data/library'
+import { libExercise, libItem, TOPICS, topicOf } from '../data/library'
+import { Staff, type Dur, type StaffItem } from '../components/Staff'
+import { isBlack } from '../lib/music'
 import { Evidence, EVIDENCE } from './Breath'
 import { DiaphragmDiagram, FoldsDiagram, HeadProfile, Posture, type Action, type Part } from '../components/Anatomy'
 import type { LibItem as Item } from '../data/library'
@@ -22,8 +24,9 @@ export default function LibItem() {
       <p className="meta"><Evidence e={it.evidence} /> <span className="muted small">{EVIDENCE[it.evidence].title}</span></p>
       <p className="meta muted small">Уровень: <b>{LEVEL[it.level]}</b>{it.dose && <> · {it.dose}</>}</p>
       <Figure it={it} />
+      {it.notes && <ExerciseStaff id={it.id} />}
       {it.notes
-        ? <Link to={`/ex/${it.id}`} className="btn big-btn"><Play size={18} fill="currentColor" /> Тренировать на нотной доске</Link>
+        ? <Link to={`/ex/${it.id}`} className="btn big-btn"><Play size={18} fill="currentColor" /> Тренировать на доске</Link>
         : <Steps how={it.how} />}
       {it.notesHint && <p className="muted small">Подсказка к нотам: {it.notesHint}</p>}
       <div className="howto">
@@ -79,10 +82,28 @@ const RULES: [RegExp, Fig][] = [
 function Figure({ it }: { it: Item }) {
   const text = it.id + ' ' + it.title + ' ' + it.how.join(' ')
   const t = topicOf(it)
+  if (it.cat === 'скороговорка') return <HeadProfile hl="tongue" caption="Чёткость дают кончик языка и губы. Челюсть и гортань при этом свободны." />
+  if (/опор|support/i.test(text) && it.kind === 'vocal') return <DiaphragmDiagram />
+  if (it.cat === 'заминка') return <FoldsDiagram />
   if (it.cat === 'осанка' || /осанк|posture|сутул|slump/i.test(text)) return <Posture />
   if (t === 'breath') return <DiaphragmDiagram />
   const f = RULES.find(([re]) => re.test(it.id + ' ' + it.title))?.[1] ?? RULES.find(([re]) => re.test(text))?.[1]
   if (f) return <HeadProfile hl={f.hl} action={f.action} caption={f.caption} />
   if (/атака|onset|регистр|смыкан|складк|кашл|отдых|кофеин|гигиен/i.test(text + it.cat)) return <FoldsDiagram />
   return null
+}
+
+/** Ноты упражнения на нотоносце, от до первой октавы. На доске упражнение строится от удобной высоты голоса */
+function ExerciseStaff({ id }: { id: string }) {
+  const ex = libExercise(id)
+  if (!ex) return null
+  const dur = (d: number): { d: Dur; dot?: boolean } => d >= 4 ? { d: 1 } : d >= 3 ? { d: 2, dot: true } : d >= 2 ? { d: 2 } : d >= 1 ? { d: 4 } : { d: 8 }
+  const items: StaffItem[] = []
+  for (const n of ex.notes.slice(0, 16)) {
+    if (n.rest) { items.push({ rest: dur(n.d).d }); continue }
+    const m = 60 + n.s
+    items.push({ m, ...dur(n.d), acc: isBlack(m) ? '#' : undefined })
+    if (n.glide != null) items.push({ m: 60 + n.glide, d: 4, acc: isBlack(60 + n.glide) ? '#' : undefined, label: 'глисс.' })
+  }
+  return <Staff items={items} caption={`Рисунок упражнения от «до». На нотной доске он строится от удобной для тебя высоты.${ex.notes.length > 16 ? ' Показано начало.' : ''}`} />
 }

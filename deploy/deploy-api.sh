@@ -13,7 +13,7 @@ $SSH 'cd /opt/fasol-api && docker build -q -t fasol-api . >/dev/null && (docker 
 
 # nginx: лимит частоты (5 запросов в секунду с адреса) и блок /api — пересобираются при каждой выкладке
 $SSH 'printf "limit_req_zone \$binary_remote_addr zone=fasol_api:10m rate=5r/s;\nlimit_req_zone \$binary_remote_addr zone=fasol_auth:10m rate=5r/m;\n" > /etc/nginx/conf.d/fasol-api-limit.conf'
-API_LOC='    location ~ ^/api/(login|register)$ { limit_req zone=fasol_auth burst=10 nodelay; proxy_pass http://127.0.0.1:8787; proxy_set_header Host \$host; proxy_set_header X-Forwarded-For \$remote_addr; }\n    location /api/ { limit_req zone=fasol_api burst=20 nodelay; client_max_body_size 2m; proxy_pass http://127.0.0.1:8787; proxy_set_header Host \$host; proxy_set_header X-Forwarded-For \$remote_addr; }'
+API_LOC='    location ~ ^/api/(login|register|reset/request|reset/confirm)$ { limit_req zone=fasol_auth burst=10 nodelay; proxy_pass http://127.0.0.1:8787; proxy_set_header Host \$host; proxy_set_header X-Forwarded-For \$remote_addr; }\n    location /api/ { limit_req zone=fasol_api burst=20 nodelay; client_max_body_size 2m; proxy_pass http://127.0.0.1:8787; proxy_set_header Host \$host; proxy_set_header X-Forwarded-For \$remote_addr; }'
 $SSH "cp /etc/nginx/sites-available/fasol.app.conf /etc/nginx/sites-available/fasol.app.conf.bak && sed -i '/^    location \/api\/ /d; /^    location ~ \^\/api\//d' /etc/nginx/sites-available/fasol.app.conf && sed -i 's#^    location / { try_files#$API_LOC\n    location / { try_files#' /etc/nginx/sites-available/fasol.app.conf"
 if ! $SSH 'nginx -t 2>/dev/null'; then $SSH 'cp /etc/nginx/sites-available/fasol.app.conf.bak /etc/nginx/sites-available/fasol.app.conf'; echo "✗ nginx — откатил"; exit 1; fi
 $SSH 'systemctl reload nginx'

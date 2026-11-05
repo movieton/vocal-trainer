@@ -48,3 +48,17 @@ YANDEX_CLIENT_SECRET=...
 Напиши Claude «ключи положил» — он пересоздаст контейнер (`deploy/deploy-api.sh`), чтобы сервер подхватил ключи. Простой `docker restart` их не перечитывает.
 
 Проверка: https://fasol.app/api/providers должен показать `{"providers":["google","yandex"]}`. Кнопки входа появятся в разделе «Аккаунт» сами.
+
+## 4. Письма для восстановления пароля (Resend, ≈10 минут)
+
+1. Зарегистрируйся на https://resend.com (бесплатно до 3000 писем в месяц).
+2. **Domains → Add domain** → `fasol.app`. Resend покажет 3–4 DNS-записи (TXT и MX) — добавь их у регистратора домена fasol.app и нажми **Verify**.
+3. **API Keys → Create API key** (права: Sending access).
+4. На сервере в `/opt/fasol-api/.env` добавь две строки:
+
+```
+RESEND_API_KEY=...
+MAIL_FROM=fasol.app <noreply@fasol.app>
+```
+
+5. Напиши Claude «ключ почты положил» — он пересоздаст контейнер. На странице входа появится «Забыли пароль?».

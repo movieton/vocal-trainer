@@ -131,6 +131,7 @@ export function TheoryList() {
     <div className="page">
       <h1>Теория</h1>
       <p className="muted">Коротко о том, как работает голос и что стоит за упражнениями. Каждую статью можно прочитать за 2–3 минуты.</p>
+      <Link to="/notation" className="card cta notation-cta"><strong>Нотная грамота — 8 уроков</strong><span className="muted">Нотоносец, ключи, длительности, размер, знаки, тональности и аккорды. С примерами на слух и проверкой.</span></Link>
       <div className="grid grid3">
         {ARTICLES.slice(0, -1).map((a, i) => (
           <Link key={a.id} to={`/theory/${a.id}`} className="tile">

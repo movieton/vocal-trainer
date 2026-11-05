@@ -5,8 +5,9 @@ import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
 import Home from './pages/Home'
-import Account from './pages/Account'
+import Account, { ResetPassword } from './pages/Account'
 import Privacy from './pages/Privacy'
+import { NotationLesson, NotationList } from './pages/Notation'
 import { useEffect } from 'react'
 import { initAccount } from './lib/account'
 import Library from './pages/Library'
@@ -88,7 +89,10 @@ export default function App() {
             <Route path="/compose" element={<Compose />} />
             <Route path="/more" element={<More />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/reset" element={<ResetPassword />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/notation" element={<NotationList />} />
+            <Route path="/notation/:id" element={<NotationLesson />} />
           </Routes>
         </main>
         <nav className="tabbar">

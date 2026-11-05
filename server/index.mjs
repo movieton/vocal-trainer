@@ -22,6 +22,17 @@ db.exec(`
 db.exec('PRAGMA foreign_keys = ON')
 // вход по почте и паролю: хэш scrypt с солью
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'pass'").get()) db.exec('ALTER TABLE users ADD COLUMN pass TEXT')
+db.exec('CREATE TABLE IF NOT EXISTS resets (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL)')
+
+// письма отправляются через Resend (https://resend.com); без ключа сброс пароля выключен
+const MAIL = env.RESEND_API_KEY && env.MAIL_FROM ? { key: env.RESEND_API_KEY, from: env.MAIL_FROM } : null
+async function sendMail(to, subject, text) {
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST', headers: { Authorization: `Bearer ${MAIL.key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: MAIL.from, to: [to], subject, text }),
+  })
+  if (!r.ok) throw new Error('mail_failed ' + r.status)
+}
 
 const scrypt = (pw, salt) => new Promise((ok, no) => crypto.scrypt(pw, salt, 64, { N: 16384, r: 8, p: 1 }, (e, k) => e ? no(e) : ok(k)))
 async function hashPass(pw) { const salt = crypto.randomBytes(16); return `${salt.toString('base64')}:${(await scrypt(pw, salt)).toString('base64')}` }
@@ -66,7 +77,7 @@ const PROVIDERS = {
     },
   },
 }
-const enabled = () => ['email', ...Object.keys(PROVIDERS).filter(k => PROVIDERS[k].id && PROVIDERS[k].secret), ...(DEV ? ['dev'] : [])]
+const enabled = () => ['email', ...(MAIL ? ['reset'] : []), ...Object.keys(PROVIDERS).filter(k => PROVIDERS[k].id && PROVIDERS[k].secret), ...(DEV ? ['dev'] : [])]
 
 const sha = s => crypto.createHash('sha256').update(s).digest('hex')
 const dec = v => { try { return decodeURIComponent(v) } catch { return v } }
@@ -167,6 +178,41 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true })
     }
 
+    // сброс пароля: письмо со ссылкой на 1 час. Ответ всегда одинаковый — по нему не узнать, есть ли почта
+    if (path === '/reset/request' && req.method === 'POST') {
+      if (!sameOrigin(req)) return json(res, 403, { error: 'bad_origin' })
+      if (!MAIL) return json(res, 503, { error: 'mail_disabled' })
+      const email = String((await readBody(req)).email ?? '').trim().toLowerCase(), ip = clientIp(req)
+      if (!EMAIL.test(email)) return json(res, 400, { error: 'bad_email' })
+      // свой счётчик: не больше 3 писем на почту и 10 запросов с адреса за 15 минут; вход владельцу не блокирует
+      if (hits('r:' + email) >= 3 || hits('ri:' + ip) >= 10) return json(res, 429, { error: 'too_many' })
+      failed('r:' + email, 'ri:' + ip)
+      const row = db.prepare("SELECT id FROM users WHERE provider = 'email' AND sub = ?").get(email)
+      if (row) {
+        const token = crypto.randomBytes(32).toString('base64url')
+        db.prepare('DELETE FROM resets WHERE user_id = ?').run(row.id)
+        db.prepare('INSERT INTO resets VALUES (?, ?, ?)').run(sha(token), row.id, Date.now() + 36e5)
+        // не ждём отправку: время ответа не должно выдавать, есть ли такая почта
+        sendMail(email, 'Восстановление пароля fasol.app',
+          `Здравствуй!\n\nЧтобы задать новый пароль для fasol.app, открой ссылку (действует 1 час):\n${BASE}/#/reset?token=${token}\n\nЕсли ты не запрашивал сброс — просто проигнорируй это письмо.`).catch(e => console.error(e))
+      }
+      return json(res, 200, { ok: true })
+    }
+    if (path === '/reset/confirm' && req.method === 'POST') {
+      if (!sameOrigin(req)) return json(res, 403, { error: 'bad_origin' })
+      const b = await readBody(req), pw = String(b.password ?? '')
+      if (pw.length < 8 || pw.length > 200) return json(res, 400, { error: 'bad_password' })
+      const row = db.prepare('SELECT user_id FROM resets WHERE hash = ? AND expires > ?').get(sha(String(b.token ?? '')), Date.now())
+      if (!row) return json(res, 400, { error: 'bad_token' })
+      db.prepare('DELETE FROM resets WHERE user_id = ?').run(row.user_id)
+      db.prepare('UPDATE users SET pass = ? WHERE id = ?').run(await hashPass(pw), row.user_id)
+      const u = db.prepare('SELECT sub FROM users WHERE id = ?').get(row.user_id)
+      if (u) fails.delete('e:' + u.sub)
+      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(row.user_id) // выйти на всех устройствах
+      issueSession(req, res, row.user_id)
+      return json(res, 200, { ok: true })
+    }
+
     if (path === '/me') { const u = currentUser(req); return u ? json(res, 200, { user: u }) : json(res, 401, { error: 'unauthorized' }) }
 
     if (!sameOrigin(req) && req.method !== 'GET') return json(res, 403, { error: 'bad_origin' })
@@ -207,4 +253,4 @@ const server = http.createServer(async (req, res) => {
 })
 server.listen(PORT, '0.0.0.0', () => console.log(`fasol api :${PORT}, providers: ${enabled().join(', ') || 'нет'}`))
 // чистка просроченных сессий раз в сутки
-setInterval(() => db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now()), 864e5).unref()
+setInterval(() => { db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now()); db.prepare('DELETE FROM resets WHERE expires < ?').run(Date.now()) }, 864e5).unref()

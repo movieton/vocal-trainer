@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Cloud, CloudOff, LogOut } from 'lucide-react'
-import { authEmail, deleteAccount, loginUrl, logout, useAccount } from '../lib/account'
+import { authEmail, confirmReset, deleteAccount, loginUrl, logout, requestReset, useAccount } from '../lib/account'
+import { useNavigate } from 'react-router-dom'
 
 const PROVIDER_NAME: Record<string, string> = { google: 'Google', yandex: 'Яндекс ID', email: 'почту и пароль', dev: 'тестовый вход' }
 
@@ -20,7 +21,7 @@ export default function Account() {
       <p className="lead-narrow">Войди, чтобы прогресс сохранялся и был доступен на телефоне и компьютере. Без входа всё работает, но данные живут только в этом браузере.</p>
       {failed && <p className="note-box">Не получилось войти. Попробуй ещё раз или выбери другой способ.</p>}
       {a.providers.length === 0 && <p className="note-box">Вход скоро появится. Пока прогресс сохраняется в этом браузере.</p>}
-      {a.providers.includes('email') && <EmailForm />}
+      {a.providers.includes('email') && <EmailForm canReset={a.providers.includes('reset')} />}
       {a.providers.some(p => p !== 'email') && <div className="login-btns">
         {a.providers.includes('google') && <a className="login-btn google" href={loginUrl('google')}><GoogleMark /> Войти через Google</a>}
         {a.providers.includes('yandex') && <a className="login-btn yandex" href={loginUrl('yandex')}><span className="ya" aria-hidden>Я</span> Войти с Яндекс ID</a>}
@@ -77,8 +78,9 @@ function GoogleMark() {
   )
 }
 
-function EmailForm() {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+function EmailForm({ canReset }: { canReset: boolean }) {
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
+  const [sent, setSent] = useState(false)
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [name, setName] = useState('')
@@ -91,25 +93,59 @@ function EmailForm() {
     <form className="auth-form" noValidate onSubmit={async e => {
       e.preventDefault()
       if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr({ field: 'email', text: 'Проверь адрес почты.' })
+      if (mode === 'forgot') {
+        setBusy(true); const t = await requestReset(email); setBusy(false)
+        if (t) setErr({ text: t }); else { setErr(null); setSent(true) }
+        return
+      }
       if (pw.length < 8) return setErr({ field: 'pw', text: 'Пароль — от 8 символов.' })
       setBusy(true)
-      const t = await authEmail(mode, email, pw, name)
+      const t = await authEmail(mode as 'login' | 'register', email, pw, name)
       setErr(t ? { field: fieldOf(t), text: t } : null)
       setBusy(false)
     }}>
       <div className="seg">
-        <button type="button" aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setErr(null) }}>Вход</button>
+        <button type="button" aria-pressed={mode !== 'register'} onClick={() => { setMode('login'); setErr(null) }}>Вход</button>
         <button type="button" aria-pressed={mode === 'register'} onClick={() => { setMode('register'); setErr(null) }}>Регистрация</button>
       </div>
       {mode === 'register' && <label><span>Имя <span className="muted small">— необязательно</span></span><input value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={80} /></label>}
       <label>Почта<input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" inputMode="email"
         aria-invalid={!!errFor('email')} aria-describedby={errFor('email') ? 'err-email' : undefined} />
         {errFor('email') && <span id="err-email" className="field-err" role="alert">{errFor('email')}</span>}</label>
-      <label>Пароль<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+      {mode === 'forgot' && <p className="muted small">Пришлём на почту ссылку, по которой можно задать новый пароль.</p>}
+      {mode === 'forgot' && sent && <p className="note-box" role="status">Если такая почта зарегистрирована, письмо уже в пути. Проверь «Входящие» и «Спам».</p>}
+      {mode !== 'forgot' && <label>Пароль<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
         aria-invalid={!!errFor('pw')} aria-describedby={errFor('pw') ? 'err-pw' : mode === 'register' ? 'hint-pw' : undefined} />
-        {errFor('pw') ? <span id="err-pw" className="field-err" role="alert">{errFor('pw')}</span> : mode === 'register' && <span id="hint-pw" className="muted small">От 8 символов</span>}</label>
+        {errFor('pw') ? <span id="err-pw" className="field-err" role="alert">{errFor('pw')}</span> : mode === 'register' && <span id="hint-pw" className="muted small">От 8 символов</span>}</label>}
       {err && !err.field && <p className="form-err" role="alert">{err.text}</p>}
-      <button className="btn" disabled={busy}>{busy ? 'Минутку…' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}</button>
+      <button className="btn" disabled={busy}>{busy ? 'Минутку…' : mode === 'login' ? 'Войти' : mode === 'register' ? 'Создать аккаунт' : 'Прислать ссылку'}</button>
+      {canReset && mode === 'login' && <button type="button" className="textbtn" onClick={() => { setMode('forgot'); setErr(null); setSent(false) }}>Забыли пароль?</button>}
+      {mode === 'forgot' && <button type="button" className="textbtn" onClick={() => { setMode('login'); setErr(null) }}>← Ко входу</button>}
     </form>
+  )
+}
+
+/** Страница по ссылке из письма: новый пароль */
+export function ResetPassword() {
+  const [params] = useSearchParams()
+  const go = useNavigate()
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const token = params.get('token') ?? ''
+  return (
+    <div className="page account">
+      <h1>Новый пароль</h1>
+      <form className="auth-form" noValidate onSubmit={async e => {
+        e.preventDefault()
+        if (pw.length < 8) return setErr('Пароль — от 8 символов.')
+        setBusy(true); const t = await confirmReset(token, pw); setBusy(false)
+        if (t) setErr(t); else go('/account', { replace: true })
+      }}>
+        <label>Новый пароль<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" aria-invalid={!!err} aria-describedby={err ? 'err-reset' : 'hint-reset'} />
+          {err ? <span id="err-reset" className="field-err" role="alert">{err}</span> : <span id="hint-reset" className="muted small">От 8 символов. После смены пароля выйдем со всех других устройств.</span>}</label>
+        <button className="btn" disabled={busy || !token}>{busy ? 'Минутку…' : 'Сохранить и войти'}</button>
+      </form>
+    </div>
   )
 }

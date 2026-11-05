@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Ear, Heart, ListMusic, Piano, Play, RotateCcw, Star, Volume2 } from 'lucide-react'
+import { BookOpenText, Ear, Heart, ListMusic, Piano, Play, RotateCcw, Star, Volume2 } from 'lucide-react'
 import { PianoKeys } from '../components/PianoKeys'
+import { Staff } from '../components/Staff'
 import { engine } from '../lib/audio'
 import { isBlack, NAMES, plural } from '../lib/music'
 import { logSession, useStored } from '../lib/store'
@@ -15,6 +16,7 @@ const GAMES = {
   find: { title: 'Найди ноту', text: 'Звучит нота — нажми её клавишу.', icon: Ear },
   melody: { title: 'Повтори мелодию', text: 'Звучат несколько нот — нажми их по порядку.', icon: ListMusic },
   name: { title: 'Где эта нота?', text: 'Подсвечена клавиша — выбери её название.', icon: Piano },
+  read: { title: 'Читай ноты', text: 'Нота на нотоносце — нажми её клавишу.', icon: BookOpenText },
 } as const
 type Game = keyof typeof GAMES
 const LEVELS = [
@@ -82,7 +84,7 @@ function KeyGame() {
   const ask = (i: number) => {
     const nq = make(i)
     setQ(nq); setTaps([]); setMarks([]); setLocked(false); setFb(null); setWrongAt(-1)
-    if (game !== 'name') playSeq(nq.notes)
+    if (game !== 'name' && game !== 'read') playSeq(nq.notes)
   }
   const start = () => { setN(0); setHearts(3); setOk(0); setStreak(0); setDone(false); ask(0) }
 
@@ -110,7 +112,7 @@ function KeyGame() {
   const press = (m: number) => {
     engine.play(m, now(), 0.45, 70)
     if (!q || locked || game === 'name') return
-    if (game === 'find') return resolve(m === q.notes[0], m === q.notes[0] ? [{ m, ok: true }] : [{ m, ok: false }, { m: q.notes[0], ok: true }])
+    if (game === 'find' || game === 'read') return resolve(m === q.notes[0], m === q.notes[0] ? [{ m, ok: true }] : [{ m, ok: false }, { m: q.notes[0], ok: true }])
     const t = [...taps, m]
     setTaps(t)
     const i = t.length - 1
@@ -165,16 +167,18 @@ function KeyGame() {
           {game === 'find' && 'Нажми клавишу, которая прозвучала'}
           {game === 'melody' && `Повтори ${q.notes.length} ${plural(q.notes.length, ['ноту', 'ноты', 'нот'])} по порядку`}
           {game === 'name' && 'Как называется подсвеченная клавиша?'}
+          {game === 'read' && 'Нажми клавишу этой ноты'}
           {streak >= 3 && <span className="streak-pill">серия {streak}</span>}
         </p>
-        {game !== 'name' && <button className="btn ghost" onClick={() => playSeq(q.notes)} disabled={locked}><Volume2 size={18} /> Послушать ещё раз</button>}
+        {game === 'read' && <Staff items={[{ m: q.notes[0], acc: isBlack(q.notes[0]) ? '#' : undefined, hl: marks.length ? (marks.some(k => k.m === q.notes[0] && k.ok) && marks.length === 1 ? 'ok' : 'on') : undefined }]} play={false} />}
+        {game !== 'name' && game !== 'read' && <button className="btn ghost" onClick={() => playSeq(q.notes)} disabled={locked}><Volume2 size={18} /> Послушать ещё раз</button>}
         {game !== 'name' && <p className={'lesson-feedback' + (fb ? (fb.ok ? ' ok' : ' bad') : '')} aria-live="polite">{fb?.text ?? ''}</p>}
         {game === 'melody' && <div className="dict-slots">{q.notes.map((x, i) => {
           const shown = wrongAt >= 0 ? name(x) : i < taps.length ? name(taps[i]) : '·'
           return <span key={i} className={'slot' + (i === wrongAt ? ' wrong' : i < taps.length || wrongAt >= 0 ? ' right' : '')}>{shown}{i === wrongAt && <s>{name(taps[i])}</s>}</span>
         })}</div>}
         <PianoKeys lo={L.lo} hi={L.hi} onPress={press}
-          label={m => labels && game !== 'name' && !isBlack(m) ? name(m) : null}
+          label={m => labels && game !== 'name' && (game !== 'read' || locked) && !isBlack(m) ? name(m) : null}
           cls={m => {
             const k = mark(m)
             if (k) return k.ok ? 'right' : 'wrong'

@@ -109,3 +109,22 @@ export async function deleteAccount() {
   if (r.ok) { clearSynced(LOCAL_ONLY); set({ user: null, syncedAt: null }) }
   return r.ok
 }
+
+/** Письмо со ссылкой для нового пароля. Ответ одинаковый, есть такая почта или нет */
+export async function requestReset(email: string): Promise<string | null> {
+  try {
+    const r = await api('/reset/request', { method: 'POST', body: JSON.stringify({ email }) })
+    if (r.ok) return null
+    const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }
+    return AUTH_ERRORS[error] ?? 'Не получилось отправить письмо. Попробуй позже.'
+  } catch { return 'Нет связи с сервером.' }
+}
+
+export async function confirmReset(token: string, password: string): Promise<string | null> {
+  try {
+    const r = await api('/reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) })
+    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return error === 'bad_token' ? 'Ссылка устарела или уже использована. Запроси новую.' : AUTH_ERRORS[error] ?? 'Не получилось.' }
+    await loadMe()
+    return null
+  } catch { return 'Нет связи с сервером.' }
+}
