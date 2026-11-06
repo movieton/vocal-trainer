@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { Goal } from './Welcome'
 import { startPlan } from '../components/PlanBar'
@@ -8,24 +9,24 @@ import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '
 import { noteName, plural } from '../lib/music'
 
 // программа дня меняется по дням недели, слабое место подставляется из статистики
-const BREATH_ROT = [['hiss-metro', 'Шипящий метроном'], ['horizon', 'Апподжио «Горизонт»'], ['candle', 'Свеча'], ['long-s', 'Длинное «с»']]
-const WARM_ROT = [['lip-trill-5', 'Губная трель'], ['trill-siren', 'Трель-сирена'], ['hum', 'Мычание'], ['ng-siren', '«Нг»-сирена']]
-const CALM_ROT = [['mu-triad', 'Трезвучие «Му»'], ['five-vowels', 'Пять гласных'], ['scale-9', 'Гамма на октаву'], ['octave-lift', 'Октавный лифт']]
+const BREATH_ROT = [['hiss-metro', tr('Шипящий метроном')], ['horizon', tr('Апподжио «Горизонт»')], ['candle', tr('Свеча')], ['long-s', tr('Длинное «с»')]]
+const WARM_ROT = [['lip-trill-5', tr('Губная трель')], ['trill-siren', tr('Трель-сирена')], ['hum', tr('Мычание')], ['ng-siren', tr('«Нг»-сирена')]]
+const CALM_ROT = [['mu-triad', tr('Трезвучие «Му»')], ['five-vowels', tr('Пять гласных')], ['scale-9', tr('Гамма на октаву')], ['octave-lift', tr('Октавный лифт')]]
 const BLOCKS = [
-  ['Микст', 'nay', 'Нэй-нэй'], ['Бэлтинг', 'ey', 'Эй-эй'], ['Подвижность', 'stacc-arp', 'Стаккато по арпеджио'],
-  ['Микст', 'gug', 'Гуг'], ['Спокойный звук', 'dome', 'Широкий купол'], ['Подвижность', 'penta-down', 'Пентатонический спуск'], ['Микст', 'octave-jump', 'Октавный скачок'],
+  [tr('Микст'), 'nay', tr('Нэй-нэй')], [tr('Бэлтинг'), 'ey', tr('Эй-эй')], [tr('Подвижность'), 'stacc-arp', tr('Стаккато по арпеджио')],
+  [tr('Микст'), 'gug', tr('Гуг')], [tr('Спокойный звук'), 'dome', tr('Широкий купол')], [tr('Подвижность'), 'penta-down', tr('Пентатонический спуск')], [tr('Микст'), 'octave-jump', tr('Октавный скачок')],
 ]
 const EAR_IDS: Record<string, string> = { '/ear/levels': 'level-', '/ear/sing-interval': 'sing-interval', '/ear/scales': 'scale-sing', '/ear/chords': 'chord-sing', '/ear/melody': 'melody' }
-const EAR_ROT = [['/ear/levels', '10 уровней точности'], ['/ear/sing-interval', 'Интервалы голосом'], ['/ear/scales', 'Гаммы с аккомпанементом'], ['/ear/chords', 'Пение над аккордами'], ['/ear/melody', 'Повтори мелодию']]
+const EAR_ROT = [['/ear/levels', tr('10 уровней точности')], ['/ear/sing-interval', tr('Интервалы голосом')], ['/ear/scales', tr('Гаммы с аккомпанементом')], ['/ear/chords', tr('Пение над аккордами')], ['/ear/melody', tr('Повтори мелодию')]]
 
 // главный блок дня под цель человека
 function goalBlock(goal: Goal, d: number) {
   const pick = <T,>(a: T[]) => a[d % a.length]
   switch (goal) {
-    case 'range': { const [id, t] = pick([['ng-siren', '«Нг»-сирена'], ['octave-lift', 'Октавный лифт'], ['trill-siren', 'Трель-сирена'], ['octave-jump', 'Октавный скачок']]); return { min: 4, title: 'Диапазон', text: t, to: `/ex/${id}`, id } }
-    case 'ear': { const [to, t] = pick([['/ear/keys?g=find', 'Найди ноту на клавиатуре'], ['/ear/degrees', 'Ступени на слух'], ['/ear/intervals', 'Узнай интервал'], ['/ear/dictation', 'Мелодический диктант']]); return { min: 4, title: 'Слух — твоя цель', text: t, to, id: to.includes('keys') ? 'keys-find' : to.slice(5) } }
-    case 'breath': { const [id, t] = pick([['long-s', 'Длинное «с»'], ['hiss-metro', 'Шипящий метроном'], ['horizon', 'Апподжио «Горизонт»']]); return { min: 4, title: 'Дыхание — твоя цель', text: t, to: `/breath/${id}`, id } }
-    case 'write': return { min: 4, title: 'Сочинение', text: 'Набросай 4 такта мелодии над гармонией', to: '/compose', id: 'compose' }
+    case 'range': { const [id, t] = pick([['ng-siren', tr('«Нг»-сирена')], ['octave-lift', tr('Октавный лифт')], ['trill-siren', tr('Трель-сирена')], ['octave-jump', tr('Октавный скачок')]]); return { min: 4, title: tr('Диапазон'), text: t, to: `/ex/${id}`, id } }
+    case 'ear': { const [to, t] = pick([['/ear/keys?g=find', tr('Найди ноту на клавиатуре')], ['/ear/degrees', tr('Ступени на слух')], ['/ear/intervals', tr('Узнай интервал')], ['/ear/dictation', tr('Мелодический диктант')]]); return { min: 4, title: tr('Слух — твоя цель'), text: t, to, id: to.includes('keys') ? 'keys-find' : to.slice(5) } }
+    case 'breath': { const [id, t] = pick([['long-s', tr('Длинное «с»')], ['hiss-metro', tr('Шипящий метроном')], ['horizon', tr('Апподжио «Горизонт»')]]); return { min: 4, title: tr('Дыхание — твоя цель'), text: t, to: `/breath/${id}`, id } }
+    case 'write': return { min: 4, title: tr('Сочинение'), text: tr('Набросай 4 такта мелодии над гармонией'), to: '/compose', id: 'compose' }
     default: return null
   }
 }
@@ -39,16 +40,16 @@ function dayPlan(log: SessionLog[], goal: Goal, minutes: number) {
   const [b1, b1t] = pick(BREATH_ROT), [wId, wT] = pick(WARM_ROT, 1), [cId, cT] = pick(CALM_ROT, 2)
   // слух слабее пения — больше времени слуху
   const earWeak = ear != null && sing != null && ear < sing - 10
-  const [eTo, eT] = earWeak ? ['/ear/levels', '10 уровней точности'] : pick(EAR_ROT, 3)
+  const [eTo, eT] = earWeak ? ['/ear/levels', tr('10 уровней точности')] : pick(EAR_ROT, 3)
   const weak = problemNotes(log)[0]
   const full = [
-    { min: 2, title: 'Дыхание', text: b1t, to: `/breath/${b1}`, id: b1 },
-    { min: 3, title: 'Разогрев', text: wT, to: `/ex/${wId}`, id: wId },
+    { min: 2, title: tr('Дыхание'), text: b1t, to: `/breath/${b1}`, id: b1 },
+    { min: 3, title: tr('Разогрев'), text: wT, to: `/ex/${wId}`, id: wId },
     // есть устойчивая ошибка на ноте — вместо спокойного звука точечная работа над ней
-    ...(weak ? [{ min: 3, title: 'Твоя трудная нота', text: `${noteName(weak.m)}: ${weak.c > 0 ? 'завышаешь' : 'занижаешь'} на ${Math.round(Math.abs(weak.c))} ц — длинная нота`, to: `/breath/long-note?note=${weak.m}`, id: 'long-note' }]
-      : [{ min: 3, title: 'Спокойный звук', text: cT, to: `/ex/${cId}`, id: cId }]),
-    { min: earWeak ? 3 : 4, title: `Блок дня: ${bName.toLowerCase()}`, text: bEx, to: `/ex/${bId}`, id: bId },
-    { min: earWeak ? 4 : 3, title: earWeak ? 'Слух — слабое место' : 'Слух', text: eT, to: eTo, id: EAR_IDS[eTo] },
+    ...(weak ? [{ min: 3, title: tr('Твоя трудная нота'), text: tr('{0}: {1} на {2} ц — длинная нота', noteName(weak.m), weak.c > 0 ? tr('завышаешь') : tr('занижаешь'), Math.round(Math.abs(weak.c))), to: `/breath/long-note?note=${weak.m}`, id: 'long-note' }]
+      : [{ min: 3, title: tr('Спокойный звук'), text: cT, to: `/ex/${cId}`, id: cId }]),
+    { min: earWeak ? 3 : 4, title: tr('Блок дня: {0}', bName.toLowerCase()), text: bEx, to: `/ex/${bId}`, id: bId },
+    { min: earWeak ? 4 : 3, title: earWeak ? tr('Слух — слабое место') : tr('Слух'), text: eT, to: eTo, id: EAR_IDS[eTo] },
   ]
   // цель заменяет «блок дня»; короткая программа — только самое нужное
   const g = goalBlock(goal, d)
@@ -78,32 +79,32 @@ export default function Home() {
   return (
     <div className="page">
       <div className="home-head">
-        <h1 className="hero-title">Пой в своём ритме</h1>
-        <span className="streak"><Flame size={16} /> {st ? `${st} ${plural(st, ['день', 'дня', 'дней'])} подряд` : 'Первый день'}</span>
+        <h1 className="hero-title">{tr('Пой в своём ритме')}</h1>
+        <span className="streak"><Flame size={16} /> {st ? tr('{0} {1} подряд', st, plural(st, [tr('день'), tr('дня'), tr('дней')])) : tr('Первый день')}</span>
       </div>
       <div className="hero-card">
         <BeanWave />
         {next ? <>
-          <p className="hero-next"><small>Шаг {plan.indexOf(next) + 1} из {plan.length} · {next.min}&nbsp;мин</small><b>{next.title}</b>{next.text}</p>
-          <button className="btn hero-btn" onClick={() => { begin(); go(next.to) }}>{doneN ? 'Продолжить' : 'Начать'} <Play size={18} fill="currentColor" /></button>
-        </> : <p className="hero-next"><b>Программа на сегодня выполнена</b>Можно потренировать слух или сочинить мелодию.</p>}
+          <p className="hero-next"><small>{tr('Шаг')} {plan.indexOf(next) + 1} {tr('из')} {plan.length} · {next.min}{tr(' мин')}</small><b>{next.title}</b>{next.text}</p>
+          <button className="btn hero-btn" onClick={() => { begin(); go(next.to) }}>{doneN ? tr('Продолжить') : tr('Начать')} <Play size={18} fill="currentColor" /></button>
+        </> : <p className="hero-next"><b>{tr('Программа на сегодня выполнена')}</b>{tr('Можно потренировать слух или сочинить мелодию.')}</p>}
       </div>
       {!voice && (
         <Link to="/range" className="card cta">
-          <strong>Определи свой голос за минуту</strong>
-          <span className="muted">Спой несколько нот — и упражнения встанут в удобную для тебя высоту&nbsp;→</span>
+          <strong>{tr('Определи свой голос за минуту')}</strong>
+          <span className="muted">{tr('Спой несколько нот — и упражнения встанут в удобную для тебя высоту →')}</span>
         </Link>
       )}
       <div className="card">
         <div className="prog-head">
-          <h2>Программа на {minutes} {plural(minutes, ["минуту", "минуты", "минут"])}</h2>
-          <span className="muted small">{doneN} из {plan.length} · <Link to="/welcome">цель и время</Link></span>
+          <h2>{tr('Программа на')} {minutes} {plural(minutes, [tr('минуту'), tr('минуты'), tr('минут')])}</h2>
+          <span className="muted small">{doneN} {tr('из')} {plan.length} · <Link to="/welcome">{tr('цель и время')}</Link></span>
         </div>
         <ol className="plan">
           {plan.map(p => (
             <li key={p.title} className={p.done ? 'done' : ''}>
               <Link to={p.to} onClick={begin}>
-                <span className="min">{p.done ? <Check size={16} /> : `${p.min} мин`}</span>
+                <span className="min">{p.done ? <Check size={16} /> : tr('{0} мин', p.min)}</span>
                 <strong>{p.title}</strong><span className="muted">{p.text}</span>
                 <ChevronRight size={18} className="chev" />
               </Link>
@@ -113,9 +114,9 @@ export default function Home() {
       </div>
       {log.length > 0 && <ReminderCard compact />}
       <div className="chips">
-        <span>Рабочий диапазон <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>
-        <span>Сегодня упражнений <b>{today.length}</b></span>
-        {log.length > 0 && <span>Точность{log.length > 1 ? `, последние ${Math.min(10, log.length)}` : ''} <b>{Math.round(log.slice(0, 10).reduce((a, l) => a + l.score, 0) / Math.min(10, log.length))}%</b></span>}
+        <span>{tr('Рабочий диапазон')} <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>
+        <span>{tr('Сегодня упражнений')} <b>{today.length}</b></span>
+        {log.length > 0 && <span>{tr('Точность')}{log.length > 1 ? tr(', последние {0}', Math.min(10, log.length)) : ''} <b>{Math.round(log.slice(0, 10).reduce((a, l) => a + l.score, 0) / Math.min(10, log.length))}%</b></span>}
       </div>
     </div>
   )

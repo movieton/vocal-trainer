@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import PianoRoll from './PianoRoll'
@@ -36,7 +37,7 @@ type Props = {
 }
 
 /** Общий экран упражнений на слух с голосом: доска, старт/стоп, итог */
-export default function DrillPage({ back = { to: "/ear", label: "Слух" }, id, title, intro, controls, make, how, windowSec = 8, settingsKey = '', tolerance, onFinish, extra, lyrics, span: fixed }: Props) {
+export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }, id, title, intro, controls, make, how, windowSec = 8, settingsKey = '', tolerance, onFinish, extra, lyrics, span: fixed }: Props) {
   useEngine(4)
   const [storedTol, setTol] = useStored('tolerance', 25)
   const tol = tolerance ?? storedTol
@@ -68,7 +69,7 @@ export default function DrillPage({ back = { to: "/ear", label: "Слух" }, id
     engine.history = []; setTimeout(() => { engine.history = [] }, 500)
     if (x.results.length) {
       const s = x.summary()
-      setResult({ ...s, lines: x.results.map(r => `${r.label || 'Фраза'}: ${Math.round(r.score * 100)}%`) })
+      setResult({ ...s, lines: x.results.map(r => `${r.label || tr('Фраза')}: ${Math.round(r.score * 100)}%`) })
       logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round(s.score * 100), reps: s.reps })
       finishRef.current?.(s.score)
     }
@@ -122,11 +123,11 @@ export default function DrillPage({ back = { to: "/ear", label: "Слух" }, id
   }
   const overlay = () => {
     const x = run.current
-    if (tk.replay) return 'Запись'
+    if (tk.replay) return tr('Запись')
     if (!x) return ''
     const mark = x.mark(engine.now())
-    const ph = x.phase === 'sing' ? 'Пой' : 'Слушай'
-    return mark && mark !== ph && mark !== 'Повтори' ? `${mark} · ${ph}` : ph
+    const ph = x.phase === 'sing' ? tr('Пой') : tr('Слушай')
+    return mark && mark !== ph && mark !== tr('Повтори') ? `${mark} · ${ph}` : ph
   }
 
   return (
@@ -139,41 +140,41 @@ export default function DrillPage({ back = { to: "/ear", label: "Слух" }, id
       {extra}
       <div className="settings drill-controls">
         {controls?.(running)}
-        {tolerance == null && <label>Строгость
+        {tolerance == null && <label>{tr('Строгость')}
           <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
-            <option value={50}>Мягко, ±50 ц</option><option value={25}>Обычно, ±25 ц</option><option value={12}>Строго, ±12 ц</option>
+            <option value={50}>{tr('Мягко, ±50 ц')}</option><option value={25}>{tr('Обычно, ±25 ц')}</option><option value={12}>{tr('Строго, ±12 ц')}</option>
           </select>
         </label>}
-        <label>Высота
+        <label>{tr('Высота')}
           <span className="stepper">
-            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label="Октава ниже" title="Октава ниже">«</button>
-            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label="Полутон ниже">−</button>
-            <span>{shift === 0 ? 'авто' : (shift > 0 ? '+' : '') + shift}</span>
-            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label="Полутон выше">+</button>
-            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label="Октава выше" title="Октава выше">»</button>
+            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label={tr('Октава ниже')} title={tr('Октава ниже')}>«</button>
+            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label={tr('Полутон ниже')}>−</button>
+            <span>{shift === 0 ? tr('авто') : (shift > 0 ? '+' : '') + shift}</span>
+            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label={tr('Полутон выше')}>+</button>
+            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label={tr('Октава выше')} title={tr('Октава выше')}>»</button>
           </span>
         </label>
       </div>
-      <p className="muted small">Рабочий диапазон: {noteName(wr.lo)}–{noteName(wr.hi)} ({wr.source}). Слишком высоко или низко — <Link to="/range">смени тип голоса</Link> или сдвинь высоту.</p>
+      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(wr.lo)}–{noteName(wr.hi)} ({wr.source}{tr('). Слишком высоко или низко —')} <Link to="/range">{tr('смени тип голоса')}</Link> {tr('или сдвинь высоту.')}</p>
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
-          {tk.playing ? <button className="btn stop" onClick={tk.stop}>■ Остановить запись</button>
-            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>}
-          <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> Повторять фразу</label>
+          {tk.playing ? <button className="btn stop" onClick={tk.stop}>{tr('■ Остановить запись')}</button>
+            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? tr('Стоп') : tr('Начать')}</button>}
+          <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> {tr('Повторять фразу')}</label>
           <span className="status">
-            {running && <span>Фраза {status.n}</span>}
-            {status.last != null && <span>Последняя фраза <b>{Math.round(status.last * 100)}%</b></span>}
+            {running && <span>{tr('Фраза')} {status.n}</span>}
+            {status.last != null && <span>{tr('Последняя фраза')} <b>{Math.round(status.last * 100)}%</b></span>}
           </span>
         </div>
       )}
       <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" lyrics={lyrics} />
       {!running && <TakeBar t={tk} />}
       <div className="howto">
-        {how && <div><h2>Как делать</h2><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></div>}
+        {how && <div><h2>{tr('Как делать')}</h2><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></div>}
         {result && (
           <div className="result">
-            <h2>Итог: {Math.round(result.score * 100)}%</h2>
+            <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
             <ol className="plain">{result.lines.slice(-12).map((l, i) => <li key={i}>{l}</li>)}</ol>
           </div>
         )}

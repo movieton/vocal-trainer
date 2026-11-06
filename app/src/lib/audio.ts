@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 import { PitchDetector } from 'pitchy'
 import { SplendidGrandPiano } from 'smplr'
 import { ftom, median, mtof } from './music'
@@ -85,8 +86,8 @@ class Engine {
       this.mic = 'error'
       const err = e as DOMException
       this.micError = err?.name === 'NotAllowedError'
-        ? 'Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.'
-        : 'Не удалось включить микрофон: ' + (err?.message ?? String(e))
+        ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
+        : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
     }
     this.emit()
   }

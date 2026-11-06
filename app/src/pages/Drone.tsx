@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
@@ -43,7 +44,7 @@ export default function Drone() {
   const stop = () => {
     engine.drone(null); setOn(false); setTask(null)
     engine.history = []; setTimeout(() => { engine.history = [] }, 500)
-    if (score.all) logSession({ date: Date.now(), kind: 'ear', id: 'drone', title: 'Пение под дрон', score: Math.round((score.ok / score.all) * 100), reps: score.all })
+    if (score.all) logSession({ date: Date.now(), kind: 'ear', id: 'drone', title: tr('Пение под дрон'), score: Math.round((score.ok / score.all) * 100), reps: score.all })
   }
   useEffect(() => () => engine.drone(null), [])
   useEffect(() => {
@@ -93,37 +94,37 @@ export default function Drone() {
 
   return (
     <div className="page trainer">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
+      <div className="crumbs"><Link to="/ear">{tr('Слух')}</Link></div>
       <div className="trainer-head">
-        <div><h1>Пение под дрон</h1><p className="muted">Постоянно звучит тоника с квинтой. Пой названную ступень и держи её, пока не засчитается. Так ухо учится слышать каждую ноту относительно тоники.</p></div>
+        <div><h1>{tr('Пение под дрон')}</h1><p className="muted">{tr('Постоянно звучит тоника с квинтой. Пой названную ступень и держи её, пока не засчитается. Так ухо учится слышать каждую ноту относительно тоники.')}</p></div>
         <LiveNote />
       </div>
       <div className="settings drill-controls">
-        <label>Тональность <KeySelect value={key} onChange={setKey} disabled={on} /></label>
-        <label>Лад <span className="seg">
-          <button aria-pressed={!minor} disabled={on} onClick={() => setMinor(false)}>Мажор</button>
-          <button aria-pressed={minor} disabled={on} onClick={() => setMinor(true)}>Минор</button>
+        <label>{tr('Тональность')} <KeySelect value={key} onChange={setKey} disabled={on} /></label>
+        <label>{tr('Лад')} <span className="seg">
+          <button aria-pressed={!minor} disabled={on} onClick={() => setMinor(false)}>{tr('Мажор')}</button>
+          <button aria-pressed={minor} disabled={on} onClick={() => setMinor(true)}>{tr('Минор')}</button>
         </span></label>
       </div>
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
-          <button className={'btn' + (on ? ' stop' : '')} onClick={on ? stop : start}>{on ? 'Стоп' : 'Включить дрон'}</button>
-          <span className="status">{score.all > 0 && <span>Засчитано: <b>{score.ok}</b>{score.all > score.ok ? ` из ${score.all}` : ''}</span>}</span>
+          <button className={'btn' + (on ? ' stop' : '')} onClick={on ? stop : start}>{on ? tr('Стоп') : tr('Включить дрон')}</button>
+          <span className="status">{score.all > 0 && <span>{tr('Засчитано:')} <b>{score.ok}</b>{score.all > score.ok ? tr(' из {0}', score.all) : ''}</span>}</span>
         </div>
       )}
       <div className="task-big">
-        {task ? <>Спой <b>{task.deg === 7 ? '8-ю (октаву)' : `${DEG_NAMES[task.deg]}-ю`} ступень</b> — {noteName(task.m)}</>
-          : <span className="muted">Начнём с 1-й ступени — {noteName(tonic)}. Включи дрон и пропой её.</span>}
+        {task ? <>{tr('Спой')} <b>{task.deg === 7 ? tr('8-ю (октаву)') : tr('{0}-ю', DEG_NAMES[task.deg])} {tr('ступень')}</b> — {noteName(task.m)}</>
+          : <span className="muted">{tr('Начнём с 1-й ступени —')} {noteName(tonic)}{tr('. Включи дрон и пропой её.')}</span>}
       </div>
       <PianoRoll view={() => { const c = task ? task.m : tonic + 4; return { lo: c - 6, hi: c + 6 } }} rowLabel={m => { const s = ((m - tonic) % 12 + 12) % 12; const i = steps.indexOf(s); return i < 0 ? null : DEG_NAMES[i] }} targets={targets} colorFor={colorFor} tolerance={TOL} windowSec={8} playhead={0.5}
-        overlay={() => (nd ? `${DEG_NAMES[nd.d]} ступень ${nd.c >= 0 ? '+' : '−'}${Math.abs(Math.round(nd.c))} ц` : on ? 'Пой' : '')} className="tall" />
+        overlay={() => (nd ? tr('{0} ступень {1}{2} ц', DEG_NAMES[nd.d], nd.c >= 0 ? '+' : '−', Math.abs(Math.round(nd.c))) : on ? tr('Пой') : '')} className="tall" />
       <div className="howto">
-        <div><h2>Как делать</h2><ol>
-          <li>Наушники необязательны: дрон низкий и мягкий, микрофон его почти не слышит.</li>
-          <li>Сначала просто послушай дрон и пропой тонику — «1».</li>
-          <li>Затем держи названную ступень: зелёный — ±12 центов, жёлтый — до 30, красный — мимо. Засчитывается после {HOLD} с в пределах ±{TOL} центов.</li>
-          <li>Тоника: {pcName(pc)} {minor ? 'минор' : 'мажор'}. Начни с 1, 3, 5, затем добавь остальные.</li>
+        <div><h2>{tr('Как делать')}</h2><ol>
+          <li>{tr('Наушники необязательны: дрон низкий и мягкий, микрофон его почти не слышит.')}</li>
+          <li>{tr('Сначала просто послушай дрон и пропой тонику — «1».')}</li>
+          <li>{tr('Затем держи названную ступень: зелёный — ±12 центов, жёлтый — до 30, красный — мимо. Засчитывается после')} {HOLD} {tr('с в пределах ±')}{TOL} {tr('центов.')}</li>
+          <li>{tr('Тоника:')} {pcName(pc)} {minor ? tr('минор') : tr('мажор')}{tr('. Начни с 1, 3, 5, затем добавь остальные.')}</li>
         </ol></div>
       </div>
     </div>

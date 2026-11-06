@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Delete, RotateCcw } from 'lucide-react'
@@ -40,23 +41,23 @@ export default function Dictation() {
       setDone(ok)
       const s = { ok: stat.ok + (ok ? 1 : 0), all: stat.all + 1 }
       setStat(s)
-      if (s.all % 10 === 0) logSession({ date: Date.now(), kind: 'ear', id: 'dictation', title: 'Мелодический диктант', score: Math.round((s.ok / s.all) * 100), reps: s.all })
+      if (s.all % 10 === 0) logSession({ date: Date.now(), kind: 'ear', id: 'dictation', title: tr('Мелодический диктант'), score: Math.round((s.ok / s.all) * 100), reps: s.all })
     }
   }
 
   return (
     <div className="page">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
-      <h1>Мелодический диктант</h1>
-      <p className="muted">Каденция задаёт тональность, затем звучит короткая мелодия. Запиши её ступенями по порядку. Каждая нажатая ступень звучит — можно проверять себя на слух.</p>
+      <div className="crumbs"><Link to="/ear">{tr('Слух')}</Link></div>
+      <h1>{tr('Мелодический диктант')}</h1>
+      <p className="muted">{tr('Каденция задаёт тональность, затем звучит короткая мелодия. Запиши её ступенями по порядку. Каждая нажатая ступень звучит — можно проверять себя на слух.')}</p>
       <div className="settings drill-controls">
-        <label>Длина <span className="seg">{[3, 4, 5, 6].map(n => <button key={n} aria-pressed={len === n} onClick={() => setLen(n)}>{n} ноты</button>)}</span></label>
+        <label>{tr('Длина')} <span className="seg">{[3, 4, 5, 6].map(n => <button key={n} aria-pressed={len === n} onClick={() => setLen(n)}>{n} {tr('ноты')}</button>)}</span></label>
       </div>
       <div className="card quiz">
         <div className="quiz-top">
-          {task && <button className="btn ghost" onClick={() => play(task)}>Ещё раз</button>}
-          {!task || done != null ? <button className="btn" onClick={next}>{task ? 'Дальше' : 'Начать'}</button> : null}
-          <span className="status"><span>Верно <b>{stat.ok} / {stat.all}</b></span></span>
+          {task && <button className="btn ghost" onClick={() => play(task)}>{tr('Ещё раз')}</button>}
+          {!task || done != null ? <button className="btn" onClick={next}>{task ? tr('Дальше') : tr('Начать')}</button> : null}
+          <span className="status"><span>{tr('Верно')} <b>{stat.ok} / {stat.all}</b></span></span>
         </div>
         {task && (
           <>
@@ -67,10 +68,10 @@ export default function Dictation() {
                   {done != null && ans[i] !== d && <s>{ans[i] + 1}</s>}
                 </span>
               ))}
-              {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns(ans.slice(0, -1))} aria-label="Стереть"><Delete size={16} /></button>}
-              {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns([])} aria-label="Заново"><RotateCcw size={16} /></button>}
+              {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns(ans.slice(0, -1))} aria-label={tr('Стереть')}><Delete size={16} /></button>}
+              {done == null && ans.length > 0 && <button className="textbtn" onClick={() => setAns([])} aria-label={tr('Заново')}><RotateCcw size={16} /></button>}
             </div>
-            {done != null && <p className={'verdict' + (done ? ' ok-msg' : '')}>{done ? 'Верно!' : `Правильно: ${task.degs.map(d => d + 1).join('–')}`}</p>}
+            {done != null && <p className={'verdict' + (done ? ' ok-msg' : '')}>{done ? tr('Верно!') : tr('Правильно: {0}', task.degs.map(d => d + 1).join('–'))}</p>}
             <div className="answers degs">
               {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
                 <button key={d} className="answer" disabled={done != null} onClick={() => tap(d)}>{d + 1}<small>{SOLFEGE[d % 7]}</small></button>

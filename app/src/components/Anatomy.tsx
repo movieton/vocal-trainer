@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 /**
  * Понятные анатомические схемы в стиле fasol: всегда на светлой подложке, подписи по-русски.
  * HeadProfile — голова в разрезе с подсветкой нужной части; FoldsDiagram — складки сверху; Posture — осанка.
@@ -32,23 +33,23 @@ export function DiaphragmDiagram() {
   return (
     <figure className="fig">
       <div className="anat-pair">
-        <svg viewBox="0 0 330 340" className="diagram anat" role="img" aria-label="Вдох: диафрагма опускается и уплощается, рёбра расходятся в стороны">
+        <svg viewBox="0 0 330 340" className="diagram anat" role="img" aria-label={tr('Вдох: диафрагма опускается и уплощается, рёбра расходятся в стороны')}>
           {marker}
-          <text x="160" y="22" textAnchor="middle" className="lbl strong">Вдох</text>
+          <text x="160" y="22" textAnchor="middle" className="lbl strong">{tr('Вдох')}</text>
           <Torso x={160} inhale />
-          <path d="M200 120 L248 100" className="leader" /><text x="250" y="96" className="lbl small">лёгкие</text>
-          <path d="M226 168 L248 180" className="leader" /><text x="250" y="190" className="lbl small">рёбра</text>
-          <path d="M200 226 L240 256" className="leader" /><text x="236" y="272" className="lbl small">диафрагма</text>
-          <text x="160" y="326" textAnchor="middle" className="lbl small">опускается, рёбра расходятся</text>
+          <path d="M200 120 L248 100" className="leader" /><text x="250" y="96" className="lbl small">{tr('лёгкие')}</text>
+          <path d="M226 168 L248 180" className="leader" /><text x="250" y="190" className="lbl small">{tr('рёбра')}</text>
+          <path d="M200 226 L240 256" className="leader" /><text x="236" y="272" className="lbl small">{tr('диафрагма')}</text>
+          <text x="160" y="326" textAnchor="middle" className="lbl small">{tr('опускается, рёбра расходятся')}</text>
         </svg>
-        <svg viewBox="0 0 330 340" className="diagram anat" role="img" aria-label="Выдох с опорой: диафрагма поднимается медленно, рёбра остаются раскрытыми">
+        <svg viewBox="0 0 330 340" className="diagram anat" role="img" aria-label={tr('Выдох с опорой: диафрагма поднимается медленно, рёбра остаются раскрытыми')}>
           {marker}
-          <text x="165" y="22" textAnchor="middle" className="lbl strong">Выдох с опорой</text>
+          <text x="165" y="22" textAnchor="middle" className="lbl strong">{tr('Выдох с опорой')}</text>
           <Torso x={165} inhale={false} />
-          <text x="165" y="326" textAnchor="middle" className="lbl small">поднимается медленно, рёбра раскрыты</text>
+          <text x="165" y="326" textAnchor="middle" className="lbl small">{tr('поднимается медленно, рёбра раскрыты')}</text>
         </svg>
       </div>
-      <figcaption>Вид спереди. Синяя линия — диафрагма: купол под лёгкими.</figcaption>
+      <figcaption>{tr('Вид спереди. Синяя линия — диафрагма: купол под лёгкими.')}</figcaption>
     </figure>
   )
 }
@@ -67,7 +68,7 @@ export function Credit({ src, alt, caption, author, license, href }: { src: stri
 export type Part = 'lips' | 'jaw' | 'tongue' | 'palate' | 'pharynx' | 'larynx' | 'nose'
 /** Действие поверх схемы: что сделать этой частью */
 export type Action = 'jaw-drop' | 'straw' | 'larynx-down' | 'tongue-forward' | 'palate-up' | 'lips-buzz'
-const PART_NAME: Record<Part, string> = { lips: 'губы', jaw: 'челюсть', tongue: 'язык', palate: 'мягкое нёбо', pharynx: 'глотка', larynx: 'гортань, связки', nose: 'носовая полость' }
+const PART_NAME: Record<Part, string> = { lips: tr('губы'), jaw: tr('челюсть'), tongue: tr('язык'), palate: tr('мягкое нёбо'), pharynx: tr('глотка'), larynx: tr('гортань, связки'), nose: tr('носовая полость') }
 
 const Arrow = ({ id }: { id: string }) => <defs><marker id={id} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" className="fill-accent" /></marker></defs>
 
@@ -82,7 +83,7 @@ export function HeadProfile({ hl, action, caption }: { hl?: Part; action?: Actio
   )
   return (
     <figure className="fig">
-      <svg viewBox={action === 'straw' ? '-80 0 440 380' : '0 0 360 380'} className="diagram anat head" role="img" aria-label={`Голова в разрезе${hl ? ', выделено: ' + PART_NAME[hl] : ''}`}>
+      <svg viewBox={action === 'straw' ? '-80 0 440 380' : '0 0 360 380'} className="diagram anat head" role="img" aria-label={tr('Голова в разрезе{0}', hl ? tr(', выделено: {0}', PART_NAME[hl]) : '')}>
         <Arrow id="hp-ah" />
         {/* силуэт: лицо смотрит влево */}
         <path d="M150 18 C94 18 60 54 60 104 L60 116 L36 150 L56 160 L54 168 L46 174 L54 180 L46 186 L56 192 L58 212 C60 232 80 240 104 242 L126 246 L130 380 L234 380 L236 270 C266 240 280 200 278 150 C276 70 226 18 150 18 Z" className="body" />
@@ -123,7 +124,7 @@ export function HeadProfile({ hl, action, caption }: { hl?: Part; action?: Actio
         {action !== 'straw' && label('jaw', 86, 238, 8, 290)}
         {label('larynx', 180, 262, 240, 262)}
         {action === 'straw' ? label('lips', 46, 172, 30, 150, 'end') : label('lips', 44, 182, 26, 236, 'end')}
-        <text x="244" y="350" className="lbl small air-lbl">→ путь воздуха</text>
+        <text x="244" y="350" className="lbl small air-lbl">{tr('→ путь воздуха')}</text>
       </svg>
       {caption && <figcaption>{caption}</figcaption>}
     </figure>
@@ -142,9 +143,9 @@ export function FoldsDiagram() {
         <path d={`M80 44 L${L} 152 L${Li} 152 L80 ${open ? 52 : 46} Z`} className="fold-band" />
         <path d={`M80 44 L${160 - L} 152 L${160 - Li} 152 L80 ${open ? 52 : 46} Z`} className="fold-band" />
         {!open && <path d="M74 92 h12 M74 112 h12 M74 132 h12" className="vib" />}
-        <text x="80" y="38" textAnchor="middle" className="lbl tiny">кадык ↑</text>
-        <path d={`M${(L + Li) / 2 + 4} 128 L18 150`} className="leader" /><text x="16" y="162" className="lbl tiny">складки</text>
-        {open && <><path d="M80 130 L134 158" className="leader" /><text x="114" y="170" className="lbl tiny">щель</text></>}
+        <text x="80" y="38" textAnchor="middle" className="lbl tiny">{tr('кадык ↑')}</text>
+        <path d={`M${(L + Li) / 2 + 4} 128 L18 150`} className="leader" /><text x="16" y="162" className="lbl tiny">{tr('складки')}</text>
+        {open && <><path d="M80 130 L134 158" className="leader" /><text x="114" y="170" className="lbl tiny">{tr('щель')}</text></>}
         <text x="80" y="190" textAnchor="middle" className="lbl small">{note[0]}</text>
         <text x="80" y="205" textAnchor="middle" className="lbl small">{note[1]}</text>
       </g>
@@ -152,31 +153,31 @@ export function FoldsDiagram() {
   }
   return (
     <figure className="fig">
-      <svg viewBox="0 0 340 215" className="diagram anat folds" role="img" aria-label="Голосовые складки сверху: на вдохе раскрыты и между ними щель, на звуке сомкнуты и колеблются">
-        {panel(0, true, 'Вдох', ['раскрыты,', 'воздух проходит'])}
-        {panel(176, false, 'Звук', ['сомкнуты', 'и колеблются'])}
+      <svg viewBox="0 0 340 215" className="diagram anat folds" role="img" aria-label={tr('Голосовые складки сверху: на вдохе раскрыты и между ними щель, на звуке сомкнуты и колеблются')}>
+        {panel(0, true, tr('Вдох'), [tr('раскрыты,'), tr('воздух проходит')])}
+        {panel(176, false, tr('Звук'), [tr('сомкнуты'), tr('и колеблются')])}
       </svg>
-      <figcaption>Вид сверху, как в ларингоскоп.</figcaption>
+      <figcaption>{tr('Вид сверху, как в ларингоскоп.')}</figcaption>
     </figure>
   )
 }
 
 type Pose = { ear: [number, number]; sh: [number, number]; hip: [number, number]; knee: [number, number]; ank: [number, number] }
 const POSES: { t: string; ok: boolean; p: Pose }[] = [
-  { t: 'сутулость', ok: false, p: { ear: [30, 58], sh: [46, 92], hip: [56, 168], knee: [46, 224], ank: [52, 280] } },
-  { t: 'перетянуто', ok: false, p: { ear: [62, 44], sh: [64, 86], hip: [40, 166], knee: [58, 224], ank: [52, 280] } },
-  { t: 'свободно', ok: true, p: { ear: [42, 44], sh: [42, 86], hip: [42, 166], knee: [46, 224], ank: [52, 280] } },
+  { t: tr('сутулость'), ok: false, p: { ear: [30, 58], sh: [46, 92], hip: [56, 168], knee: [46, 224], ank: [52, 280] } },
+  { t: tr('перетянуто'), ok: false, p: { ear: [62, 44], sh: [64, 86], hip: [40, 166], knee: [58, 224], ank: [52, 280] } },
+  { t: tr('свободно'), ok: true, p: { ear: [42, 44], sh: [42, 86], hip: [42, 166], knee: [46, 224], ank: [52, 280] } },
 ]
 /** Осанка в профиль: сравнение трёх поз, отвес через ухо — плечо — таз — стопу */
 export function Posture() {
   return (
     <figure className="fig">
-      <svg viewBox="0 0 330 320" className="diagram anat posture" role="img" aria-label="Три позы в профиль: сутулость и перетянутая поза — неверно, свободная — ухо, плечо и таз на одной вертикали над стопой">
+      <svg viewBox="0 0 330 320" className="diagram anat posture" role="img" aria-label={tr('Три позы в профиль: сутулость и перетянутая поза — неверно, свободная — ухо, плечо и таз на одной вертикали над стопой')}>
         {POSES.map(({ t, ok, p }, i) => {
           const { ear, sh, hip, knee, ank } = p
           return (
             <g key={t} transform={`translate(${i * 110 + 4} 0)`}>
-              <path d={`M${sh[0]} ${sh[1]} Q${(sh[0] + hip[0]) / 2 + (t === 'сутулость' ? 14 : t === 'перетянуто' ? -10 : 0)} ${(sh[1] + hip[1]) / 2} ${hip[0]} ${hip[1]}`} className="limb torso" />
+              <path d={`M${sh[0]} ${sh[1]} Q${(sh[0] + hip[0]) / 2 + (t === tr('сутулость') ? 14 : t === tr('перетянуто') ? -10 : 0)} ${(sh[1] + hip[1]) / 2} ${hip[0]} ${hip[1]}`} className="limb torso" />
               <path d={`M${hip[0]} ${hip[1]} L${knee[0]} ${knee[1]} L${ank[0]} ${ank[1]} L${ank[0] - 22} ${ank[1] + 2} M${ank[0]} ${ank[1] + 2} L${ank[0] + 4} ${ank[1] + 2}`} className="limb" />
               <path d={`M${sh[0]} ${sh[1] + 4} L${sh[0] + 4} ${sh[1] + 64}`} className="limb arm" />
               <path d={`M${ear[0]} ${ear[1] + 14} L${sh[0]} ${sh[1]}`} className="limb neck" />
@@ -189,7 +190,7 @@ export function Posture() {
           )
         })}
       </svg>
-      <figcaption>Пунктир — отвес над серединой стопы. Ухо, плечо и таз на нём — значит, свободно.</figcaption>
+      <figcaption>{tr('Пунктир — отвес над серединой стопы. Ухо, плечо и таз на нём — значит, свободно.')}</figcaption>
     </figure>
   )
 }

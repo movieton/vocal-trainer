@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
@@ -19,13 +20,13 @@ export function AchievementGrid() {
   const got = new Set(earned(useData()))
   return (
     <div className="card">
-      <div className="prog-head"><h2>Фасолины</h2><span className="muted small">{got.size} из {ACHIEVEMENTS.length}</span></div>
+      <div className="prog-head"><h2>{tr('Фасолины')}</h2><span className="muted small">{got.size} {tr('из')} {ACHIEVEMENTS.length}</span></div>
       <ul className="ach-grid">
         {ACHIEVEMENTS.map((a, i) => (
           <li key={a.id} className={got.has(a.id) ? 'got' : ''}>
             <Bean size={40} rotate={(i % 5 - 2) * 18} className="ach-bean" />
             <b>{a.title}</b>
-            <span>{got.has(a.id) ? 'получена' : a.how}</span>
+            <span>{got.has(a.id) ? tr('получена') : a.how}</span>
           </li>
         ))}
       </ul>
@@ -47,14 +48,14 @@ export function AchievementToast() {
   useEffect(() => { if (!show) return; const t = setTimeout(() => setShow(null), 6000); return () => clearTimeout(t) }, [show])
   const list = (show ?? []).map(id => ACHIEVEMENTS.find(x => x.id === id)!).filter(Boolean)
   if (!list.length) return null
-  const names = list.length <= 3 ? list.map(a => a.title).join(', ') : `${list[0].title} и ещё ${list.length - 1}`
+  const names = list.length <= 3 ? list.map(a => a.title).join(', ') : tr('{0} и ещё {1}', list[0].title, list.length - 1)
   return (
     <div className="ach-toast" role="status">
       <button className="ach-open" onClick={() => { setShow(null); go('/progress') }}>
         <Bean size={36} rotate={-14} className="ach-bean" />
-        <span><b>{list.length > 1 ? `+${list.length} фасолины` : '+1 фасолина'}</b><span>{names}</span></span>
+        <span><b>{list.length > 1 ? tr('+{0} фасолины', list.length) : tr('+1 фасолина')}</b><span>{names}</span></span>
       </button>
-      <button className="textbtn ach-x" aria-label="Закрыть" onClick={() => setShow(null)}><X size={18} /></button>
+      <button className="textbtn ach-x" aria-label={tr('Закрыть')} onClick={() => setShow(null)}><X size={18} /></button>
     </div>
   )
 }

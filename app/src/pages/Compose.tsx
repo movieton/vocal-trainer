@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Dices, Download, Pause, Play, Plus, Trash2, X } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
@@ -23,14 +24,14 @@ const ROLE_COLOR = { chord: '--good', scale: '--near', out: '--bad' } as const
  */
 function ContrastCheck({ parts }: { parts: { name: string; prog: KeyChord[]; melody: MelNote[] }[] }) {
   const [v, c] = parts
-  if (!v?.melody.length || !c?.melody.length) return <p className="muted small">Напиши мелодии куплета и припева — появится проверка контраста.</p>
+  if (!v?.melody.length || !c?.melody.length) return <p className="muted small">{tr('Напиши мелодии куплета и припева — появится проверка контраста.')}</p>
   const mean = (m: MelNote[]) => m.reduce((a, n) => a + n.m, 0) / m.length
   const dens = (p: { prog: KeyChord[]; melody: MelNote[] }) => p.melody.length / Math.max(1, p.prog.length)
   const up = mean(c.melody) - mean(v.melody)
   const checks = [
-    { ok: up >= 2, text: up >= 2 ? `Припев выше куплета на ${Math.round(up)} ${plural(Math.round(up), ['полутон', 'полутона', 'полутонов'])} — это добавляет подъёма.` : 'Припев не выше куплета. Обычно припев поднимают на 2–5 полутонов: попробуй.' },
-    { ok: c.prog[0]?.root === 0, text: c.prog[0]?.root === 0 ? 'Припев начинается с тоники — звучит как «приход домой».' : 'Припев начинается не с тоники. Так тоже бывает, но тоника в начале припева — самый частый ход.' },
-    { ok: Math.abs(dens(c) - dens(v)) >= 1, text: Math.abs(dens(c) - dens(v)) >= 1 ? 'Ритм частей различается — контраст слышен.' : 'Ритм куплета и припева похож. Контраст помогает: сделай одну часть плотнее, другую — длиннее нотами.' },
+    { ok: up >= 2, text: up >= 2 ? tr('Припев выше куплета на {0} {1} — это добавляет подъёма.', Math.round(up), plural(Math.round(up), [tr('полутон'), tr('полутона'), tr('полутонов')])) : tr('Припев не выше куплета. Обычно припев поднимают на 2–5 полутонов: попробуй.') },
+    { ok: c.prog[0]?.root === 0, text: c.prog[0]?.root === 0 ? tr('Припев начинается с тоники — звучит как «приход домой».') : tr('Припев начинается не с тоники. Так тоже бывает, но тоника в начале припева — самый частый ход.') },
+    { ok: Math.abs(dens(c) - dens(v)) >= 1, text: Math.abs(dens(c) - dens(v)) >= 1 ? tr('Ритм частей различается — контраст слышен.') : tr('Ритм куплета и припева похож. Контраст помогает: сделай одну часть плотнее, другую — длиннее нотами.') },
   ]
   return <CheckList items={checks} />
 }
@@ -47,7 +48,7 @@ export default function Compose() {
   const [playing, setPlaying] = useState(false)
   const [rec, setRec] = useState(false)
   // части песни: у каждой своя гармония и мелодия; активная часть редактируется через prog/melody
-  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[]; lyrics?: string }[]>('cmp.parts', [{ name: 'Куплет', prog: [], melody: [] }, { name: 'Припев', prog: [], melody: [] }])
+  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[]; lyrics?: string }[]>('cmp.parts', [{ name: tr('Куплет'), prog: [], melody: [] }, { name: tr('Припев'), prog: [], melody: [] }])
   const [part, setPart] = useStored('cmp.part', 0)
   const switchPart = (i: number) => {
     if (i === part) return
@@ -207,7 +208,7 @@ export default function Compose() {
   }
   const pick = (i: number, m: boolean) => { stop(); setSel(i); setMinor(m); setProg([]); setMelody([]) }
   const save = () => {
-    const name = `${minor ? CIRCLE[sel].minor + ' минор' : CIRCLE[sel].major + ' мажор'} · ${prog.map(c => c.roman).join('–')}`
+    const name = `${minor ? CIRCLE[sel].minor + tr(' минор') : CIRCLE[sel].major + tr(' мажор')} · ${prog.map(c => c.roman).join('–')}`
     setSketches([{ id: Date.now(), name, sel, minor, prog, melody, bpm }, ...sketches].slice(0, 30))
   }
   // экспорт всех частей подряд в MIDI: мелодия, аккорды, бас, барабаны
@@ -232,37 +233,37 @@ export default function Compose() {
     }
     const keyName = minor ? CIRCLE[sel].minor + '-minor' : CIRCLE[sel].major + '-major'
     downloadBytes(toMidi([
-      { name: 'Мелодия', channel: 0, notes: mel, program: 52 },
-      { name: 'Аккорды', channel: 1, notes: ch, program: 0 },
-      { name: 'Бас', channel: 2, notes: bass, program: 33 },
-      { name: 'Барабаны', channel: 9, notes: dr },
+      { name: tr('Мелодия'), channel: 0, notes: mel, program: 52 },
+      { name: tr('Аккорды'), channel: 1, notes: ch, program: 0 },
+      { name: tr('Бас'), channel: 2, notes: bass, program: 33 },
+      { name: tr('Барабаны'), channel: 9, notes: dr },
     ], bpm), `raspevka-${keyName}-${bpm}bpm.mid`)
   }
   const load = (s: Sketch) => { stop(); setSel(s.sel); setMinor(s.minor); setProg(s.prog); setMelody(s.melody); setBpm(s.bpm) }
 
   return (
     <div className="page compose">
-      <h1>Сочинение</h1>
-      <p className="muted">Выбери тональность на круге, собери гармонию и подбирай мелодию: клавиши и линия голоса показывают, какие ноты ложатся на текущий аккорд.</p>
+      <h1>{tr('Сочинение')}</h1>
+      <p className="muted">{tr('Выбери тональность на круге, собери гармонию и подбирай мелодию: клавиши и линия голоса показывают, какие ноты ложатся на текущий аккорд.')}</p>
 
       <div className="cmp-top">
         <div className="cmp-circle">
           <CircleSvg sel={sel} minor={minor} onPick={pick} />
-          <p className="muted small">Снаружи мажор, внутри минор. Соседи по кругу — родственные тональности, в них проще всего модулировать.</p>
+          <p className="muted small">{tr('Снаружи мажор, внутри минор. Соседи по кругу — родственные тональности, в них проще всего модулировать.')}</p>
         </div>
         <div className="cmp-chords">
-          <h2>Аккорды тональности</h2>
+          <h2>{tr('Аккорды тональности')}</h2>
           <div className="chords-row">
             {dia.map((c, i) => (
-              <button key={c.roman} className={'chordbtn' + (suggest.includes(i) ? ' hint' : '')} onClick={() => add(c)} title="Добавить в гармонию">
+              <button key={c.roman} className={'chordbtn' + (suggest.includes(i) ? ' hint' : '')} onClick={() => add(c)} title={tr('Добавить в гармонию')}>
                 <b>{c.roman}</b><span>{lbl(c)}</span>
               </button>
             ))}
           </div>
-          <p className="muted small">Подсвечены аккорды, которые естественно идут после последнего.</p>
+          <p className="muted small">{tr('Подсвечены аккорды, которые естественно идут после последнего.')}</p>
           <details className="more-chords" open={innerWidth > 760}>
-          <summary>Взаймы и шаблоны</summary>
-          <h2 style={{ marginTop: 12 }}>Взаймы — для краски</h2>
+          <summary>{tr('Взаймы и шаблоны')}</summary>
+          <h2 style={{ marginTop: 12 }}>{tr('Взаймы — для краски')}</h2>
           <div className="borrow">
             {borrow.map(c => (
               <button key={c.roman} className="chordbtn wide" onClick={() => add(c)} title={c.note}>
@@ -270,7 +271,7 @@ export default function Compose() {
               </button>
             ))}
           </div>
-          <h2 style={{ marginTop: 16 }}>Шаблоны</h2>
+          <h2 style={{ marginTop: 16 }}>{tr('Шаблоны')}</h2>
           <div className="row-btns" style={{ marginTop: 8 }}>
             {TEMPLATES.map(t => (
               <button key={t.name} className="btn ghost small-btn" onClick={() => { setProg((minor ? t.minor : t.major).map(i => dia[i])); setMelody([]) }}>{t.name}</button>
@@ -282,15 +283,15 @@ export default function Compose() {
 
       <div className="card">
         <div className="prog-head">
-          <h2>Гармония</h2>
+          <h2>{tr('Гармония')}</h2>
           <span className="seg">{parts.map((p, i) => <button key={p.name} aria-pressed={i === part} onClick={() => switchPart(i)}>{p.name}</button>)}</span>
-          <span className="muted small">{prog.length ? `${prog.length} ${plural(prog.length, ['такт', 'такта', 'тактов'])} по 4 доли` : 'Нажимай на аккорды выше'}</span>
+          <span className="muted small">{prog.length ? tr('{0} {1} по 4 доли', prog.length, plural(prog.length, [tr('такт'), tr('такта'), tr('тактов')])) : tr('Нажимай на аккорды выше')}</span>
         </div>
         <div className="prog">
           {prog.map((c, i) => (
             <div key={i} className={'prog-chip' + (i === curIdx ? ' on' : '')}>
               <b>{c.roman}</b><span>{lbl(c)}</span>
-              <button aria-label="Убрать" onClick={() => setProg(prog.filter((_, j) => j !== i))}><X size={14} /></button>
+              <button aria-label={tr('Убрать')} onClick={() => setProg(prog.filter((_, j) => j !== i))}><X size={14} /></button>
             </div>
           ))}
           {prog.length < 8 && <div className="prog-chip empty"><Plus size={16} /></div>}
@@ -298,20 +299,20 @@ export default function Compose() {
         <ContrastCheck parts={allParts} />
         <div className="toolbar">
           <button className={'btn' + (playing ? ' stop' : '')} onClick={playing ? stop : play} disabled={!prog.length && !melody.length}>
-            {playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Играть по кругу</>}
+            {playing ? <><Pause size={16} /> {tr('Стоп')}</> : <><Play size={16} /> {tr('Играть по кругу')}</>}
           </button>
-          <label className="chk"><input type="checkbox" checked={rec} disabled={!playing} onChange={e => setRec(e.target.checked)} /> Записывать ноты с клавиш</label>
-          <label className="tempo"><span>Барабаны</span>
+          <label className="chk"><input type="checkbox" checked={rec} disabled={!playing} onChange={e => setRec(e.target.checked)} /> {tr('Записывать ноты с клавиш')}</label>
+          <label className="tempo"><span>{tr('Барабаны')}</span>
             <select value={groove} onChange={e => setGroove(e.target.value)}>{Object.entries(GROOVES).map(([k, g]) => <option key={k} value={k}>{g.name}</option>)}</select>
           </label>
-          <button className="btn ghost small-btn" title="Случайная гармония из частых переходов" onClick={() => { setProg(diceProgression(dia, borrow, 4)); engine.ensureCtx() }}><Dices size={16} /> Случайная гармония</button>
-          <label className="tempo"><span>Темп {bpm}</span><input type="range" min={60} max={140} step={2} value={bpm} disabled={playing} onChange={e => setBpm(+e.target.value)} /></label>
-          {prog.length > 0 && <button className="textbtn" onClick={() => { if (confirm('Очистить гармонию и мелодию?')) { stop(); setProg([]); setMelody([]) } }}><Trash2 size={14} /> Очистить</button>}
+          <button className="btn ghost small-btn" title={tr('Случайная гармония из частых переходов')} onClick={() => { setProg(diceProgression(dia, borrow, 4)); engine.ensureCtx() }}><Dices size={16} /> {tr('Случайная гармония')}</button>
+          <label className="tempo"><span>{tr('Темп')} {bpm}</span><input type="range" min={60} max={140} step={2} value={bpm} disabled={playing} onChange={e => setBpm(+e.target.value)} /></label>
+          {prog.length > 0 && <button className="textbtn" onClick={() => { if (confirm(tr('Очистить гармонию и мелодию?'))) { stop(); setProg([]); setMelody([]) } }}><Trash2 size={14} /> {tr('Очистить')}</button>}
         </div>
       </div>
 
-      <p className="muted small kb-caption">Клавиатура {noteName(kLo)}–{noteName(kLo + 24)}</p>
-      <div className="keyboard" role="group" aria-label="Клавиатура">
+      <p className="muted small kb-caption">{tr('Клавиатура')} {noteName(kLo)}–{noteName(kLo + 24)}</p>
+      <div className="keyboard" role="group" aria-label={tr('Клавиатура')}>
         {keys.map(m => {
           const role = noteRole(m, keyPc, steps, curChord ?? (prog[0] ?? null))
           const voiced = engine.current != null && Math.round(engine.current) === m
@@ -324,67 +325,67 @@ export default function Compose() {
         })}
       </div>
       <div className="legend cmp-legend">
-        <span><i style={{ background: 'var(--good)' }} />опорная — звук аккорда</span>
-        <span><i style={{ background: '#f2efe8' }} />проходящая — нота лада</span>
-        <span><i style={{ background: 'var(--bad)' }} />чужая — вне тональности</span>
+        <span><i style={{ background: 'var(--good)' }} />{tr('опорная — звук аккорда')}</span>
+        <span><i style={{ background: '#f2efe8' }} />{tr('проходящая — нота лада')}</span>
+        <span><i style={{ background: 'var(--bad)' }} />{tr('чужая — вне тональности')}</span>
       </div>
 
       {playing && curChord && (
         <div className="cmp-sticky">
-          <span>Такт {curIdx + 1}/{prog.length} · <b>{lbl(curChord)}</b></span>
-          <button className="btn stop" onClick={stop}><Pause size={16} /> Стоп</button>
+          <span>{tr('Такт')} {curIdx + 1}/{prog.length} · <b>{lbl(curChord)}</b></span>
+          <button className="btn stop" onClick={stop}><Pause size={16} /> {tr('Стоп')}</button>
         </div>
       )}
 
       <div className="cmp-sing">
-        <div className="prog-head"><h2>Напевай поверх</h2><LiveNote /></div>
+        <div className="prog-head"><h2>{tr('Напевай поверх')}</h2><LiveNote /></div>
         <MicGate />
         {engine.mic === 'on' && <><PianoRoll view={view} targets={targets} colorFor={colorFor} overlay={overlay} windowSec={Math.max(6, 4 * beat * 2)} playhead={0.4} className="tall" />
-        <p className="muted small">Линия голоса окрашивается по роли ноты в текущем аккорде. Записанная мелодия видна плашками и звучит вместе с гармонией.</p></>}
+        <p className="muted small">{tr('Линия голоса окрашивается по роли ноты в текущем аккорде. Записанная мелодия видна плашками и звучит вместе с гармонией.')}</p></>}
       </div>
 
       <div className="card">
         <div className="prog-head">
-          <h2>Набросок</h2>
-          {melody.length > 0 && <button className="textbtn" onClick={() => setMelody([])}><Trash2 size={14} /> Стереть мелодию</button>}
+          <h2>{tr('Набросок')}</h2>
+          {melody.length > 0 && <button className="textbtn" onClick={() => setMelody([])}><Trash2 size={14} /> {tr('Стереть мелодию')}</button>}
         </div>
         <div className="row-btns" style={{ margin: '8px 0' }}>
           <button className="btn ghost small-btn" disabled={!!hum} onClick={async () => { if (engine.mic !== 'on') await engine.startMic(); if (engine.mic === 'on') startHum() }}>
-            {hum ? (engine.now() < hum.start ? (playing ? 'Со следующего круга…' : 'Отсчёт…') : 'Пой! Слушаю…') : 'Напеть мелодию'}
+            {hum ? (engine.now() < hum.start ? (playing ? tr('Со следующего круга…') : tr('Отсчёт…')) : tr('Пой! Слушаю…')) : tr('Напеть мелодию')}
           </button>
-          <label className="chk small"><input type="checkbox" checked={snapScale} onChange={e => setSnapScale(e.target.checked)} /> Притягивать к ладу</label>
-          <button className={'btn ghost small-btn' + (playing ? ' stop' : '')} disabled={!melody.length && !prog.length} onClick={playing ? stop : play}>{playing ? <><Pause size={16} /> Стоп</> : <><Play size={16} /> Проиграть</>}</button>
-          <span className="muted small">{playing ? 'Напев запишется со следующего круга.' : `Без гармонии: такт отсчёта, затем ${bars} такта пой — получатся ноты.`}</span>
+          <label className="chk small"><input type="checkbox" checked={snapScale} onChange={e => setSnapScale(e.target.checked)} /> {tr('Притягивать к ладу')}</label>
+          <button className={'btn ghost small-btn' + (playing ? ' stop' : '')} disabled={!melody.length && !prog.length} onClick={playing ? stop : play}>{playing ? <><Pause size={16} /> {tr('Стоп')}</> : <><Play size={16} /> {tr('Проиграть')}</>}</button>
+          <span className="muted small">{playing ? tr('Напев запишется со следующего круга.') : tr('Без гармонии: такт отсчёта, затем {0} такта пой — получатся ноты.', bars)}</span>
         </div>
         <MelodyEditor melody={melody} setMelody={setMelody} bars={bars} lo={tonic - 5} keyPc={keyPc} steps={steps} prog={prog}
           pos={playing ? loopPos() : null} onPreview={m => engine.play(m, engine.ensureCtx().currentTime, 0.4, 70)} labels={sylOf} />
-        <h2 style={{ marginTop: 20 }}>Текст</h2>
+        <h2 style={{ marginTop: 20 }}>{tr('Текст')}</h2>
         <textarea className="lyrics" value={lyrics} onChange={e => setLyrics(e.target.value)} rows={3}
-          placeholder="гори+ в ночи+ — плюс после ударной гласной" />
-        <p className="muted small">Слоги встают под ноты по порядку. Ударение — «+» после ударной гласной, такие слоги показываются ЗАГЛАВНЫМИ.</p>
+          placeholder={tr('гори+ в ночи+ — плюс после ударной гласной')} />
+        <p className="muted small">{tr('Слоги встают под ноты по порядку. Ударение — «+» после ударной гласной, такие слоги показываются ЗАГЛАВНЫМИ.')}</p>
         {lyrics.trim() && <CheckList items={[
-          { ok: syls.length === melody.length, text: syls.length === melody.length ? `Слогов столько же, сколько нот: ${melody.length}.` : `Слогов ${syls.length}, нот ${melody.length}. ${syls.length > melody.length ? 'Добавь нот или сократи строку.' : 'Лишние ноты — распевы на одном слоге; это нормально, если так задумано.'}` },
-          ...(strongStress + weakStress ? [{ ok: weakStress === 0, text: weakStress === 0 ? 'Все ударные слоги на долях — текст ложится естественно.' : `${weakStress} ${plural(weakStress, ['ударный слог', 'ударных слога', 'ударных слогов'])} между долями. Ударения лучше ставить на сильные доли, иначе слово звучит «с неправильным ударением».`, src: 'Pattison, Writing Better Lyrics' }] : []),
+          { ok: syls.length === melody.length, text: syls.length === melody.length ? tr('Слогов столько же, сколько нот: {0}.', melody.length) : tr('Слогов {0}, нот {1}. {2}', syls.length, melody.length, syls.length > melody.length ? tr('Добавь нот или сократи строку.') : tr('Лишние ноты — распевы на одном слоге; это нормально, если так задумано.')) },
+          ...(strongStress + weakStress ? [{ ok: weakStress === 0, text: weakStress === 0 ? tr('Все ударные слоги на долях — текст ложится естественно.') : tr('{0} {1} между долями. Ударения лучше ставить на сильные доли, иначе слово звучит «с неправильным ударением».', weakStress, plural(weakStress, [tr('ударный слог'), tr('ударных слога'), tr('ударных слогов')])), src: 'Pattison, Writing Better Lyrics' }] : []),
         ]} />}
-        <h2 style={{ marginTop: 20 }}>Разбор мелодии</h2>
+        <h2 style={{ marginTop: 20 }}>{tr('Разбор мелодии')}</h2>
         <MelodyAnalysis melody={melody} work={work} keyPc={keyPc} steps={steps} prog={prog} onTranspose={n => setMelody(melody.map(x => ({ ...x, m: x.m + n })))} />
         <div className="row-btns" style={{ marginTop: 14 }}>
-          <button className="btn" onClick={save} disabled={!prog.length && !melody.length}>Сохранить набросок</button>
-          <button className="btn ghost" onClick={exportMidi} disabled={!allParts.some(p => p.prog.length || p.melody.length)}><Download size={16} /> Скачать MIDI</button>
+          <button className="btn" onClick={save} disabled={!prog.length && !melody.length}>{tr('Сохранить набросок')}</button>
+          <button className="btn ghost" onClick={exportMidi} disabled={!allParts.some(p => p.prog.length || p.melody.length)}><Download size={16} /> {tr('Скачать MIDI')}</button>
         </div>
-        <p className="muted small">MIDI: все части подряд — мелодия, аккорды, бас и барабаны отдельными дорожками. Открывается в GarageBand, Logic, Ableton, FL Studio.</p>
-        <h2 style={{ marginTop: 24 }}>Сохранённые</h2>
+        <p className="muted small">{tr('MIDI: все части подряд — мелодия, аккорды, бас и барабаны отдельными дорожками. Открывается в GarageBand, Logic, Ableton, FL Studio.')}</p>
+        <h2 style={{ marginTop: 24 }}>{tr('Сохранённые')}</h2>
         {sketches.length ? (
           <ul className="sketches">
             {sketches.map(s => (
               <li key={s.id}>
                 <button className="link" onClick={() => load(s)}>{s.name}</button>
-                <span className="muted small">{s.melody.length} {plural(s.melody.length, ['нота', 'ноты', 'нот'])} · {s.bpm} уд/мин</span>
-                <button aria-label="Удалить" className="icon" onClick={() => setSketches(sketches.filter(x => x.id !== s.id))}><Trash2 size={16} /></button>
+                <span className="muted small">{s.melody.length} {plural(s.melody.length, [tr('нота'), tr('ноты'), tr('нот')])} · {s.bpm} {tr('уд/мин')}</span>
+                <button aria-label={tr('Удалить')} className="icon" onClick={() => setSketches(sketches.filter(x => x.id !== s.id))}><Trash2 size={16} /></button>
               </li>
             ))}
           </ul>
-        ) : <p className="muted small">Пока пусто. Собери гармонию и мелодию и сохрани — набросок можно открыть позже.</p>}
+        ) : <p className="muted small">{tr('Пока пусто. Собери гармонию и мелодию и сохрани — набросок можно открыть позже.')}</p>}
       </div>
     </div>
   )

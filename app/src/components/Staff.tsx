@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Play } from 'lucide-react'
 import { engine } from '../lib/audio'
@@ -75,7 +76,7 @@ export function Staff(props: Props) {
       {lines.map((l, i) => <StaffLine key={i} {...props} items={l} time={i === 0 ? time : undefined} lineEnd={i === lines.length - 1} />)}
       {(props.caption || props.play !== false) && (
         <figcaption className="staff-cap">
-          {props.play !== false && <button className="textbtn listen" onClick={() => listen(items)}><Play size={14} fill="currentColor" /> Послушать</button>}
+          {props.play !== false && <button className="textbtn listen" onClick={() => listen(items)}><Play size={14} fill="currentColor" /> {tr('Послушать')}</button>}
           {props.caption && <span>{props.caption}</span>}
         </figcaption>
       )}
@@ -109,7 +110,7 @@ function StaffLine({ items, clef = 'treble', keySig = 0, time, caption, height =
   const W = last && 'bar' in last.it ? last.at + 10 : Math.max(x + 16, 200)
 
   return (
-      <svg viewBox={`0 0 ${W} ${height}`} width={W} height={height} className="staff" role="img" aria-label={caption ?? 'Ноты на нотоносце'}>
+      <svg viewBox={`0 0 ${W} ${height}`} width={W} height={height} className="staff" role="img" aria-label={caption ?? tr('Ноты на нотоносце')}>
         {[0, 1, 2, 3, 4].map(i => <line key={i} x1="4" x2={W - 4} y1={bottomY - i * 2 * H} y2={bottomY - i * 2 * H} className="st-line" />)}
         {lineEnd && <line x1={W - 4} x2={W - 4} y1={top} y2={bottomY} className="st-line" />}
         {/* ключ: скрипичный стоит на 2-й линии (соль), басовый — на 4-й (фа) */}

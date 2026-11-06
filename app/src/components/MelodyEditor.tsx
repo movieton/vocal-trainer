@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Plus, Trash2 } from 'lucide-react'
 import { isBlack, noteName, plural } from '../lib/music'
@@ -101,7 +102,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
         <div className="mel-grid" ref={gridRef} style={{ gridTemplateColumns: `var(--mel-label, 56px) repeat(${cols}, minmax(var(--mel-cell, 18px), 1fr))` }}>
           {pitches.map((m, r) => {
             // явные позиции: иначе автораскладка сетки сдвигает клетки вокруг нот
-            const label = <div key={'l' + m} style={{ gridRow: r + 1, gridColumn: 1 }} className={'mel-label' + (isBlack(m) ? ' black' : '')} role="button" tabIndex={0} title="Послушать ноту" onPointerDown={() => onPreview(m)}>{noteName(m)}</div>
+            const label = <div key={'l' + m} style={{ gridRow: r + 1, gridColumn: 1 }} className={'mel-label' + (isBlack(m) ? ' black' : '')} role="button" tabIndex={0} title={tr('Послушать ноту')} onPointerDown={() => onPreview(m)}>{noteName(m)}</div>
             const cells = Array.from({ length: cols }, (_, c) => {
               const beat = c * STEP, bar = Math.floor(beat / 4)
               const role = noteRole(m, keyPc, steps, prog[bar % Math.max(1, prog.length)] ?? null)
@@ -113,7 +114,7 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
             const row = lo + rows - 1 - n.m
             if (row < 0 || row >= rows) return null
             return (
-              <button key={i} className={'mel-note' + (i === sel ? ' on' : '')} aria-label={`${noteName(n.m)}, ${n.d} доли`}
+              <button key={i} className={'mel-note' + (i === sel ? ' on' : '')} aria-label={tr('{0}, {1} доли', noteName(n.m), n.d)}
                 style={{ gridRow: row + 1, gridColumn: `${2 + n.beat / STEP} / span ${Math.max(1, n.d / STEP)}` }}
                 onPointerDown={e => onNoteDown(e, i)} onPointerMove={onNoteMove} onPointerUp={onNoteUp} onPointerCancel={() => { drag.current = null }}>
                 {labels?.[i] ?? noteName(n.m).replace(/\d+$/, '')}<span className="mel-handle" aria-hidden />
@@ -125,12 +126,12 @@ export default function MelodyEditor({ melody, setMelody, bars, lo, rows = 15, k
       </div>
       <div className="mel-tools">
         {s ? <>
-          <span className="muted small mel-cur">{noteName(s.m)} · {String(s.d).replace('.', ',')} {Number.isInteger(s.d) ? plural(s.d, ['доля', 'доли', 'долей']) : 'доли'}</span>
-          <span className="mel-group"><span>Длина</span><button onClick={() => update(sel!, { d: s.d - STEP })} aria-label="Короче"><Minus size={16} /></button><button onClick={() => update(sel!, { d: s.d + STEP })} aria-label="Длиннее"><Plus size={16} /></button></span>
-          <span className="mel-group"><span>Сдвиг</span><button onClick={() => update(sel!, { beat: s.beat - STEP })} aria-label="Раньше"><ArrowLeft size={16} /></button><button onClick={() => update(sel!, { beat: s.beat + STEP })} aria-label="Позже"><ArrowRight size={16} /></button></span>
-          <span className="mel-group"><span>Высота</span><button onClick={() => update(sel!, { m: s.m - 1 })} aria-label="Ниже"><ArrowDown size={16} /></button><button onClick={() => update(sel!, { m: s.m + 1 })} aria-label="Выше"><ArrowUp size={16} /></button></span>
-          <button className="mel-del" onClick={() => remove(sel!)} aria-label="Удалить"><Trash2 size={16} /> Удалить</button>
-        </> : <span className="muted small">Нажми на название ноты слева — услышишь её. Нажми на клетку — нота на долю. Нажми на ноту — удалить. Зажми ноту и тяни — двигается; тяни за правый край — меняется длина. Зелёные клетки — звуки аккорда этого такта.</span>}
+          <span className="muted small mel-cur">{noteName(s.m)} · {String(s.d).replace('.', ',')} {Number.isInteger(s.d) ? plural(s.d, [tr('доля'), tr('доли'), tr('долей')]) : tr('доли')}</span>
+          <span className="mel-group"><span>{tr('Длина')}</span><button onClick={() => update(sel!, { d: s.d - STEP })} aria-label={tr('Короче')}><Minus size={16} /></button><button onClick={() => update(sel!, { d: s.d + STEP })} aria-label={tr('Длиннее')}><Plus size={16} /></button></span>
+          <span className="mel-group"><span>{tr('Сдвиг')}</span><button onClick={() => update(sel!, { beat: s.beat - STEP })} aria-label={tr('Раньше')}><ArrowLeft size={16} /></button><button onClick={() => update(sel!, { beat: s.beat + STEP })} aria-label={tr('Позже')}><ArrowRight size={16} /></button></span>
+          <span className="mel-group"><span>{tr('Высота')}</span><button onClick={() => update(sel!, { m: s.m - 1 })} aria-label={tr('Ниже')}><ArrowDown size={16} /></button><button onClick={() => update(sel!, { m: s.m + 1 })} aria-label={tr('Выше')}><ArrowUp size={16} /></button></span>
+          <button className="mel-del" onClick={() => remove(sel!)} aria-label={tr('Удалить')}><Trash2 size={16} /> {tr('Удалить')}</button>
+        </> : <span className="muted small">{tr('Нажми на название ноты слева — услышишь её. Нажми на клетку — нота на долю. Нажми на ноту — удалить. Зажми ноту и тяни — двигается; тяни за правый край — меняется длина. Зелёные клетки — звуки аккорда этого такта.')}</span>}
       </div>
     </div>
   )

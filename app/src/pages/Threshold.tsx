@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDown, ArrowUp } from 'lucide-react'
@@ -45,7 +46,7 @@ export default function Threshold() {
       const last = reversals.slice(-6)
       const cents = Math.round(last.reduce((a, x) => a + x, 0) / last.length)
       setHist([{ date: Date.now(), cents }, ...hist].slice(0, 50))
-      logSession({ date: Date.now(), kind: 'ear', id: 'threshold', title: `Порог слуха: ${cents} ц`, score: Math.max(0, Math.round(100 - cents)) })
+      logSession({ date: Date.now(), kind: 'ear', id: 'threshold', title: tr('Порог слуха: {0} ц', cents), score: Math.max(0, Math.round(100 - cents)) })
       setState(null)
       return
     }
@@ -57,35 +58,35 @@ export default function Threshold() {
   const best = hist.length ? Math.min(...hist.map(h => h.cents)) : null
   return (
     <div className="page">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
-      <h1>Порог слуха</h1>
-      <p className="muted">Звучат две ноты. Вторая выше или ниже? Разница будет уменьшаться, пока ты не начнёшь ошибаться — так находится твой порог в центах. Проходи раз в месяц и смотри, как он снижается.</p>
+      <div className="crumbs"><Link to="/ear">{tr('Слух')}</Link></div>
+      <h1>{tr('Порог слуха')}</h1>
+      <p className="muted">{tr('Звучат две ноты. Вторая выше или ниже? Разница будет уменьшаться, пока ты не начнёшь ошибаться — так находится твой порог в центах. Проходи раз в месяц и смотри, как он снижается.')}</p>
       <div className="card quiz">
         {!state ? (
           <>
-            <button className="btn" onClick={start}>Начать замер</button>
-            <p className="muted small">Около 3–5 минут. Лучше в наушниках и в тишине. Это мера слуха: точность пения тренируется отдельно — пением с обратной связью.</p>
+            <button className="btn" onClick={start}>{tr('Начать замер')}</button>
+            <p className="muted small">{tr('Около 3–5 минут. Лучше в наушниках и в тишине. Это мера слуха: точность пения тренируется отдельно — пением с обратной связью.')}</p>
           </>
         ) : (
           <>
             <div className="quiz-top">
-              <button className="btn ghost" onClick={() => state.trial && play(state.trial)}>Ещё раз</button>
-              <span className="status"><span>Попытка <b>{state.n}</b></span>{state.last != null && <span className={state.last ? 'ok-msg' : 'err'}>{state.last ? 'верно' : 'мимо'}</span>}</span>
+              <button className="btn ghost" onClick={() => state.trial && play(state.trial)}>{tr('Ещё раз')}</button>
+              <span className="status"><span>{tr('Попытка')} <b>{state.n}</b></span>{state.last != null && <span className={state.last ? 'ok-msg' : 'err'}>{state.last ? tr('верно') : tr('мимо')}</span>}</span>
             </div>
-            <div className="thr-big"><b>{Math.round(state.delta)} ц</b><span>текущая разница между нотами</span></div>
+            <div className="thr-big"><b>{Math.round(state.delta)} {tr('ц')}</b><span>{tr('текущая разница между нотами')}</span></div>
             <div className="answers two">
-              <button className="answer" onClick={() => answer(false)}><ArrowDown size={16} /> Вторая ниже</button>
-              <button className="answer" onClick={() => answer(true)}><ArrowUp size={16} /> Вторая выше</button>
+              <button className="answer" onClick={() => answer(false)}><ArrowDown size={16} /> {tr('Вторая ниже')}</button>
+              <button className="answer" onClick={() => answer(true)}><ArrowUp size={16} /> {tr('Вторая выше')}</button>
             </div>
           </>
         )}
       </div>
       {hist.length > 0 && (
         <div className="card">
-          <h2>Замеры</h2>
-          <p className="muted small">Ориентиры: у большинства нетренированных людей — 20–50 центов, у опытных музыкантов — 5–10. Лучший результат: <b>{best} ц</b>.</p>
+          <h2>{tr('Замеры')}</h2>
+          <p className="muted small">{tr('Ориентиры: у большинства нетренированных людей — 20–50 центов, у опытных музыкантов — 5–10. Лучший результат:')} <b>{best} {tr('ц')}</b>.</p>
           <ul className="hist">{hist.slice(0, 12).map(h => (
-            <li key={h.date}><span className="muted small">{new Date(h.date).toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })}</span><b className="res">{h.cents} ц</b></li>
+            <li key={h.date}><span className="muted small">{new Date(h.date).toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })}</span><b className="res">{h.cents} {tr('ц')}</b></li>
           ))}</ul>
         </div>
       )}

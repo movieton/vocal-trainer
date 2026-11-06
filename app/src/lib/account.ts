@@ -1,3 +1,4 @@
+import { lang, tr } from './i18n'
 import { useSyncExternalStore } from 'react'
 import { clearSynced, onWrite, read, snapshot, write, type SessionLog } from './store'
 
@@ -40,7 +41,7 @@ async function push(keepalive = false): Promise<boolean> {
     if (!r.ok) throw new Error(String(r.status))
     set({ syncedAt: Date.now(), syncing: false, error: null })
     return true
-  } catch { set({ syncing: false, error: 'Не удалось сохранить на сервере, повторим позже' }); return false }
+  } catch { set({ syncing: false, error: tr('Не удалось сохранить на сервере, повторим позже') }); return false }
 }
 
 async function pull(userId: string) {
@@ -72,24 +73,24 @@ async function loadMe() {
     const user = me.ok ? ((await me.json()) as { user: User }).user : null
     set({ user, providers, ready: true, error: null })
     if (user) await pull(user.id)
-  } catch { set({ ready: true, error: 'Сервер аккаунтов недоступен' }) }
+  } catch { set({ ready: true, error: tr('Сервер аккаунтов недоступен') }) }
 }
 
 const AUTH_ERRORS: Record<string, string> = {
-  bad_email: 'Проверь адрес почты.',
-  bad_password: 'Пароль — от 8 символов.',
-  exists: 'Эта почта уже зарегистрирована. Войди с паролем.',
-  wrong: 'Неверная почта или пароль.',
-  too_many: 'Слишком много попыток. Подожди 15 минут.',
+  bad_email: tr('Проверь адрес почты.'),
+  bad_password: tr('Пароль — от 8 символов.'),
+  exists: tr('Эта почта уже зарегистрирована. Войди с паролем.'),
+  wrong: tr('Неверная почта или пароль.'),
+  too_many: tr('Слишком много попыток. Подожди 15 минут.'),
 }
 /** Вход или регистрация по почте. Возвращает текст ошибки или null */
 export async function authEmail(mode: 'login' | 'register', email: string, password: string, name?: string): Promise<string | null> {
   try {
     const r = await api('/' + mode, { method: 'POST', body: JSON.stringify({ email, password, name }) })
-    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return AUTH_ERRORS[error] ?? 'Не получилось. Попробуй ещё раз.' }
+    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return AUTH_ERRORS[error] ?? tr('Не получилось. Попробуй ещё раз.') }
     await loadMe()
     return null
-  } catch { return 'Нет связи с сервером.' }
+  } catch { return tr('Нет связи с сервером.') }
 }
 
 export const loginUrl = (provider: string) => `/api/auth/${provider}/start`
@@ -113,18 +114,18 @@ export async function deleteAccount() {
 /** Письмо со ссылкой для нового пароля. Ответ одинаковый, есть такая почта или нет */
 export async function requestReset(email: string): Promise<string | null> {
   try {
-    const r = await api('/reset/request', { method: 'POST', body: JSON.stringify({ email }) })
+    const r = await api('/reset/request', { method: 'POST', body: JSON.stringify({ email, lang }) })
     if (r.ok) return null
     const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }
-    return AUTH_ERRORS[error] ?? 'Не получилось отправить письмо. Попробуй позже.'
-  } catch { return 'Нет связи с сервером.' }
+    return AUTH_ERRORS[error] ?? tr('Не получилось отправить письмо. Попробуй позже.')
+  } catch { return tr('Нет связи с сервером.') }
 }
 
 export async function confirmReset(token: string, password: string): Promise<string | null> {
   try {
     const r = await api('/reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) })
-    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return error === 'bad_token' ? 'Ссылка устарела или уже использована. Запроси новую.' : AUTH_ERRORS[error] ?? 'Не получилось.' }
+    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return error === 'bad_token' ? tr('Ссылка устарела или уже использована. Запроси новую.') : AUTH_ERRORS[error] ?? tr('Не получилось.') }
     await loadMe()
     return null
-  } catch { return 'Нет связи с сервером.' }
+  } catch { return tr('Нет связи с сервером.') }
 }

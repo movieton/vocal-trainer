@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef } from 'react'
 import PianoRoll from '../components/PianoRoll'
 import { CentsMeter, LiveNote, MicGate, useEngine } from '../components/Mic'
@@ -30,8 +31,8 @@ export default function Tuner() {
 
   return (
     <div className="page">
-      <h1>Тюнер</h1>
-      <p className="muted">Пой что угодно: видно, какую ноту берёшь и на сколько уходишь. Зелёный — ±12 центов, жёлтый — до 25, красный — мимо.</p>
+      <h1>{tr('Тюнер')}</h1>
+      <p className="muted">{tr('Пой что угодно: видно, какую ноту берёшь и на сколько уходишь. Зелёный — ±12 центов, жёлтый — до 25, красный — мимо.')}</p>
       <MicGate>
         <div className="tuner-top">
           <LiveNote big />
@@ -43,11 +44,11 @@ export default function Tuner() {
         </div>
         <PianoRoll follow view={view} windowSec={win} playhead={0.85} tolerance={24} className="tall" />
         <div className="settings">
-          <label>Высота окна
-            <span className="seg">{[1, 2, 3].map(o => <button key={o} aria-pressed={octaves === o} onClick={() => setOctaves(o)}>{o} окт</button>)}</span>
+          <label>{tr('Высота окна')}
+            <span className="seg">{[1, 2, 3].map(o => <button key={o} aria-pressed={octaves === o} onClick={() => setOctaves(o)}>{o} {tr('окт')}</button>)}</span>
           </label>
-          <label>История
-            <span className="seg">{[4, 8, 15].map(s => <button key={s} aria-pressed={win === s} onClick={() => setWin(s)}>{s} с</button>)}</span>
+          <label>{tr('История')}
+            <span className="seg">{[4, 8, 15].map(s => <button key={s} aria-pressed={win === s} onClick={() => setWin(s)}>{s} {tr('с')}</button>)}</span>
           </label>
         </div>
       </MicGate>
@@ -58,5 +59,5 @@ export default function Tuner() {
 function Hz() {
   useEngine(8)
   const m = engine.current
-  return <div className="muted small">{m == null ? ' ' : Math.round(mtof(m)) + ' Гц'}</div>
+  return <div className="muted small">{m == null ? ' ' : Math.round(mtof(m)) + tr(' Гц')}</div>
 }

@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useState } from 'react'
 import CircleSvg, { sigText } from '../components/CircleSvg'
 import { Link } from 'react-router-dom'
@@ -37,21 +38,21 @@ export default function Circle() {
 
   return (
     <div className="page">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
-      <h1>Квинтовый круг</h1>
-      <p className="muted">Все 24 тональности по кругу: по часовой стрелке каждая следующая на квинту выше и с одним диезом больше. Соседи на круге — самые родственные тональности: песни чаще всего переходят именно в них.</p>
+      <div className="crumbs"><Link to="/ear">{tr('Слух')}</Link></div>
+      <h1>{tr('Квинтовый круг')}</h1>
+      <p className="muted">{tr('Все 24 тональности по кругу: по часовой стрелке каждая следующая на квинту выше и с одним диезом больше. Соседи на круге — самые родственные тональности: песни чаще всего переходят именно в них.')}</p>
       <div className="circle-wrap">
         <CircleSvg sel={sel} onPick={i => { setSel(i); playCadence(CIRCLE[i].pc) }} />
 
         <div className="circle-info">
-          <h2>{key.major} мажор · {key.minor} минор</h2>
-          <p className="muted small">Параллельные тональности: одни и те же ноты, разный центр. Знаки: {sigText(key.sig)}.</p>
+          <h2>{key.major} {tr('мажор ·')} {key.minor} {tr('минор')}</h2>
+          <p className="muted small">{tr('Параллельные тональности: одни и те же ноты, разный центр. Знаки:')} {sigText(key.sig)}.</p>
           <div className="scale-notes">{notes.map((n, i) => <span key={i}>{n}</span>)}</div>
           <div className="row-btns">
-            <button className="btn ghost" onClick={() => playScale(key.pc)}>Гамма</button>
-            <button className="btn ghost" onClick={() => playCadence(key.pc)}>Каденция I–IV–V–I</button>
+            <button className="btn ghost" onClick={() => playScale(key.pc)}>{tr('Гамма')}</button>
+            <button className="btn ghost" onClick={() => playCadence(key.pc)}>{tr('Каденция I–IV–V–I')}</button>
           </div>
-          <h2 style={{ marginTop: 20 }}>Аккорды тональности</h2>
+          <h2 style={{ marginTop: 20 }}>{tr('Аккорды тональности')}</h2>
           <div className="chords-row">
             {DIATONIC.map(d => (
               <button key={d.roman} className="chordbtn" onClick={() => playChord(base(key.pc) + degree(d.deg), d.q, engine.ensureCtx().currentTime + 0.05, 1.2)}>
@@ -59,8 +60,8 @@ export default function Circle() {
               </button>
             ))}
           </div>
-          <p className="muted small">Соседи по кругу: слева субдоминанта {CIRCLE[near[0]].major} (IV), справа доминанта {CIRCLE[near[1]].major} (V). Именно они дают самую сильную тягу к тонике.</p>
-          <Link to="/ear/chords" className="small">Попеть по кругу: пение над аккордами с флажком «менять по квинтовому кругу» →</Link>
+          <p className="muted small">{tr('Соседи по кругу: слева субдоминанта')} {CIRCLE[near[0]].major} {tr('(IV), справа доминанта')} {CIRCLE[near[1]].major} {tr('(V). Именно они дают самую сильную тягу к тонике.')}</p>
+          <Link to="/ear/chords" className="small">{tr('Попеть по кругу: пение над аккордами с флажком «менять по квинтовому кругу» →')}</Link>
         </div>
       </div>
       <CircleQuiz />
@@ -69,10 +70,10 @@ export default function Circle() {
 }
 
 const QTYPES = [
-  { id: 'dom', q: (k: typeof CIRCLE[0]) => `Доминанта (V) тональности ${k.major} мажор?`, a: (i: number) => CIRCLE[(i + 1) % 12].major },
-  { id: 'sub', q: (k: typeof CIRCLE[0]) => `Субдоминанта (IV) тональности ${k.major} мажор?`, a: (i: number) => CIRCLE[(i + 11) % 12].major },
-  { id: 'rel', q: (k: typeof CIRCLE[0]) => `Параллельный минор к ${k.major} мажору?`, a: (i: number) => CIRCLE[i].minor },
-  { id: 'sig', q: (k: typeof CIRCLE[0]) => `Сколько знаков в ${k.major} мажоре?`, a: (i: number) => sigText(CIRCLE[i].sig) },
+  { id: 'dom', q: (k: typeof CIRCLE[0]) => tr('Доминанта (V) тональности {0} мажор?', k.major), a: (i: number) => CIRCLE[(i + 1) % 12].major },
+  { id: 'sub', q: (k: typeof CIRCLE[0]) => tr('Субдоминанта (IV) тональности {0} мажор?', k.major), a: (i: number) => CIRCLE[(i + 11) % 12].major },
+  { id: 'rel', q: (k: typeof CIRCLE[0]) => tr('Параллельный минор к {0} мажору?', k.major), a: (i: number) => CIRCLE[i].minor },
+  { id: 'sig', q: (k: typeof CIRCLE[0]) => tr('Сколько знаков в {0} мажоре?', k.major), a: (i: number) => sigText(CIRCLE[i].sig) },
 ]
 
 function CircleQuiz() {
@@ -94,14 +95,14 @@ function CircleQuiz() {
   }
   return (
     <div className="card quiz">
-      <h2>Проверь себя</h2>
+      <h2>{tr('Проверь себя')}</h2>
       <div className="quiz-top">
-        <button className="btn" onClick={next}>{q ? 'Следующий вопрос' : 'Начать'}</button>
-        <span className="status"><span>Верно <b>{stat.ok} / {stat.all}</b></span></span>
+        <button className="btn" onClick={next}>{q ? tr('Следующий вопрос') : tr('Начать')}</button>
+        <span className="status"><span>{tr('Верно')} <b>{stat.ok} / {stat.all}</b></span></span>
       </div>
       {q && <>
         <p className="quiz-q">{q.text}</p>
-        {picked && <p className={'verdict ' + (picked === q.answer ? 'ok-msg' : 'err')}>{picked === q.answer ? 'Верно' : `Мимо — правильно: ${q.answer}`}</p>}
+        {picked && <p className={'verdict ' + (picked === q.answer ? 'ok-msg' : 'err')}>{picked === q.answer ? tr('Верно') : tr('Мимо — правильно: {0}', q.answer)}</p>}
         <div className="answers">
           {q.opts.map(o => <button key={o} className={'answer ' + (!picked ? '' : o === q.answer ? 'right' : o === picked ? 'wrong' : 'dim')} disabled={!!picked} onClick={() => pick(o)}>{o}</button>)}
         </div>

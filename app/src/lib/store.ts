@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 import { useCallback, useSyncExternalStore } from 'react'
 import { VOICE_TYPES } from './music'
 
@@ -70,9 +71,9 @@ export const DEFAULT_VOICE = 'Баритон'
 export function workRange(measured: Range | null, voice: string): Range & { source: string } {
   if (voice === 'measured' && measured) {
     const lo = measured.lo + 1
-    return { lo, hi: Math.max(lo + 10, Math.round(measured.lo + 0.7 * (measured.hi - measured.lo))), source: 'по твоему замеру' }
+    return { lo, hi: Math.max(lo + 10, Math.round(measured.lo + 0.7 * (measured.hi - measured.lo))), source: tr('по твоему замеру') }
   }
-  const v = VOICE_TYPES.find(x => x.name === voice) ?? VOICE_TYPES.find(x => x.name === DEFAULT_VOICE)!
+  const v = VOICE_TYPES.find(x => x.id === voice) ?? VOICE_TYPES.find(x => x.id === DEFAULT_VOICE)!
   return { lo: v.lo + 2, hi: v.hi - 4, source: v.name.toLowerCase() }
 }
 

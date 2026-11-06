@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { isBlack, noteName } from '../lib/music'
 
 /**
@@ -9,7 +10,7 @@ export function PianoKeys({ lo, hi, onPress, label, cls }: {
 }) {
   const keys = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i)
   return (
-    <div className="keyboard" role="group" aria-label="Клавиатура">
+    <div className="keyboard" role="group" aria-label={tr('Клавиатура')}>
       {keys.map(m => {
         const l = label?.(m)
         return (

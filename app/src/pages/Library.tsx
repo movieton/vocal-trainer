@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
@@ -14,9 +15,9 @@ type Entry = { key: string; title: string; goal: string; to: string; topic: Topi
 const SECTION_TOPIC: Record<Section, TopicId> = { warmup: 'warmup', calm: 'sound', mix: 'registers', belt: 'registers', modes: 'registers', agility: 'agility' }
 
 export const ENTRIES: Entry[] = [
-  ...EXERCISES.map(e => ({ key: 'ex:' + e.id, title: e.title, goal: e.goal, to: `/ex/${e.id}`, topic: SECTION_TOPIC[e.section], level: e.level, tag: 'на доске' })),
-  ...BREATH.map(b => ({ key: 'br:' + b.id, title: b.title, goal: b.goal, to: `/breath/${b.id}`, topic: (b.group === 'health' ? 'health' : 'breath') as TopicId, level: b.level, evidence: b.evidence, tag: 'таймер' })),
-  ...LIBRARY.map(i => ({ key: 'lib:' + i.id, title: i.title, goal: i.goal, to: `/lib/${i.id}`, topic: topicOf(i), level: i.level, evidence: i.evidence, tag: i.notes ? 'на доске' : undefined })),
+  ...EXERCISES.map(e => ({ key: 'ex:' + e.id, title: e.title, goal: e.goal, to: `/ex/${e.id}`, topic: SECTION_TOPIC[e.section], level: e.level, tag: tr('на доске') })),
+  ...BREATH.map(b => ({ key: 'br:' + b.id, title: b.title, goal: b.goal, to: `/breath/${b.id}`, topic: (b.group === 'health' ? 'health' : 'breath') as TopicId, level: b.level, evidence: b.evidence, tag: tr('таймер') })),
+  ...LIBRARY.map(i => ({ key: 'lib:' + i.id, title: i.title, goal: i.goal, to: `/lib/${i.id}`, topic: topicOf(i), level: i.level, evidence: i.evidence, tag: i.notes ? tr('на доске') : undefined })),
 ]
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е')
@@ -33,29 +34,29 @@ export default function Library() {
 
   return (
     <div className="page library">
-      <h1>Библиотека</h1>
-      <p className="muted lead-narrow">{ENTRIES.length} упражнений: как делать, частые ошибки и источник. Метка показывает, насколько упражнение проверено. При боли или осиплости — стоп.</p>
+      <h1>{tr('Библиотека')}</h1>
+      <p className="muted lead-narrow">{ENTRIES.length} {tr('упражнений: как делать, частые ошибки и источник. Метка показывает, насколько упражнение проверено. При боли или осиплости — стоп.')}</p>
       <label className="search">
         <Search size={18} aria-hidden />
-        <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Поиск: трель, челюсть, микст…" aria-label="Поиск по библиотеке" />
-        {q && <button className="textbtn" onClick={() => setQ('')} aria-label="Очистить"><X size={16} /></button>}
+        <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={tr('Поиск: трель, челюсть, микст…')} aria-label={tr('Поиск по библиотеке')} />
+        {q && <button className="textbtn" onClick={() => setQ('')} aria-label={tr('Очистить')}><X size={16} /></button>}
       </label>
-      <nav className="anchors topics" aria-label="Темы">
-        <button aria-pressed={!topic} onClick={() => setTopic('')}>Все</button>
+      <nav className="anchors topics" aria-label={tr('Темы')}>
+        <button aria-pressed={!topic} onClick={() => setTopic('')}>{tr('Все')}</button>
         {TOPICS.map(t => <button key={t.id} aria-pressed={topic === t.id} onClick={() => setTopic(t.id)}>{t.title}</button>)}
       </nav>
       <ul className="ev-key small muted">{(["И", "Ш", "П", "Т"] as const).map(e => <li key={e}><Evidence e={e} /> {EVIDENCE[e].title.toLowerCase()}</li>)}</ul>
 
       {q || topic ? (
         <section className="lib-sec">
-          <p className="muted small">{found.length ? `Найдено ${found.length} ${plural(found.length, ['упражнение', 'упражнения', 'упражнений'])}` : 'Ничего не нашлось. Попробуй другое слово или тему.'}</p>
+          <p className="muted small">{found.length ? tr('Найдено {0} {1}', found.length, plural(found.length, [tr('упражнение'), tr('упражнения'), tr('упражнений')])) : tr('Ничего не нашлось. Попробуй другое слово или тему.')}</p>
           <Tiles list={found} />
         </section>
       ) : TOPICS.map(t => {
         const list = ENTRIES.filter(e => e.topic === t.id)
         return (
           <section key={t.id} className="lib-sec">
-            <div className="prog-head"><h2>{t.title}</h2><button className="textbtn" onClick={() => setTopic(t.id)}>Все {list.length} →</button></div>
+            <div className="prog-head"><h2>{t.title}</h2><button className="textbtn" onClick={() => setTopic(t.id)}>{tr('Все')} {list.length} →</button></div>
             <Tiles list={list.slice(0, 6)} />
           </section>
         )
@@ -63,7 +64,7 @@ export default function Library() {
 
       {!q && !topic && (
         <section className="lib-sec">
-          <h2>Статьи</h2>
+          <h2>{tr('Статьи')}</h2>
           <div className="grid">{ARTICLES.map(a => <Link key={a.id} to={`/theory/${a.id}`} className="tile"><strong>{a.title}</strong><span className="muted small">{a.lead}</span></Link>)}</div>
         </section>
       )}

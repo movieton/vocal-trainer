@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
@@ -60,38 +61,38 @@ export default function RangeTest() {
 
   return (
     <div className="page">
-      <h1>Голос и диапазон</h1>
+      <h1>{tr('Голос и диапазон')}</h1>
       <div className="card">
-        <h2>Тип голоса</h2>
-        <p className="muted small">Упражнения строятся в удобной зоне выбранного типа голоса, а не на крайних нотах. Сейчас рабочий диапазон: <b>{noteName(work.lo)}–{noteName(work.hi)}</b>.</p>
+        <h2>{tr('Тип голоса')}</h2>
+        <p className="muted small">{tr('Упражнения строятся в удобной зоне выбранного типа голоса, а не на крайних нотах. Сейчас рабочий диапазон:')} <b>{noteName(work.lo)}–{noteName(work.hi)}</b>.</p>
         <span className="seg wide voice-seg">
-          {VOICE_TYPES.map(v => <button key={v.name} aria-pressed={voice === v.name} onClick={() => setVoice(v.name)}>{v.name}</button>)}
-          <button aria-pressed={voice === 'measured'} disabled={!range} onClick={() => setVoice('measured')} title={range ? '' : 'Сначала измерь диапазон'}>По моему замеру</button>
+          {VOICE_TYPES.map(v => <button key={v.id} aria-pressed={voice === v.id} onClick={() => setVoice(v.id)}>{v.name}</button>)}
+          <button aria-pressed={voice === 'measured'} disabled={!range} onClick={() => setVoice('measured')} title={range ? '' : tr('Сначала измерь диапазон')}>{tr('По моему замеру')}</button>
         </span>
-        <p className="muted small">Мужские голоса обычно бас, баритон или тенор, женские — контральто, меццо-сопрано или сопрано. Не уверен — выбирай баритон или меццо-сопрано, это самые частые.</p>
+        <p className="muted small">{tr('Мужские голоса обычно бас, баритон или тенор, женские — контральто, меццо-сопрано или сопрано. Не уверен — выбирай баритон или меццо-сопрано, это самые частые.')}</p>
       </div>
-      <h2 style={{ marginTop: 28 }}>Замер диапазона</h2>
-      <p className="muted">Нажми «Начать», спокойно протяни «а-а-а» от самой низкой удобной ноты к самой высокой, без напряжения и крика. Засчитывается нота, которую ты удержал хотя бы четверть секунды. Замер нужен, чтобы узнать границы голоса. Упражнения по нему строятся, только если выбрать «По моему замеру» — тогда берутся нижние 70%, без пиковых нот.</p>
+      <h2 style={{ marginTop: 28 }}>{tr('Замер диапазона')}</h2>
+      <p className="muted">{tr('Нажми «Начать», спокойно протяни «а-а-а» от самой низкой удобной ноты к самой высокой, без напряжения и крика. Засчитывается нота, которую ты удержал хотя бы четверть секунды. Замер нужен, чтобы узнать границы голоса. Упражнения по нему строятся, только если выбрать «По моему замеру» — тогда берутся нижние 70%, без пиковых нот.')}</p>
       <MicGate>
         <div className="tuner-top">
           <LiveNote big />
-          <p className="rangeline">{shown ? <><b>{noteName(shown.lo)} – {noteName(shown.hi)}</b> · {shown.hi - shown.lo} полутонов</> : 'Диапазон ещё не найден'}</p>
+          <p className="rangeline">{shown ? <><b>{noteName(shown.lo)} – {noteName(shown.hi)}</b> · {shown.hi - shown.lo} {tr('полутонов')}</> : tr('Диапазон ещё не найден')}</p>
         </div>
         <PianoRoll follow view={view} band={() => shown} neutral windowSec={10} playhead={0.85} className="tall" />
         <div className="toolbar">
-          <button className={'btn' + (measuring ? ' stop' : '')} onClick={toggle}>{measuring ? 'Готово' : 'Начать'}</button>
-          {range && !measuring && <button className="btn ghost" onClick={() => setRange(null)}>Сбросить</button>}
+          <button className={'btn' + (measuring ? ' stop' : '')} onClick={toggle}>{measuring ? tr('Готово') : tr('Начать')}</button>
+          {range && !measuring && <button className="btn ghost" onClick={() => setRange(null)}>{tr('Сбросить')}</button>}
         </div>
       </MicGate>
       {type && range && (
         <div className="card">
-          <h2>Похоже на: {type.name}</h2>
-          <p className="muted">Это ориентир, а не диагноз: тип голоса определяет тембр и удобная зона (тесситура), а не только крайние ноты.</p>
+          <h2>{tr('Похоже на:')} {type.name}</h2>
+          <p className="muted">{tr('Это ориентир, а не диагноз: тип голоса определяет тембр и удобная зона (тесситура), а не только крайние ноты.')}</p>
           <div className="vtypes">
             {VOICE_TYPES.map(v => {
               const left = ((v.lo - 36) / 50) * 100, width = ((v.hi - v.lo) / 50) * 100
               return (
-                <div key={v.name} className={'vt' + (v.name === type.name ? ' on' : '')}>
+                <div key={v.id} className={'vt' + (v.id === type.id ? ' on' : '')}>
                   <span>{v.name}</span>
                   <div className="bar"><i style={{ left: left + '%', width: width + '%' }} />
                     <b style={{ left: ((range.lo - 36) / 50) * 100 + '%', width: ((range.hi - range.lo) / 50) * 100 + '%' }} /></div>
@@ -99,7 +100,7 @@ export default function RangeTest() {
               )
             })}
           </div>
-          <p className="small muted">Серым — типичный диапазон, цветом — твой. <Link to="/library">К распевкам →</Link></p>
+          <p className="small muted">{tr('Серым — типичный диапазон, цветом — твой.')} <Link to="/library">{tr('К распевкам →')}</Link></p>
         </div>
       )}
     </div>

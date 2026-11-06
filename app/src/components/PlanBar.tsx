@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, X } from 'lucide-react'
@@ -56,11 +57,11 @@ export function PlanBar() {
     <div className="plan-bar" role="status">
       <span className="pb-check"><Check size={18} /></span>
       <div className="pb-text">
-        <b>{done.item.title} — засчитано</b>
-        <span>{done.next ? `Дальше: ${done.next.title.toLowerCase()} · ${done.next.text}` : 'Программа на сегодня выполнена'}</span>
+        <b>{done.item.title} {tr('— засчитано')}</b>
+        <span>{done.next ? tr('Дальше: {0} · {1}', done.next.title.toLowerCase(), done.next.text) : tr('Программа на сегодня выполнена')}</span>
       </div>
-      <button className="btn" onClick={() => { setDone(null); go(done.next ? done.next.to : '/') }}>{done.next ? <>Дальше <ChevronRight size={16} /></> : 'На главную'}</button>
-      <button className="textbtn pb-close" aria-label="Закрыть" onClick={() => setDone(null)}><X size={18} /></button>
+      <button className="btn" onClick={() => { setDone(null); go(done.next ? done.next.to : '/') }}>{done.next ? <>{tr('Дальше')} <ChevronRight size={16} /></> : tr('На главную')}</button>
+      <button className="textbtn pb-close" aria-label={tr('Закрыть')} onClick={() => setDone(null)}><X size={18} /></button>
     </div>
   )
 }

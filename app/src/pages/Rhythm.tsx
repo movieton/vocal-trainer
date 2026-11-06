@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
@@ -6,9 +7,9 @@ import { rand } from '../lib/theory'
 
 /** Ритмические рисунки на один такт 4/4, доли от 0 до 4 */
 const SETS: Record<string, { name: string; patterns: number[][] }> = {
-  quarter: { name: 'Четверти', patterns: [[0, 1, 2, 3], [0, 1, 2], [0, 2, 3], [0, 2], [1, 2, 3], [0, 1, 3]] },
-  eighth: { name: 'Восьмые', patterns: [[0, 0.5, 1, 2, 3], [0, 1, 1.5, 2, 3], [0, 1, 2, 2.5, 3, 3.5], [0, 0.5, 1, 1.5, 2], [0, 1.5, 2, 3]] },
-  sync: { name: 'Синкопы', patterns: [[0, 1.5, 3], [0, 0.5, 1.5, 2.5, 3], [0.5, 1.5, 2, 3], [0, 1.5, 2.5, 3.5], [0, 0.75, 1.5, 2, 3]] },
+  quarter: { name: tr('Четверти'), patterns: [[0, 1, 2, 3], [0, 1, 2], [0, 2, 3], [0, 2], [1, 2, 3], [0, 1, 3]] },
+  eighth: { name: tr('Восьмые'), patterns: [[0, 0.5, 1, 2, 3], [0, 1, 1.5, 2, 3], [0, 1, 2, 2.5, 3, 3.5], [0, 0.5, 1, 1.5, 2], [0, 1.5, 2, 3]] },
+  sync: { name: tr('Синкопы'), patterns: [[0, 1.5, 3], [0, 0.5, 1.5, 2.5, 3], [0.5, 1.5, 2, 3], [0, 1.5, 2.5, 3.5], [0, 0.75, 1.5, 2, 3]] },
 }
 const TOL = 0.12 // секунд: попадание
 const ROUNDS = 6
@@ -75,7 +76,7 @@ export default function Rhythm() {
   const finish = (all: Res[]) => {
     clearInterval(timer.current); cur.current = null; setPhase('idle')
     const score = all.reduce((a, r) => a + Math.max(0, r.hits - r.extra * 0.5) / r.total, 0) / all.length
-    logSession({ date: Date.now(), kind: 'ear', id: 'rhythm', title: 'Ритм', score: Math.round(score * 100), reps: all.length })
+    logSession({ date: Date.now(), kind: 'ear', id: 'rhythm', title: tr('Ритм'), score: Math.round(score * 100), reps: all.length })
   }
   const stop = () => { clearInterval(timer.current); cur.current = null; setPhase('idle') }
 
@@ -127,35 +128,35 @@ export default function Rhythm() {
 
   return (
     <div className="page">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
-      <h1>Ритм</h1>
-      <p className="muted">Такт отсчёта, затем звучит ритмический рисунок, а в следующем такте повтори его: нажимай пробел или большую кнопку. Метроном идёт всё время. Попадание — в пределах 120 мс.</p>
+      <div className="crumbs"><Link to="/ear">{tr('Слух')}</Link></div>
+      <h1>{tr('Ритм')}</h1>
+      <p className="muted">{tr('Такт отсчёта, затем звучит ритмический рисунок, а в следующем такте повтори его: нажимай пробел или большую кнопку. Метроном идёт всё время. Попадание — в пределах 120 мс.')}</p>
       <div className="settings drill-controls">
-        <label>Как отвечать <span className="seg">
-          <button aria-pressed={input === 'tap'} disabled={running} onClick={() => setInput('tap')}>Нажатием</button>
-          <button aria-pressed={input === 'voice'} disabled={running} onClick={() => { setInput('voice'); if (engine.mic !== 'on') void engine.startMic() }}>Голосом «та»</button>
+        <label>{tr('Как отвечать')} <span className="seg">
+          <button aria-pressed={input === 'tap'} disabled={running} onClick={() => setInput('tap')}>{tr('Нажатием')}</button>
+          <button aria-pressed={input === 'voice'} disabled={running} onClick={() => { setInput('voice'); if (engine.mic !== 'on') void engine.startMic() }}>{tr('Голосом «та»')}</button>
         </span></label>
-        {input === 'voice' && <label>Задержка микрофона
-          <span className="calib"><b>{Math.round(latency * 1000)} мс</b>
-            <button className="btn ghost small-btn" disabled={running || !!calib} onClick={startCalib}>{calib ? 'Пой «та» на каждый щелчок…' : 'Калибровать'}</button></span>
+        {input === 'voice' && <label>{tr('Задержка микрофона')}
+          <span className="calib"><b>{Math.round(latency * 1000)} {tr('мс')}</b>
+            <button className="btn ghost small-btn" disabled={running || !!calib} onClick={startCalib}>{calib ? tr('Пой «та» на каждый щелчок…') : tr('Калибровать')}</button></span>
         </label>}
-        <label>Рисунки <span className="seg">{Object.entries(SETS).map(([k, s]) => <button key={k} aria-pressed={set === k} disabled={running} onClick={() => setSet(k)}>{s.name}</button>)}</span></label>
-        <label>Темп <span className="seg">{[60, 80, 100].map(b => <button key={b} aria-pressed={bpm === b} disabled={running} onClick={() => setBpm(b)}>{b}</button>)}</span></label>
+        <label>{tr('Рисунки')} <span className="seg">{Object.entries(SETS).map(([k, s]) => <button key={k} aria-pressed={set === k} disabled={running} onClick={() => setSet(k)}>{s.name}</button>)}</span></label>
+        <label>{tr('Темп')} <span className="seg">{[60, 80, 100].map(b => <button key={b} aria-pressed={bpm === b} disabled={running} onClick={() => setBpm(b)}>{b}</button>)}</span></label>
       </div>
       <div className="card rhythm">
         <div className="rh-head">
-          <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>
+          <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? tr('Стоп') : tr('Начать')}</button>
           <span className="status">
-            {running && <span className={'pill' + (phase === 'tap' ? ' on' : '')}>{phase === 'count' ? 'Отсчёт' : phase === 'listen' ? 'Слушай' : 'Твой такт'}</span>}
-            {running && <span>Рисунок {n + 1} / {ROUNDS}</span>}
-            {last && <span>Прошлый: <b>{last.hits}/{last.total}</b>{last.extra ? `, лишних ${last.extra}` : ''}{last.hits ? `, ±${last.avgMs} мс` : ''}</span>}
+            {running && <span className={'pill' + (phase === 'tap' ? ' on' : '')}>{phase === 'count' ? tr('Отсчёт') : phase === 'listen' ? tr('Слушай') : tr('Твой такт')}</span>}
+            {running && <span>{tr('Рисунок')} {n + 1} / {ROUNDS}</span>}
+            {last && <span>{tr('Прошлый:')} <b>{last.hits}/{last.total}</b>{last.extra ? tr(', лишних {0}', last.extra) : ''}{last.hits ? tr(', ±{0} мс', last.avgMs) : ''}</span>}
           </span>
         </div>
         <Bar round={round} beat={beat} />
         <button className="tapper" onPointerDown={e => { e.preventDefault(); tap() }} disabled={phase !== 'tap'}>
-          <b>Тап</b><small>{phase === 'tap' ? 'жми в ритм' : 'или пробел'}</small>
+          <b>{tr('Тап')}</b><small>{phase === 'tap' ? tr('жми в ритм') : tr('или пробел')}</small>
         </button>
-        {!running && total != null && <p className="verdict">Итог: <b>{total}%</b> по {results.length} рисункам</p>}
+        {!running && total != null && <p className="verdict">{tr('Итог:')} <b>{total}%</b> {tr('по')} {results.length} {tr('рисункам')}</p>}
       </div>
     </div>
   )
@@ -163,7 +164,7 @@ export default function Rhythm() {
 
 /** Такт: доли, ожидаемые удары (контур) и твои тапы (точки) */
 function Bar({ round, beat }: { round: Round | null; beat: number }) {
-  if (!round) return <div className="bar4 empty"><span>Здесь появится рисунок</span></div>
+  if (!round) return <div className="bar4 empty"><span>{tr('Здесь появится рисунок')}</span></div>
   const x = (b: number) => (b / 4) * 100
   return (
     <div className="bar4"><div className="bar4-in">

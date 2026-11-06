@@ -700,7 +700,7 @@ img.logo-dark { display: none !important }
 .diagram.anat .fold-l, .diagram.anat .fold-r { fill: #F2C4CB; stroke: #D7878F }
 .diagram.anat .lbl-hl .lbl { fill: #3454F4; font-weight: 800 }
 .diagram.anat.head { max-width: 420px }
-.lib-item .meta { margin: 8px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.lib-item .meta { margin: 8px 0 0; display: block }
 @media (max-width: 560px) {
   .library .lib-sec .tile { display: flex; flex-direction: column; align-items: stretch; gap: 4px }
   .library .lib-sec .tile .muted.small { display: -webkit-box }
@@ -999,3 +999,17 @@ html.has-planbar main { padding-bottom: 0 }
 
 .rec-card { max-width: 640px }
 .page.trainer > p.small.muted { max-width: none }
+
+/* выбор языка */
+@media (min-width: 761px) { .side { display: flex; flex-direction: column } }
+.side-lang { margin: auto 0 0 2px; background: transparent; border: 1px solid var(--line) }
+.side-lang button { padding: 6px 12px; font-size: 13px; min-height: 30px; color: var(--muted) }
+.side-lang button[aria-pressed=true] { background: var(--accent-soft); color: var(--text); font-weight: 700 }
+.more-lang, .welcome-lang { margin: 0 0 20px }
+@media (min-width: 761px) { .more-lang { display: none } }
+h1, h2, h3, strong { text-wrap: balance }
+p, li { text-wrap: pretty }
+.consent a { white-space: nowrap }
+.tile .muted, .tile span { text-wrap: pretty }
+.card.cta span { text-wrap: pretty }
+.lib-item .meta .ev { margin-right: 8px }

@@ -30,6 +30,9 @@ db.exec('CREATE TABLE IF NOT EXISTS resets (hash TEXT PRIMARY KEY, user_id TEXT 
 // напоминания: веб-пуш. Ключи VAPID создаются один раз и лежат рядом с базой
 db.exec('CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, sub TEXT NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL, tz TEXT NOT NULL, user_id TEXT, last_day TEXT, created INTEGER NOT NULL)')
 if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'fails'").get()) db.exec('ALTER TABLE push_subs ADD COLUMN fails INTEGER NOT NULL DEFAULT 0')
+if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'lang'").get()) db.exec("ALTER TABLE push_subs ADD COLUMN lang TEXT NOT NULL DEFAULT 'ru'")
+/** Язык интерфейса из запроса: только ru или en */
+const langOf = v => (v === 'en' ? 'en' : 'ru')
 const MAX_SUBS = 50000
 const VAPID_FILE = path.join(path.dirname(env.DB_PATH ?? '/data/fasol.db'), 'vapid.json')
 if (!fs.existsSync(VAPID_FILE)) fs.writeFileSync(VAPID_FILE, JSON.stringify(webpush.generateVAPIDKeys()), { mode: 0o600 })
@@ -52,14 +55,17 @@ function practicedToday(userId, day, tz) {
   try { return (JSON.parse(row?.data ?? '{}').log ?? []).some(l => localNowAt(l.date, tz) === day) } catch { return false }
 }
 const localNowAt = (t, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t))
-const REMINDERS = ['Твоя распевка ждёт — 10 минут, и голос скажет спасибо', 'Пора распеться: серия дней сама себя не продлит', 'Пять минут на голос? Программа дня уже готова']
+const REMINDERS = {
+  ru: ['Твоя распевка ждёт — 10 минут, и голос скажет спасибо', 'Пора распеться: серия дней сама себя не продлит', 'Пять минут на голос? Программа дня уже готова'],
+  en: ['Your warm-up is waiting — 10 minutes and your voice will thank you', 'Time to warm up: your streak won\'t extend itself', 'Five minutes for your voice? Today\'s plan is ready'],
+}
 let sending = false
 async function sendReminders() {
   if (sending) return // предыдущий прогон ещё идёт
   sending = true
   try {
     const due = []
-    for (const r of db.prepare('SELECT endpoint, sub, hour, minute, tz, user_id, last_day FROM push_subs').all()) {
+    for (const r of db.prepare('SELECT endpoint, sub, hour, minute, tz, user_id, last_day, lang FROM push_subs').all()) {
       const now = localNow(r.tz), t = now.h * 60 + now.m, at = r.hour * 60 + r.minute
       if (r.last_day === now.day || t < at || t > at + 30) continue
       db.prepare('UPDATE push_subs SET last_day = ? WHERE endpoint = ?').run(now.day, r.endpoint)
@@ -67,7 +73,7 @@ async function sendReminders() {
     }
     // пачками по 15, чтобы не ждать каждое уведомление по очереди
     for (let i = 0; i < due.length; i += 15) await Promise.allSettled(due.slice(i, i + 15).map(r =>
-      webpush.sendNotification(JSON.parse(r.sub), JSON.stringify({ title: 'fasol.app', body: REMINDERS[Math.floor(Math.random() * REMINDERS.length)], url: '/' }), { TTL: 3600 })
+      webpush.sendNotification(JSON.parse(r.sub), JSON.stringify({ title: 'fasol.app', body: (REMINDERS[r.lang] ?? REMINDERS.ru)[Math.floor(Math.random() * 3)], url: '/' }), { TTL: 3600 })
         .then(() => db.prepare('UPDATE push_subs SET fails = 0 WHERE endpoint = ?').run(r.endpoint))
         .catch(e => {
           // мёртвая или мусорная подписка: 404/410/400/403/413 — сразу, прочие ошибки — после трёх подряд
@@ -236,7 +242,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/reset/request' && req.method === 'POST') {
       if (!sameOrigin(req)) return json(res, 403, { error: 'bad_origin' })
       if (!MAIL) return json(res, 503, { error: 'mail_disabled' })
-      const email = String((await readBody(req)).email ?? '').trim().toLowerCase(), ip = clientIp(req)
+      const b = await readBody(req), email = String(b.email ?? '').trim().toLowerCase(), ip = clientIp(req)
       if (!EMAIL.test(email)) return json(res, 400, { error: 'bad_email' })
       // свой счётчик: не больше 3 писем на почту и 10 запросов с адреса за 15 минут; вход владельцу не блокирует
       if (hits('r:' + email) >= 3 || hits('ri:' + ip) >= 10) return json(res, 429, { error: 'too_many' })
@@ -247,8 +253,11 @@ const server = http.createServer(async (req, res) => {
         db.prepare('DELETE FROM resets WHERE user_id = ?').run(row.id)
         db.prepare('INSERT INTO resets VALUES (?, ?, ?)').run(sha(token), row.id, Date.now() + 36e5)
         // не ждём отправку: время ответа не должно выдавать, есть ли такая почта
-        sendMail(email, 'Восстановление пароля fasol.app',
-          `Здравствуй!\n\nЧтобы задать новый пароль для fasol.app, открой ссылку (действует 1 час):\n${BASE}/#/reset?token=${token}\n\nЕсли ты не запрашивал сброс — просто проигнорируй это письмо.`).catch(e => console.error(e))
+        const link = `${BASE}/#/reset?token=${token}`
+        const [subj, text] = langOf(b.lang) === 'en'
+          ? ['Reset your fasol.app password', `Hi!\n\nTo set a new password for fasol.app, open this link (valid for 1 hour):\n${link}\n\nIf you didn't request a reset, just ignore this email.`]
+          : ['Восстановление пароля fasol.app', `Здравствуй!\n\nЧтобы задать новый пароль для fasol.app, открой ссылку (действует 1 час):\n${link}\n\nЕсли ты не запрашивал сброс — просто проигнорируй это письмо.`]
+        sendMail(email, subj, text).catch(e => console.error(e))
       }
       return json(res, 200, { ok: true })
     }
@@ -278,7 +287,7 @@ const server = http.createServer(async (req, res) => {
       // менять существующую подписку можно только с теми же ключами
       if (old && JSON.parse(old.sub).keys.auth !== b.subscription.keys.auth) return json(res, 403, { error: 'forbidden' })
       if (!old && db.prepare('SELECT COUNT(*) AS n FROM push_subs').get().n >= MAX_SUBS) return json(res, 503, { error: 'busy' })
-      db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created) VALUES (?, ?, ?, ?, ?, ?, NULL, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now())
+      db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id, lang = excluded.lang').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now(), langOf(b.lang))
       return json(res, 200, { ok: true })
     }
     if (path === '/push/unsubscribe' && req.method === 'POST') {

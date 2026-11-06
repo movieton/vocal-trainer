@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
@@ -12,11 +13,11 @@ import { TakeBar, useTake } from '../components/Take'
 import { TEXTS } from '../data/exerciseTexts'
 import KeySelect from '../components/KeySelect'
 
-const PHASE: Record<Phase, string> = { idle: '', cue: 'Тональность…', listen: 'Слушай', inner: 'Услышь про себя', breath: 'Вдох', sing: 'Пой', done: '' }
+const PHASE: Record<Phase, string> = { idle: '', cue: tr('Тональность…'), listen: tr('Слушай'), inner: tr('Услышь про себя'), breath: tr('Вдох'), sing: tr('Пой'), done: '' }
 const MODES: { id: Mode; title: string; text: string }[] = [
-  { id: 'together', title: 'Вместе', text: 'Поёшь сразу под пианино' },
-  { id: 'call', title: 'Повтори один', text: 'Пианино, затем ты без него' },
-  { id: 'echo', title: 'Повтори с пианино', text: 'Пианино, затем снова пианино и ты' },
+  { id: 'together', title: tr('Вместе'), text: tr('Поёшь сразу под пианино') },
+  { id: 'call', title: tr('Повтори один'), text: tr('Пианино, затем ты без него') },
+  { id: 'echo', title: tr('Повтори с пианино'), text: tr('Пианино, затем снова пианино и ты') },
 ]
 type Summary = ReturnType<ExerciseRun['summary']>
 
@@ -91,7 +92,7 @@ export default function Trainer() {
     return () => removeEventListener('keydown', onKey)
   })
 
-  if (!ex) return <div className="page"><p>Упражнение не найдено. <Link to="/library">К списку</Link></p></div>
+  if (!ex) return <div className="page"><p>{tr('Упражнение не найдено.')} <Link to="/library">{tr('К списку')}</Link></p></div>
   const texts = TEXTS[ex.id] ?? (ex.how ? { how: ex.how, mistakes: ex.mistakes ?? [] } : null)
 
   // окно доски по длине фразы: целиком видно «слушай» и «пой» одного круга
@@ -125,16 +126,16 @@ export default function Trainer() {
 
   return (
     <div className="page trainer">
-      <div className="crumbs"><Link to="/library">Распевки</Link> / {SECTIONS[ex.section].title}</div>
+      <div className="crumbs"><Link to="/library">{tr('Библиотека')}</Link> / {SECTIONS[ex.section].title}</div>
       <div className="trainer-head">
         <div>
           <h1>{ex.title}</h1>
-          <p className="muted">{ex.goal} · слог «{ex.syllable}» · уровень {ex.level}</p>
+          <p className="muted">{ex.goal} {tr("· слог «")}{ex.syllable}{tr("» · уровень")}&nbsp;{ex.level}</p>
         </div>
         <LiveNote />
       </div>
 
-      <div className="modes seg" role="radiogroup" aria-label="Режим">
+      <div className="modes seg" role="radiogroup" aria-label={tr('Режим')}>
         {MODES.map(m => (
           <button key={m.id} role="radio" aria-pressed={mode === m.id} aria-checked={mode === m.id} disabled={running} onClick={() => setMode(m.id)}>
             <b>{m.title}</b><span>{m.text}</span>
@@ -144,66 +145,66 @@ export default function Trainer() {
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
-          {tk.playing ? <button className="btn stop" onClick={tk.stop}>■ Остановить запись</button>
-            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? 'Стоп' : 'Начать'}</button>}
-          <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> Повторять фразу</label>
+          {tk.playing ? <button className="btn stop" onClick={tk.stop}>{tr('■ Остановить запись')}</button>
+            : <button className={'btn' + (running ? ' stop' : '')} onClick={running ? stop : start}>{running ? tr('Стоп') : tr('Начать')}</button>}
+          <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> {tr('Повторять фразу')}</label>
           <span className="status">
-            {running && <span>Круг {status.rep} / {status.total}</span>}
-            {status.last != null && <span>Прошлый круг <b>{Math.round(status.last * 100)}%</b></span>}
+            {running && <span>{tr('Круг')} {status.rep} / {status.total}</span>}
+            {status.last != null && <span>{tr('Прошлый круг')} <b>{Math.round(status.last * 100)}%</b></span>}
           </span>
         </div>
       )}
       <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? preview())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.2}
-        overlay={() => (tk.replay ? 'Запись' : run.current ? PHASE[run.current.phase] : '')} className="tall" />
+        overlay={() => (tk.replay ? tr('Запись') : run.current ? PHASE[run.current.phase] : '')} className="tall" />
       {!running && <TakeBar t={tk} />}
 
       <div className="settings">
-        <label className="chk"><input type="checkbox" checked={inner} disabled={running} onChange={e => setInner(e.target.checked)} /> Пауза «услышь про себя»</label>
-        <label className="chk"><input type="checkbox" checked={fade} disabled={running} onChange={e => setFade(e.target.checked)} /> Подсказка через круг</label>
-        <label>Темп {Math.round(tempo * 100)}%
+        <label className="chk"><input type="checkbox" checked={inner} disabled={running} onChange={e => setInner(e.target.checked)} /> {tr('Пауза «услышь про себя»')}</label>
+        <label className="chk"><input type="checkbox" checked={fade} disabled={running} onChange={e => setFade(e.target.checked)} /> {tr('Подсказка через круг')}</label>
+        <label>{tr('Темп')} {Math.round(tempo * 100)}%
           <input type="range" min={0.6} max={1.4} step={0.05} value={tempo} onChange={e => setTempo(+e.target.value)} disabled={running} />
         </label>
-        <label>Строгость
+        <label>{tr('Строгость')}
           <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
-            <option value={50}>Мягко, ±50 ц</option>
-            <option value={25}>Обычно, ±25 ц</option>
-            <option value={12}>Строго, ±12 ц</option>
+            <option value={50}>{tr('Мягко, ±50 ц')}</option>
+            <option value={25}>{tr('Обычно, ±25 ц')}</option>
+            <option value={12}>{tr('Строго, ±12 ц')}</option>
           </select>
         </label>
-        <label>Тональность
+        <label>{tr('Тональность')}
           <KeySelect value={key} onChange={setKey} disabled={running} />
         </label>
-        <label>Сдвиг высоты
+        <label>{tr('Сдвиг высоты')}
           <span className="stepper">
-            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label="Октава ниже" title="Октава ниже">«</button>
-            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label="Ниже">−</button>
-            <span>{shift === 0 ? 'авто' : (shift > 0 ? '+' : '') + shift}</span>
-            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label="Выше">+</button>
-            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label="Октава выше" title="Октава выше">»</button>
+            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label={tr('Октава ниже')} title={tr('Октава ниже')}>«</button>
+            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label={tr('Ниже')}>−</button>
+            <span>{shift === 0 ? tr('авто') : (shift > 0 ? '+' : '') + shift}</span>
+            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label={tr('Выше')}>+</button>
+            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label={tr('Октава выше')} title={tr('Октава выше')}>»</button>
           </span>
         </label>
       </div>
-      <p className="muted small">Рабочий диапазон: {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">изменить</Link> · Пробел — старт и стоп</p>
+      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">{tr('изменить')}</Link> {tr('· Пробел — старт и стоп')}</p>
 
       {texts && (
         <div className="howto">
-          <div><h2>Как делать</h2><ol>{texts.how.map(t => <li key={t}>{t}</li>)}</ol></div>
-          {texts.mistakes.length > 0 && <div><h2>Частые ошибки</h2><ul>{texts.mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>}
+          <div><h2>{tr('Как делать')}</h2><ol>{texts.how.map(t => <li key={t}>{t}</li>)}</ol></div>
+          {texts.mistakes.length > 0 && <div><h2>{tr('Частые ошибки')}</h2><ul>{texts.mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>}
         </div>
       )}
 
       {result && (
         <div className="card result">
-          <h2>Итог: {Math.round(result.score * 100)}%</h2>
-          <p className="muted">Кругов: {result.reps}</p>
+          <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
+          <p className="muted">{tr('Кругов:')} {result.reps}</p>
           {result.drift.length ? (
             <>
-              <strong>Где уходишь от ноты</strong>
+              <strong>{tr('Где уходишь от ноты')}</strong>
               <ul>{result.drift.map(d => (
-                <li key={d.m}>{noteName(d.m)}: {d.c > 0 ? '+' : '−'}{Math.round(Math.abs(d.c))} ц, {d.c > 0 ? 'завышаешь' : 'занижаешь'}</li>
+                <li key={d.m}>{noteName(d.m)}: {d.c > 0 ? '+' : '−'}{Math.round(Math.abs(d.c))} {tr('ц,')} {d.c > 0 ? tr('завышаешь') : tr('занижаешь')}</li>
               ))}</ul>
             </>
-          ) : <p>Устойчивых ошибок нет, интонация ровная.</p>}
+          ) : <p>{tr('Устойчивых ошибок нет, интонация ровная.')}</p>}
         </div>
       )}
     </div>

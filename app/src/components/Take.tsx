@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Play } from 'lucide-react'
 import { engine, type Take } from '../lib/audio'
@@ -42,8 +43,8 @@ export function TakeBar({ t }: { t: ReturnType<typeof useTake> }) {
   if (!t.take) return null
   return (
     <div className="takebar">
-      {!t.playing && <button className="btn ghost" onClick={t.play}><Play size={16} /> Прослушать попытку</button>}
-      <span className="muted small">Запись идёт вместе с кривой голоса поверх нот — слушай и смотри, где уходишь. Хранится только до перезагрузки страницы.</span>
+      {!t.playing && <button className="btn ghost" onClick={t.play}><Play size={16} /> {tr('Прослушать попытку')}</button>}
+      <span className="muted small">{tr('Запись идёт вместе с кривой голоса поверх нот — слушай и смотри, где уходишь. Хранится только до перезагрузки страницы.')}</span>
     </div>
   )
 }

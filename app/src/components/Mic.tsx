@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useEffect, useReducer, useRef } from 'react'
 import { engine, SIM } from '../lib/audio'
 import { noteName } from '../lib/music'
@@ -18,11 +19,11 @@ export function MicGate({ children }: { children?: React.ReactNode }) {
   return (
     <div className="micgate">
       <div>
-        <strong>{engine.mic === 'starting' ? 'Включаю микрофон…' : 'Нужен микрофон'}</strong>
-        <p>Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.{SIM && import.meta.env.DEV && ' Режим проверки: вместо голоса синтетический тон.'}</p>
+        <strong>{engine.mic === 'starting' ? tr('Включаю микрофон…') : tr('Нужен микрофон')}</strong>
+        <p>{tr('Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.')}{SIM && import.meta.env.DEV && tr(' Режим проверки: вместо голоса синтетический тон.')}</p>
         {engine.mic === 'error' && <p className="err">{engine.micError}</p>}
       </div>
-      <button className="btn" onClick={() => engine.startMic()} disabled={engine.mic === 'starting'}>Включить микрофон</button>
+      <button className="btn" onClick={() => engine.startMic()} disabled={engine.mic === 'starting'}>{tr('Включить микрофон')}</button>
     </div>
   )
 }
@@ -36,7 +37,7 @@ export function LiveNote({ big }: { big?: boolean }) {
   return (
     <div className={'livenote' + (big ? ' big' : '') + (m == null ? ' silent' : '')}>
       <span className="n">{m == null ? '—' : noteName(m)}</span>
-      <span className="c">{cents == null ? '' : (cents > 0 ? '+' : cents < 0 ? '−' : '±') + Math.abs(cents) + ' ц'}</span>
+      <span className="c">{cents == null ? '' : (cents > 0 ? '+' : cents < 0 ? '−' : '±') + Math.abs(cents) + tr(' ц')}</span>
     </div>
   )
 }

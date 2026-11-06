@@ -1,3 +1,4 @@
+import { tr } from './lib/i18n'
 import { HashRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
 import { Activity, BookOpen, UserRound, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, Music, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
@@ -5,6 +6,7 @@ import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
 import { PlanBar } from './components/PlanBar'
+import LangSwitch from './components/LangSwitch'
 import { AchievementToast } from './components/Achievements'
 import Home from './pages/Home'
 import Welcome from './pages/Welcome'
@@ -35,17 +37,17 @@ import { Levels, Melody } from './pages/EarMore'
 import { SongList, SongPage } from './pages/Songs'
 
 const NAV = [
-  { to: '/', label: 'Сегодня', icon: Sun, main: true },
-  { to: '/library', label: 'Библиотека', icon: LibraryIcon, main: true },
-  { to: '/tuner', label: 'Тюнер', icon: Activity, main: true },
-  { to: '/ear', label: 'Слух', icon: Ear, main: true },
-  { to: '/songs', label: 'Песни', icon: Music },
-  { to: '/compose', label: 'Сочинение', icon: PenLine },
-  { to: '/breath', label: 'Дыхание', icon: Wind },
-  { to: '/theory', label: 'Теория', icon: BookOpen },
-  { to: '/range', label: 'Диапазон', icon: MoveVertical },
-  { to: '/progress', label: 'Прогресс', icon: TrendingUp },
-  { to: '/account', label: 'Аккаунт', icon: UserRound },
+  { to: '/', label: tr('Сегодня'), icon: Sun, main: true },
+  { to: '/library', label: tr('Библиотека'), icon: LibraryIcon, main: true },
+  { to: '/tuner', label: tr('Тюнер'), icon: Activity, main: true },
+  { to: '/ear', label: tr('Слух'), icon: Ear, main: true },
+  { to: '/songs', label: tr('Песни'), icon: Music },
+  { to: '/compose', label: tr('Сочинение'), icon: PenLine },
+  { to: '/breath', label: tr('Дыхание'), icon: Wind },
+  { to: '/theory', label: tr('Теория'), icon: BookOpen },
+  { to: '/range', label: tr('Диапазон'), icon: MoveVertical },
+  { to: '/progress', label: tr('Прогресс'), icon: TrendingUp },
+  { to: '/account', label: tr('Аккаунт'), icon: UserRound },
 ]
 
 export default function App() {
@@ -55,11 +57,12 @@ export default function App() {
       <UpdateBanner />
       <div className="shell">
         <aside className="side">
-          <Link to="/" className="brand" aria-label="fasol.app — на главную"><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></Link>
+          <Link to="/" className="brand" aria-label={tr('fasol.app — на главную')}><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></Link>
           <nav>{NAV.map(n => <NavLink key={n.to} to={n.to} end={n.to === '/'}><n.icon size={20} strokeWidth={1.75} />{n.label}</NavLink>)}</nav>
+          <LangSwitch className="side-lang" />
         </aside>
         <main>
-          <header className="mhead"><NavLink to="/" aria-label="fasol.app — на главную"><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></NavLink></header>
+          <header className="mhead"><NavLink to="/" aria-label={tr('fasol.app — на главную')}><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></NavLink></header>
           <PlanBar />
           <AchievementToast />
           <Routes>
@@ -107,7 +110,7 @@ export default function App() {
         </main>
         <nav className="tabbar">
           {NAV.filter(n => n.main).map(n => <NavLink key={n.to} to={n.to} end={n.to === '/'}><n.icon size={20} strokeWidth={1.75} />{n.label}</NavLink>)}
-          <NavLink to="/more"><Ellipsis size={20} strokeWidth={1.75} />Ещё</NavLink>
+          <NavLink to="/more"><Ellipsis size={20} strokeWidth={1.75} />{tr('Ещё')}</NavLink>
         </nav>
       </div>
     </HashRouter>

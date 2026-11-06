@@ -1,4 +1,5 @@
-export const NAMES = ['До', 'До♯', 'Ре', 'Ре♯', 'Ми', 'Фа', 'Фа♯', 'Соль', 'Соль♯', 'Ля', 'Ля♯', 'Си']
+import { lang, tr } from './i18n'
+export const NAMES = [tr('До'), tr('До♯'), tr('Ре'), tr('Ре♯'), tr('Ми'), tr('Фа'), tr('Фа♯'), tr('Соль'), tr('Соль♯'), tr('Ля'), tr('Ля♯'), tr('Си')]
 export const LATIN = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 export const mtof = (m: number) => 440 * 2 ** ((m - 69) / 12)
@@ -10,27 +11,27 @@ export const latinName = (m: number) => LATIN[pc(m)] + octave(m)
 export const isBlack = (m: number) => [1, 3, 6, 8, 10].includes(pc(m))
 
 export const INTERVALS = [
-  { st: 1, short: 'м2', name: 'малая секунда' },
-  { st: 2, short: 'б2', name: 'большая секунда' },
-  { st: 3, short: 'м3', name: 'малая терция' },
-  { st: 4, short: 'б3', name: 'большая терция' },
-  { st: 5, short: 'ч4', name: 'чистая кварта' },
-  { st: 6, short: 'тт', name: 'тритон' },
-  { st: 7, short: 'ч5', name: 'чистая квинта' },
-  { st: 8, short: 'м6', name: 'малая секста' },
-  { st: 9, short: 'б6', name: 'большая секста' },
-  { st: 10, short: 'м7', name: 'малая септима' },
-  { st: 11, short: 'б7', name: 'большая септима' },
-  { st: 12, short: 'ч8', name: 'октава' },
+  { st: 1, short: tr('м2'), name: tr('малая секунда') },
+  { st: 2, short: tr('б2'), name: tr('большая секунда') },
+  { st: 3, short: tr('м3'), name: tr('малая терция') },
+  { st: 4, short: tr('б3'), name: tr('большая терция') },
+  { st: 5, short: tr('ч4'), name: tr('чистая кварта') },
+  { st: 6, short: tr('тт'), name: tr('тритон') },
+  { st: 7, short: tr('ч5'), name: tr('чистая квинта') },
+  { st: 8, short: tr('м6'), name: tr('малая секста') },
+  { st: 9, short: tr('б6'), name: tr('большая секста') },
+  { st: 10, short: tr('м7'), name: tr('малая септима') },
+  { st: 11, short: tr('б7'), name: tr('большая септима') },
+  { st: 12, short: tr('ч8'), name: tr('октава') },
 ]
 
 export const VOICE_TYPES = [
-  { name: 'Бас', lo: 40, hi: 64 },
-  { name: 'Баритон', lo: 45, hi: 69 },
-  { name: 'Тенор', lo: 48, hi: 72 },
-  { name: 'Контральто', lo: 53, hi: 77 },
-  { name: 'Меццо-сопрано', lo: 57, hi: 81 },
-  { name: 'Сопрано', lo: 60, hi: 84 },
+  { id: 'Бас', name: tr('Бас'), lo: 40, hi: 64 },
+  { id: 'Баритон', name: tr('Баритон'), lo: 45, hi: 69 },
+  { id: 'Тенор', name: tr('Тенор'), lo: 48, hi: 72 },
+  { id: 'Контральто', name: tr('Контральто'), lo: 53, hi: 77 },
+  { id: 'Меццо-сопрано', name: tr('Меццо-сопрано'), lo: 57, hi: 81 },
+  { id: 'Сопрано', name: tr('Сопрано'), lo: 60, hi: 84 },
 ]
 
 export function guessVoiceType(lo: number, hi: number) {
@@ -72,6 +73,8 @@ export function analyzeTone(samples: { t: number; midi: number | null }[], targe
 
 /** Русское склонение по числу: plural(21, ['день', 'дня', 'дней']) → «день» */
 export function plural(n: number, [one, few, many]: [string, string, string]) {
+  // в английском две формы: 1 — единственное, остальное — «many» (в словаре они совпадают с «few»)
+  if (lang === 'en') return Math.abs(n) === 1 ? one : many
   const a = Math.abs(n) % 100, b = a % 10
   if (a > 10 && a < 20) return many
   if (b === 1) return one

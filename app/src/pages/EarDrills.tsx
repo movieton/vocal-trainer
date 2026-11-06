@@ -1,3 +1,4 @@
+import { tr } from '../lib/i18n'
 import { useState } from 'react'
 import DrillPage from '../components/DrillPage'
 import KeySelect from '../components/KeySelect'
@@ -15,7 +16,7 @@ const Seg = <T extends string | number>({ value, set, opts, disabled }: { value:
   <span className={'seg' + (opts.length >= 4 ? ' wide' : '')}>{opts.map(([v, t]) => <button key={String(v)} aria-pressed={value === v} disabled={disabled} onClick={() => set(v)}>{t}</button>)}</span>
 )
 
-const TEMPI: [number, string][] = [[70, 'Медленно'], [90, 'Средне'], [110, 'Быстро']]
+const TEMPI: [number, string][] = [[70, tr('Медленно')], [90, tr('Средне')], [110, tr('Быстро')]]
 
 // ---------- Пение над аккордами ----------
 type ChordTask = 'root' | 'third' | 'arp' | 'arp7'
@@ -41,7 +42,7 @@ export function ChordSing() {
         piano.push({ m: key - 24 + root, t, d: 4 * b * 0.95, vel: vel + 8 })
       }
       chordAt(0, 0, CHORDS[P.chords[0][1]].iv, 45)
-      marks.push({ t: 0, text: 'Вступление' })
+      marks.push({ t: 0, text: tr('Вступление') })
       let prev = center
       P.chords.forEach(([root, q], j) => {
         const T = 4 * b * (j + 1), iv = CHORDS[q].iv
@@ -63,20 +64,20 @@ export function ChordSing() {
   }
 
   return (
-    <DrillPage id="chord-sing" settingsKey={`${prog}-${task}-${bpm}-${key}-${circle}`} title="Пение над аккордами" make={make} windowSec={12}
-      intro="Пианино играет гармонию, ты поёшь звуки аккордов. После каждого круга тональность сдвигается на квинту вверх: так проходишь квинтовый круг."
-      how={['Слушай бас: он подсказывает основной тон аккорда.', 'Терция — звук, который делает аккорд мажорным или минорным. Пой её мягко, она «окрашивает» гармонию.', 'Лучше в наушниках: иначе микрофон может услышать пианино вместо тебя.']}
+    <DrillPage id="chord-sing" settingsKey={`${prog}-${task}-${bpm}-${key}-${circle}`} title={tr('Пение над аккордами')} make={make} windowSec={12}
+      intro={tr('Пианино играет гармонию, ты поёшь звуки аккордов. После каждого круга тональность сдвигается на квинту вверх: так проходишь квинтовый круг.')}
+      how={[tr('Слушай бас: он подсказывает основной тон аккорда.'), tr('Терция — звук, который делает аккорд мажорным или минорным. Пой её мягко, она «окрашивает» гармонию.'), tr('Лучше в наушниках: иначе микрофон может услышать пианино вместо тебя.')]}
       controls={running => <>
-        <label>Гармония
+        <label>{tr('Гармония')}
           <select value={prog} onChange={e => setProg(e.target.value)} disabled={running}>
             {Object.entries(PROGRESSIONS).map(([k, p]) => <option key={k} value={k}>{p.name}</option>)}
           </select>
         </label>
-        <label>Что петь <Seg value={task} set={setTask} disabled={running}
-          opts={[['root', 'Основной тон'], ['third', 'Терцию'], ['arp', 'Арпеджио'], ['arp7', 'С септимой']]} /></label>
-        <label>Темп <Seg value={bpm} set={setBpm} disabled={running} opts={TEMPI} /></label>
-        <label>Тональность <KeySelect value={key} onChange={setKey} disabled={running} /></label>
-        <label className="chk"><input type="checkbox" checked={circle} onChange={e => setCircle(e.target.checked)} disabled={running} /> Менять по квинтовому кругу</label>
+        <label>{tr('Что петь')} <Seg value={task} set={setTask} disabled={running}
+          opts={[['root', tr('Основной тон')], ['third', tr('Терцию')], ['arp', tr('Арпеджио')], ['arp7', tr('С септимой')]]} /></label>
+        <label>{tr('Темп')} <Seg value={bpm} set={setBpm} disabled={running} opts={TEMPI} /></label>
+        <label>{tr('Тональность')} <KeySelect value={key} onChange={setKey} disabled={running} /></label>
+        <label className="chk"><input type="checkbox" checked={circle} onChange={e => setCircle(e.target.checked)} disabled={running} /> {tr('Менять по квинтовому кругу')}</label>
       </>} />
   )
 }
@@ -117,24 +118,24 @@ export function ScaleSing() {
   }
 
   return (
-    <DrillPage id="scale-sing" settingsKey={`${scale}-${pattern}-${bpm}-${key}`} title="Гаммы с аккомпанементом" make={make} windowSec={9}
-      intro="Под аккорд тоники поёшь гамму вверх и вниз. С каждым кругом тональность поднимается на полутон в пределах твоего диапазона."
-      how={['Начни медленно. Ускоряй, когда большинство нот зелёные.', 'Пой на «а» или на названия нот: до-ре-ми.', 'В миноре особенно слушай третью и шестую ступень — их чаще всего завышают.']}
+    <DrillPage id="scale-sing" settingsKey={`${scale}-${pattern}-${bpm}-${key}`} title={tr('Гаммы с аккомпанементом')} make={make} windowSec={9}
+      intro={tr('Под аккорд тоники поёшь гамму вверх и вниз. С каждым кругом тональность поднимается на полутон в пределах твоего диапазона.')}
+      how={[tr('Начни медленно. Ускоряй, когда большинство нот зелёные.'), tr('Пой на «а» или на названия нот: до-ре-ми.'), tr('В миноре особенно слушай третью и шестую ступень — их чаще всего завышают.')]}
       controls={running => <>
-        <label>Гамма
+        <label>{tr('Гамма')}
           <select value={scale} onChange={e => setScale(e.target.value as ScaleId)} disabled={running}>
             {Object.entries(SCALES).map(([k, s]) => <option key={k} value={k}>{s.name}</option>)}
           </select>
         </label>
-        <label>Рисунок <Seg value={pattern} set={setPattern} disabled={running} opts={[['updown', 'Вверх и вниз'], ['thirds', 'Терциями']]} /></label>
-        <label>Тональность <KeySelect value={key} onChange={setKey} disabled={running} /></label>
-        <label>Темп <Seg value={bpm} set={setBpm} disabled={running} opts={TEMPI} /></label>
+        <label>{tr('Рисунок')} <Seg value={pattern} set={setPattern} disabled={running} opts={[['updown', tr('Вверх и вниз')], ['thirds', tr('Терциями')]]} /></label>
+        <label>{tr('Тональность')} <KeySelect value={key} onChange={setKey} disabled={running} /></label>
+        <label>{tr('Темп')} <Seg value={bpm} set={setBpm} disabled={running} opts={TEMPI} /></label>
       </>} />
   )
 }
 
 // ---------- Подпевка (вторая партия) ----------
-const HARM = { up3: { k: 2, name: 'Терция выше' }, down3: { k: -2, name: 'Терция ниже' }, up5: { k: 4, name: 'Квинта выше' }, down6: { k: -5, name: 'Секста ниже' } } as const
+const HARM = { up3: { k: 2, name: tr('Терция выше') }, down3: { k: -2, name: tr('Терция ниже') }, up5: { k: 4, name: tr('Квинта выше') }, down6: { k: -5, name: tr('Секста ниже') } } as const
 
 export function Harmony() {
   const r = useRange()
@@ -164,19 +165,19 @@ export function Harmony() {
         notes.push({ m: key + degree(d), t: B + n * b, d: b * 0.9, sing: false })
         notes.push({ m: key + degree(d + k), t: B + n * b, d: b * 0.9, sing: true, hidden: !hints })
       })
-      return { label: `${pcName(key)} мажор`, piano, notes, len: B + len * b, marks: [{ t: A, text: 'Мелодия' }, { t: B, text: HARM[iv].name }] }
+      return { label: tr('{0} мажор', pcName(key)), piano, notes, len: B + len * b, marks: [{ t: A, text: tr('Мелодия') }, { t: B, text: HARM[iv].name }] }
     }
   }
 
   return (
-    <DrillPage id="harmony" settingsKey={`${iv}-${len}-${hints}-${key}`} title="Вторая партия" make={make} windowSec={12}
-      intro="Пианино играет мелодию, затем повторяет её, а ты поёшь подголосок: терцию выше или ниже. Так поют бэк-вокал и дуэты."
-      how={['Сначала просто послушай мелодию.', 'На повторе держи свою линию: она движется параллельно мелодии, но по ступеням гаммы, поэтому терция то большая, то малая.', 'Когда освоишься, выключи подсказки: твои ноты появятся на доске только после того, как пройдут.', 'Обязательно в наушниках: мелодия звучит одновременно с тобой.']}
+    <DrillPage id="harmony" settingsKey={`${iv}-${len}-${hints}-${key}`} title={tr('Вторая партия')} make={make} windowSec={12}
+      intro={tr('Пианино играет мелодию, затем повторяет её, а ты поёшь подголосок: терцию выше или ниже. Так поют бэк-вокал и дуэты.')}
+      how={[tr('Сначала просто послушай мелодию.'), tr('На повторе держи свою линию: она движется параллельно мелодии, но по ступеням гаммы, поэтому терция то большая, то малая.'), tr('Когда освоишься, выключи подсказки: твои ноты появятся на доске только после того, как пройдут.'), tr('Обязательно в наушниках: мелодия звучит одновременно с тобой.')]}
       controls={running => <>
-        <label>Подголосок <Seg value={iv} set={setIv} disabled={running} opts={Object.entries(HARM).map(([k, h]) => [k as keyof typeof HARM, h.name])} /></label>
-        <label>Тональность <KeySelect value={key} onChange={setKey} disabled={running} /></label>
-        <label>Длина <Seg value={len} set={setLen} disabled={running} opts={[[4, '4 ноты'], [6, '6 нот'], [8, '8 нот']]} /></label>
-        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать мои ноты заранее</label>
+        <label>{tr('Подголосок')} <Seg value={iv} set={setIv} disabled={running} opts={Object.entries(HARM).map(([k, h]) => [k as keyof typeof HARM, h.name])} /></label>
+        <label>{tr('Тональность')} <KeySelect value={key} onChange={setKey} disabled={running} /></label>
+        <label>{tr('Длина')} <Seg value={len} set={setLen} disabled={running} opts={[[4, tr('4 ноты')], [6, tr('6 нот')], [8, tr('8 нот')]]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> {tr('Показывать мои ноты заранее')}</label>
       </>} />
   )
 }
@@ -191,10 +192,10 @@ export function PitchMatch() {
     return { label: noteName(m), piano: [{ m, t: 0, d: 1.2, vel: 70, voice: true }], notes: [{ m, t: 1.5, d: 1.8, sing: true, hidden: !hints }], len: 3.3 }
   }
   return (
-    <DrillPage id="pitch-match" settingsKey={String(hints)} title="Повтори ноту" make={make} windowSec={6}
-      intro="Звучит нота — пропой её. Самое базовое упражнение на слух: учит связывать то, что слышишь, с тем, что поёшь."
-      how={['Не спеши: сначала «услышь» ноту внутри, потом пой.', 'Если промахиваешься, смотри, в какую сторону: это видно по линии на доске.']}
-      controls={running => <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту на доске</label>} />
+    <DrillPage id="pitch-match" settingsKey={String(hints)} title={tr('Повтори ноту')} make={make} windowSec={6}
+      intro={tr('Звучит нота — пропой её. Самое базовое упражнение на слух: учит связывать то, что слышишь, с тем, что поёшь.')}
+      how={[tr('Не спеши: сначала «услышь» ноту внутри, потом пой.'), tr('Если промахиваешься, смотри, в какую сторону: это видно по линии на доске.')]}
+      controls={running => <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> {tr('Показывать ноту на доске')}</label>} />
   )
 }
 
@@ -214,7 +215,7 @@ export function SingInterval() {
     const to = root + (down ? -st : st)
     const name = INTERVALS[st - 1].name
     return {
-      label: `${name} ${down ? 'вниз' : 'вверх'}`,
+      label: `${name} ${down ? tr('вниз') : tr('вверх')}`,
       piano: [{ m: root, t: 0, d: 1, vel: 70, voice: true }],
       notes: [{ m: root, t: 1.1, d: 0.8, sing: true }, { m: to, t: 2, d: 1.4, sing: true, hidden: !hints }],
       marks: [{ t: 0, text: `${name} ${down ? '↓' : '↑'}` }],
@@ -222,13 +223,13 @@ export function SingInterval() {
     }
   }
   return (
-    <DrillPage id="sing-interval" settingsKey={`${set}-${dir}-${hints}`} title="Интервалы голосом" make={make} windowSec={7}
-      intro="Звучит нота. Пропой её, затем нужный интервал от неё. Название интервала видно на доске."
-      how={['Подсказки-песни: кварта вверх — начало многих гимнов и маршей, большая секста вверх — начало «В лесу родилась ёлочка», октава — первые две ноты «Somewhere over the rainbow».', 'Перед каждым интервалом заново услышь нижнюю ноту.', 'Начни с набора «Лёгкие», вверх. Потом вниз, потом вперемешку.']}
+    <DrillPage id="sing-interval" settingsKey={`${set}-${dir}-${hints}`} title={tr('Интервалы голосом')} make={make} windowSec={7}
+      intro={tr('Звучит нота. Пропой её, затем нужный интервал от неё. Название интервала видно на доске.')}
+      how={[tr('Подсказки-песни: кварта вверх — начало многих гимнов и маршей, большая секста вверх — начало «В лесу родилась ёлочка», октава — первые две ноты «Somewhere over the rainbow».'), tr('Перед каждым интервалом заново услышь нижнюю ноту.'), tr('Начни с набора «Лёгкие», вверх. Потом вниз, потом вперемешку.')]}
       controls={running => <>
-        <label>Набор <Seg value={set} set={setSet} disabled={running} opts={[['easy', 'Лёгкие'], ['mid', 'Средние'], ['all', 'Все 12']]} /></label>
-        <label>Направление <Seg value={dir} set={setDir} disabled={running} opts={[['up', 'Вверх'], ['down', 'Вниз'], ['mix', 'Вперемешку']]} /></label>
-        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту на доске</label>
+        <label>{tr('Набор')} <Seg value={set} set={setSet} disabled={running} opts={[['easy', tr('Лёгкие')], ['mid', tr('Средние')], ['all', tr('Все 12')]]} /></label>
+        <label>{tr('Направление')} <Seg value={dir} set={setDir} disabled={running} opts={[['up', tr('Вверх')], ['down', tr('Вниз')], ['mix', tr('Вперемешку')]]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> {tr('Показывать ноту на доске')}</label>
       </>} />
   )
 }
@@ -239,7 +240,7 @@ export function SingDegree() {
   const [set, setSet] = useStored('sd.set', 'triad')
   const [hints, setHints] = useState(false)
   const pools: Record<string, number[]> = { triad: [0, 2, 4, 7], penta: [0, 1, 2, 4, 5, 7], all: [0, 1, 2, 3, 4, 5, 6, 7] }
-  const NAMES = ['до', 'ре', 'ми', 'фа', 'соль', 'ля', 'си', 'до']
+  const NAMES = [tr('до'), tr('ре'), tr('ми'), tr('фа'), tr('соль'), tr('ля'), tr('си'), tr('до')]
   const make = () => (i: number): Phrase | null => {
     if (i >= 10) return null
     const key = nearest(randInt(0, 11), r.lo + 3), b = 0.55, piano: Phrase['piano'] = []
@@ -249,24 +250,24 @@ export function SingDegree() {
     })
     const d = rand(pools[set]), m = key + degree(d)
     return {
-      label: `${d + 1}-я (${NAMES[d]})`, piano, len: 4 * b + 0.6 + 2.2,
+      label: tr('{0}-я ({1})', d + 1, NAMES[d]), piano, len: 4 * b + 0.6 + 2.2,
       notes: [{ m, t: 4 * b + 0.6, d: 2.2, sing: true, hidden: !hints, syl: String(d + 1) }],
-      marks: [{ t: 0, text: 'Каденция' }, { t: 4 * b + 0.2, text: `${d + 1}-я ступень (${NAMES[d]})` }],
+      marks: [{ t: 0, text: tr('Каденция') }, { t: 4 * b + 0.2, text: tr('{0}-я ступень ({1})', d + 1, NAMES[d]) }],
     }
   }
   return (
-    <DrillPage id="sing-degree" title="Спой ступень" make={make} settingsKey={`${set}-${hints}`} windowSec={7}
-      intro="Звучит каденция, и тебе называют ступень — спой её, не слыша. Это сердце функционального слуха: держать тонику в голове и находить от неё любую ноту."
-      how={['Сначала мысленно спой тонику («до»), затем пройди к нужной ступени: до-ре-ми…', 'Начни с 1, 3, 5 — опор тональности. Потом добавь остальные.', 'Подсказка на доске выключена по умолчанию: твоя нота появится после того, как ты её споёшь.']}
+    <DrillPage id="sing-degree" title={tr('Спой ступень')} make={make} settingsKey={`${set}-${hints}`} windowSec={7}
+      intro={tr('Звучит каденция, и тебе называют ступень — спой её, не слыша. Это сердце функционального слуха: держать тонику в голове и находить от неё любую ноту.')}
+      how={[tr('Сначала мысленно спой тонику («до»), затем пройди к нужной ступени: до-ре-ми…'), tr('Начни с 1, 3, 5 — опор тональности. Потом добавь остальные.'), tr('Подсказка на доске выключена по умолчанию: твоя нота появится после того, как ты её споёшь.')]}
       controls={running => <>
-        <label>Ступени <Seg value={set} set={setSet} disabled={running} opts={[['triad', '1 · 3 · 5 · 8'], ['penta', '+ 2 · 6'], ['all', 'Все']]} /></label>
-        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту заранее</label>
+        <label>{tr('Ступени')} <Seg value={set} set={setSet} disabled={running} opts={[['triad', '1 · 3 · 5 · 8'], ['penta', '+ 2 · 6'], ['all', tr('Все')]]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> {tr('Показывать ноту заранее')}</label>
       </>} />
   )
 }
 
 // ---------- Спой голос из аккорда ----------
-const VOICES = [{ k: 0, name: 'нижний' }, { k: 1, name: 'средний' }, { k: 2, name: 'верхний' }]
+const VOICES = [{ k: 0, name: tr('нижний') }, { k: 1, name: tr('средний') }, { k: 2, name: tr('верхний') }]
 
 export function ChordVoice() {
   const r = useRange()
@@ -279,20 +280,20 @@ export function ChordVoice() {
     const m = root + iv[v.k]
     // аккорд звучит целиком, затем пауза — пой нужный голос по памяти
     return {
-      label: `${v.name} голос (${CHORDS[q].name})`,
+      label: tr('{0} голос ({1})', v.name, CHORDS[q].name),
       piano: iv.map(x => ({ m: root + x, t: 0, d: 1.6, vel: 60 })),
       notes: [{ m, t: 2.1, d: 2, sing: true, hidden: !hints }],
-      marks: [{ t: 0, text: 'Аккорд' }, { t: 1.7, text: `Спой ${v.name} голос` }],
+      marks: [{ t: 0, text: tr('Аккорд') }, { t: 1.7, text: tr('Спой {0} голос', v.name) }],
       len: 4.2,
     }
   }
   return (
-    <DrillPage id="chord-voice" title="Спой голос из аккорда" make={make} settingsKey={`${qs}-${hints}`} windowSec={7}
-      intro="Звучит аккорд из трёх нот. Вычлени на слух нужный голос — нижний, средний или верхний — и спой его. Так учатся слышать гармонию «изнутри» и петь в ансамбле."
-      how={['Сначала мысленно «пройди» аккорд снизу вверх: три ноты.', 'Верхний голос слышно легче всего, средний — труднее. Начни с верхнего и нижнего.', 'Подсказка выключена: нота появится после того, как ты её споёшь.']}
+    <DrillPage id="chord-voice" title={tr('Спой голос из аккорда')} make={make} settingsKey={`${qs}-${hints}`} windowSec={7}
+      intro={tr('Звучит аккорд из трёх нот. Вычлени на слух нужный голос — нижний, средний или верхний — и спой его. Так учатся слышать гармонию «изнутри» и петь в ансамбле.')}
+      how={[tr('Сначала мысленно «пройди» аккорд снизу вверх: три ноты.'), tr('Верхний голос слышно легче всего, средний — труднее. Начни с верхнего и нижнего.'), tr('Подсказка выключена: нота появится после того, как ты её споёшь.')]}
       controls={running => <>
-        <label>Аккорды <Seg value={qs} set={setQs} disabled={running} opts={[['maj-min', 'Мажор и минор'], ['all', 'Все трезвучия']]} /></label>
-        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> Показывать ноту заранее</label>
+        <label>{tr('Аккорды')} <Seg value={qs} set={setQs} disabled={running} opts={[['maj-min', tr('Мажор и минор')], ['all', tr('Все трезвучия')]]} /></label>
+        <label className="chk"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)} disabled={running} /> {tr('Показывать ноту заранее')}</label>
       </>} />
   )
 }
