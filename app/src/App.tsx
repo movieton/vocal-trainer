@@ -1,5 +1,5 @@
 import { HashRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
-import { Activity, BookOpen, UserRound, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
+import { Activity, BookOpen, UserRound, Ear, Ellipsis, Library as LibraryIcon, MoveVertical, Music, PenLine, Sun, TrendingUp, Wind } from 'lucide-react'
 import Compose from './pages/Compose'
 import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
@@ -32,12 +32,14 @@ import Threshold from './pages/Threshold'
 import Dictation from './pages/Dictation'
 import KeyGames from './pages/KeyGames'
 import { Levels, Melody } from './pages/EarMore'
+import { SongList, SongPage } from './pages/Songs'
 
 const NAV = [
   { to: '/', label: 'Сегодня', icon: Sun, main: true },
   { to: '/library', label: 'Библиотека', icon: LibraryIcon, main: true },
   { to: '/tuner', label: 'Тюнер', icon: Activity, main: true },
   { to: '/ear', label: 'Слух', icon: Ear, main: true },
+  { to: '/songs', label: 'Песни', icon: Music },
   { to: '/compose', label: 'Сочинение', icon: PenLine },
   { to: '/breath', label: 'Дыхание', icon: Wind },
   { to: '/theory', label: 'Теория', icon: BookOpen },
@@ -92,6 +94,8 @@ export default function App() {
             <Route path="/theory" element={<TheoryList />} />
             <Route path="/theory/:id" element={<TheoryArticle />} />
             <Route path="/progress" element={<Progress />} />
+            <Route path="/songs" element={<SongList />} />
+            <Route path="/songs/:id" element={<SongPage />} />
             <Route path="/compose" element={<Compose />} />
             <Route path="/more" element={<More />} />
             <Route path="/account" element={<Account />} />

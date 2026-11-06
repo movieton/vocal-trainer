@@ -10,6 +10,12 @@ import { logSession, useStored, useWorkRange } from '../lib/store'
 import { noteName } from '../lib/music'
 
 type Props = {
+  /** Хлебная крошка; по умолчанию — «Слух» */
+  back?: { to: string; label: string }
+  /** Слоги — текст песни */
+  lyrics?: boolean
+  /** Неподвижная доска на всё упражнение (без сдвига высоты) */
+  span?: { lo: number; hi: number }
   id: string
   title: string
   intro: string
@@ -30,7 +36,7 @@ type Props = {
 }
 
 /** Общий экран упражнений на слух с голосом: доска, старт/стоп, итог */
-export default function DrillPage({ id, title, intro, controls, make, how, windowSec = 8, settingsKey = '', tolerance, onFinish, extra }: Props) {
+export default function DrillPage({ back = { to: "/ear", label: "Слух" }, id, title, intro, controls, make, how, windowSec = 8, settingsKey = '', tolerance, onFinish, extra, lyrics, span: fixed }: Props) {
   useEngine(4)
   const [storedTol, setTol] = useStored('tolerance', 25)
   const tol = tolerance ?? storedTol
@@ -97,6 +103,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
   const span = useRef({ lo: 52, hi: 64 })
   const started = useRef(false)
   const view = () => {
+    if (fixed && !tk.replay) return { lo: fixed.lo + shift - 2, hi: Math.max(fixed.hi + shift + 2, fixed.lo + shift + 7) }
     const all = tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets()
     // по текущей фразе: от нижней ноты −2 до верхней +2, не меньше 9 рядов
     const lastRep = Math.max(...all.map(t => t.rep))
@@ -124,7 +131,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
 
   return (
     <div className="page trainer">
-      <div className="crumbs"><Link to="/ear">Слух</Link></div>
+      <div className="crumbs"><Link to={back.to}>{back.label}</Link></div>
       <div className="trainer-head">
         <div><h1>{title}</h1><p className="muted">{intro}</p></div>
         <LiveNote />
@@ -156,11 +163,11 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
           <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> Повторять фразу</label>
           <span className="status">
             {running && <span>Фраза {status.n}</span>}
-            {status.last != null && <span>Прошлая <b>{Math.round(status.last * 100)}%</b></span>}
+            {status.last != null && <span>Последняя фраза <b>{Math.round(status.last * 100)}%</b></span>}
           </span>
         </div>
       )}
-      <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" />
+      <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" lyrics={lyrics} />
       {!running && <TakeBar t={tk} />}
       <div className="howto">
         {how && <div><h2>Как делать</h2><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></div>}

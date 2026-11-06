@@ -26,11 +26,13 @@ type Props = {
   /** Дополнительная подпись строки (например, номер ступени); null — строка вне лада, приглушается */
   rowLabel?: (m: number) => string | null
   className?: string
+  /** Слоги как текст песни: всегда видны, над нотой, если не влезают внутрь */
+  lyrics?: boolean
 }
 
 const LABEL_W = 72
 
-export default function PianoRoll({ follow = false, view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className }: Props) {
+export default function PianoRoll({ follow = false, view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className, lyrics }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
   props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
@@ -43,9 +45,11 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
     const draw = () => {
       const { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
       const hist = replay?.history ?? engine.history
-      const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight
-      if (!W || !H) return
-      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
+      const dpr = devicePixelRatio || 1, W = cv.clientWidth, FH = cv.clientHeight
+      if (!W || !FH) return
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(FH * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(FH * dpr) }
+      // режим песни: внизу дорожка текста, доска над ней
+      const LANE = lyrics ? 30 : 0, H = FH - LANE
       g.setTransform(dpr, 0, 0, dpr, 0, 0)
       const st = getComputedStyle(cv)
       const c = (n: string) => st.getPropertyValue(n).trim()
@@ -66,7 +70,7 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
       const x = (t: number) => LABEL_W + ((t - t0) / windowSec) * (W - LABEL_W)
       const y = (m: number) => H - (m - lo + 0.5) * rh
 
-      g.fillStyle = C.bg; g.fillRect(0, 0, W, H)
+      g.fillStyle = C.bg; g.fillRect(0, 0, W, FH)
       // строки-полутоны
       for (let m = lo; m <= hi; m++) {
         const top = H - (m - lo + 1) * rh
@@ -114,7 +118,8 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
           g.beginPath(); g.moveTo(x0 + ph / 3, y(tg.midi)); g.lineTo(x1 - ph / 3, y(tg.midiEnd)); g.stroke()
           g.globalAlpha = 1
         } else {
-          g.beginPath(); g.roundRect(x0, y(tg.midi) - ph / 2, Math.max(4, x1 - x0), ph, ph / 2)
+          g.beginPath(); const bw = Math.max(lyrics ? ph : 4, x1 - x0)
+          g.roundRect((x0 + x1) / 2 - bw / 2, y(tg.midi) - ph / 2, bw, ph, ph / 2)
           // «слушай» — контур, «пой» — сплошная заливка: различаются формой, а не только тоном
           if (tg.sing) { g.fillStyle = fill; g.globalAlpha = tg.score != null ? 0.85 : 1; g.fill() }
           else { g.strokeStyle = C.listen; g.lineWidth = 1.5; g.stroke() }
@@ -122,10 +127,10 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
           if (active) { g.strokeStyle = C.accent; g.lineWidth = 2; g.stroke() }
         }
         g.font = `600 ${Math.max(11, Math.min(13, ph * 0.6))}px Manrope, system-ui`
-        if (tg.syl && x1 - x0 > g.measureText(tg.syl.toUpperCase()).width + 10) {
+        if (tg.syl && !lyrics && x1 - x0 > g.measureText(lyrics ? tg.syl : tg.syl.toUpperCase()).width + 10) {
           g.fillStyle = tg.sing ? C.onTarget : C.text; g.textAlign = 'center'
           const ym = tg.midiEnd != null ? (y(tg.midi) + y(tg.midiEnd)) / 2 : y(tg.midi)
-          g.fillText(tg.syl.toUpperCase(), (x0 + x1) / 2, ym)
+          g.fillText(lyrics ? tg.syl : tg.syl.toUpperCase(), (x0 + x1) / 2, ym)
         }
       }
       // линия голоса
@@ -158,6 +163,24 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
         prev = pt
       }
       g.restore()
+      if (lyrics) {
+        // дорожка текста: слог под серединой ноты, текущий подсвечен, наложения пропускаем
+        g.fillStyle = C.black; g.fillRect(LABEL_W, H, W - LABEL_W, LANE)
+        g.strokeStyle = C.line; g.beginPath(); g.moveTo(LABEL_W, H + 0.5); g.lineTo(W, H + 0.5); g.stroke()
+        g.save(); g.beginPath(); g.rect(LABEL_W, H, W - LABEL_W, LANE); g.clip()
+        g.textAlign = 'center'; g.textBaseline = 'middle'
+        let right = -Infinity
+        for (const tg of [...list].filter(t => t.syl && (t.sing || !list.some(o => o.sing && o.syl))).sort((a, b) => a.t0 - b.t0)) {
+          const cx = (x(tg.t0) + x(tg.t1)) / 2, active = now >= tg.t0 && now < tg.t1
+          g.font = `${active ? 700 : 600} 14px Manrope, system-ui`
+          const w = g.measureText(tg.syl!).width
+          if (cx - w / 2 < right + 4 && !active) continue
+          g.fillStyle = active ? C.accent : now >= tg.t1 ? C.label : C.text
+          g.fillText(tg.syl!, cx, H + LANE / 2)
+          right = cx + w / 2
+        }
+        g.restore()
+      }
       // курсор
       const px = Math.round(x(now)) + 0.5
       g.strokeStyle = C.cline; g.lineWidth = 1.5; g.setLineDash([4, 4])

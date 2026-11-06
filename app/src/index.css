@@ -114,7 +114,8 @@ input[type=range] { accent-color: var(--accent); width: 100% }
 .status b { color: var(--text) }
 .pill { padding: 3px 12px; border-radius: 999px; background: var(--line); color: var(--text); font-weight: 600 }
 .pill.on { background: var(--accent); color: var(--on-accent) }
-.settings { display: flex; flex-wrap: wrap; gap: 16px 24px; margin: 20px 0 8px; align-items: flex-end }
+.settings { display: flex; flex-wrap: wrap; gap: 16px 24px; margin: 20px 0 8px; align-items: flex-start }
+@media (min-width: 761px) { .settings input[type=range] { height: 44px } }
 .settings > label { flex: 0 1 auto; min-width: 200px }
 .settings select { min-width: 220px }
 .settings label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted) }
@@ -995,3 +996,6 @@ html.has-planbar main { padding-bottom: 0 }
   .reminder-row label { flex: 1 1 100% }
   .reminder-row .btn { flex: 1 1 auto; justify-content: center }
 }
+
+.rec-card { max-width: 640px }
+.page.trainer > p.small.muted { max-width: none }
