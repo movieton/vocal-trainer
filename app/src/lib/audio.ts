@@ -1,7 +1,6 @@
 import { PitchDetector } from 'pitchy'
 import { SplendidGrandPiano } from 'smplr'
 import { ftom, median, mtof } from './music'
-import { read } from './store'
 
 // ?sim — синтетический «голос» вместо микрофона, для проверки без певца
 export const SIM = new URLSearchParams(location.search).has('sim')
@@ -95,6 +94,8 @@ class Engine {
   /** Нота пианино; при незагруженных сэмплах — простой синтез */
   play(midi: number, time: number, dur: number, velocity = 70) {
     const ctx = this.ensureCtx()
+    this.sounding.push({ m: Math.round(midi), t0: time, t1: time + dur + 0.6 })
+    if (this.sounding.length > 64) this.sounding = this.sounding.filter(n => n.t1 > ctx.currentTime)
     if (this.pianoReady && this.piano) {
       this.piano.start({ note: Math.round(midi), time, duration: dur, velocity })
       return
@@ -113,10 +114,20 @@ class Engine {
 
   stopAll() { this.piano?.stop() }
 
-  /** Эталонная нота: пианино или голосовой тембр — по настройке */
+  /** Эталонная нота — всегда пианино (синтезированный «голос» звучал неестественно и пугал) */
   ref(midi: number, time: number, dur: number, velocity = 70) {
-    if (read('refVoice', false)) this.playVoice(midi, time, dur, velocity)
-    else this.play(midi, time, dur, velocity)
+    this.play(midi, time, dur, velocity)
+  }
+
+  /** Ноты пианино, которые сейчас звучат (с хвостом затухания) — чтобы не принять их за голос */
+  private sounding: { m: number; t0: number; t1: number }[] = []
+  /** true, когда петь не нужно (фаза «Слушай»): звук пианино из динамика тогда точно не голос */
+  listenOnly = false
+  /** Тихий звук на высоте звучащей ноты пианино (или её октавы) — это динамик, а не голос */
+  private isBleed(m: number) {
+    const now = this.ctx!.currentTime
+    const hit = this.sounding.some(n => now >= n.t0 && now <= n.t1 && [0, 12, -12, 19].some(k => Math.abs(m - (n.m + k)) < 0.6))
+    return hit && (this.listenOnly || this.level < 0.03)
   }
 
   /**
@@ -236,7 +247,9 @@ class Engine {
     this.level = Math.sqrt(s / this.buf.length)
     if (this.level < 0.004) return null
     const [f, clarity] = this.detector.findPitch(this.buf, this.ctx.sampleRate)
-    return clarity > 0.8 && f > 60 && f < 1500 ? ftom(f) : null
+    if (!(clarity > 0.8 && f > 60 && f < 1500)) return null
+    const m = ftom(f)
+    return SIM || !this.isBleed(m) ? m : null
   }
 
   private startLoop() {

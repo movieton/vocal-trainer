@@ -81,6 +81,7 @@ export class ExerciseRun {
   }
 
   stop() {
+    engine.listenOnly = false
     this.phase = 'done'
     engine.stopAll()
     engine.simTarget = null
@@ -136,6 +137,7 @@ export class ExerciseRun {
     else if (now < this.listenEnd) this.phase = 'listen'
     else if (now < this.singStart) this.phase = now < this.singStart - this.beat ? 'inner' : 'breath'
     else this.phase = 'sing'
+    engine.listenOnly = this.phase !== 'sing'
     if (now > this.singEnd + 0.3) {
       this.scoreRep()
       if (!this.repeat) this.rep++

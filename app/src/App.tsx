@@ -4,6 +4,7 @@ import Compose from './pages/Compose'
 import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
+import { PlanBar } from './components/PlanBar'
 import Home from './pages/Home'
 import Welcome from './pages/Welcome'
 import Account, { ResetPassword } from './pages/Account'
@@ -56,6 +57,7 @@ export default function App() {
         </aside>
         <main>
           <header className="mhead"><NavLink to="/" aria-label="fasol.app — на главную"><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></NavLink></header>
+          <PlanBar />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/welcome" element={<Welcome />} />

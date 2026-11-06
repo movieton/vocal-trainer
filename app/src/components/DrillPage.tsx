@@ -5,7 +5,7 @@ import { LiveNote, MicGate, useEngine } from './Mic'
 import { engine } from '../lib/audio'
 import { PhraseRun, type Phrase } from '../lib/phrase'
 import type { Target } from '../lib/run'
-import { RefTimbre, TakeBar, useTake } from './Take'
+import { TakeBar, useTake } from './Take'
 import { logSession, useStored, useWorkRange } from '../lib/store'
 import { noteName } from '../lib/music'
 
@@ -95,6 +95,7 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
 
   // по вертикали — все видимые цели текущей и прошлой фразы с запасом
   const span = useRef({ lo: 52, hi: 64 })
+  const started = useRef(false)
   const view = () => {
     const all = tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets()
     // по текущей фразе: от нижней ноты −2 до верхней +2, не меньше 9 рядов
@@ -105,7 +106,10 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
       let lo = Math.min(...ms) - 2, hi = Math.max(...ms) + 2
       const pad = Math.max(0, 8 - (hi - lo))
       lo -= Math.floor(pad / 2); hi += Math.ceil(pad / 2)
-      span.current = { lo, hi }
+      // доска только расширяется под новые фразы (до двух октав) — не прыгает туда-сюда
+      const cur = span.current, wide = { lo: Math.min(cur.lo, lo), hi: Math.max(cur.hi, hi) }
+      span.current = wide.hi - wide.lo <= 24 && started.current ? wide : { lo, hi }
+      started.current = true
     }
     return span.current
   }
@@ -128,7 +132,6 @@ export default function DrillPage({ id, title, intro, controls, make, how, windo
       {extra}
       <div className="settings drill-controls">
         {controls?.(running)}
-        <RefTimbre disabled={running} />
         {tolerance == null && <label>Строгость
           <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
             <option value={50}>Мягко, ±50 ц</option><option value={25}>Обычно, ±25 ц</option><option value={12}>Строго, ±12 ц</option>

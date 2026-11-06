@@ -77,7 +77,7 @@ export default function RangeTest() {
           <LiveNote big />
           <p className="rangeline">{shown ? <><b>{noteName(shown.lo)} – {noteName(shown.hi)}</b> · {shown.hi - shown.lo} полутонов</> : 'Диапазон ещё не найден'}</p>
         </div>
-        <PianoRoll view={view} band={() => shown} neutral windowSec={10} playhead={0.85} className="tall" />
+        <PianoRoll follow view={view} band={() => shown} neutral windowSec={10} playhead={0.85} className="tall" />
         <div className="toolbar">
           <button className={'btn' + (measuring ? ' stop' : '')} onClick={toggle}>{measuring ? 'Готово' : 'Начать'}</button>
           {range && !measuring && <button className="btn ghost" onClick={() => setRange(null)}>Сбросить</button>}

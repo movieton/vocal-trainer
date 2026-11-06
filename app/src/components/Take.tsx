@@ -37,17 +37,6 @@ export function useTake() {
 }
 
 /** Тембр эталонных нот: пианино или голос */
-export function RefTimbre({ disabled }: { disabled?: boolean }) {
-  const [voice, setVoice] = useStored('refVoice', false)
-  return (
-    <label>Эталон
-      <span className="seg">
-        <button aria-pressed={!voice} disabled={disabled} onClick={() => setVoice(false)}>Пианино</button>
-        <button aria-pressed={voice} disabled={disabled} onClick={() => setVoice(true)}>Голос «а»</button>
-      </span>
-    </label>
-  )
-}
 
 export function TakeBar({ t }: { t: ReturnType<typeof useTake> }) {
   if (!t.take) return null

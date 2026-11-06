@@ -46,6 +46,7 @@ export class PhraseRun {
   }
 
   stop() {
+    engine.listenOnly = false
     this.done = true
     engine.stopAll()
     engine.simTarget = null
@@ -82,6 +83,7 @@ export class PhraseRun {
     if (this.done || !this.cur) return false
     const prev = this.phase
     this.phase = now >= this.singStart ? 'sing' : 'listen'
+    engine.listenOnly = this.phase === 'listen'
     if (now > this.t0 + this.cur.len + 0.25) {
       this.score()
       if (!this.repeat) this.i++

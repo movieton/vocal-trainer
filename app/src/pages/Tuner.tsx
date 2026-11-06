@@ -41,7 +41,7 @@ export default function Tuner() {
             <Hz />
           </div>
         </div>
-        <PianoRoll view={view} windowSec={win} playhead={0.85} tolerance={24} className="tall" />
+        <PianoRoll follow view={view} windowSec={win} playhead={0.85} tolerance={24} className="tall" />
         <div className="settings">
           <label>Высота окна
             <span className="seg">{[1, 2, 3].map(o => <button key={o} aria-pressed={octaves === o} onClick={() => setOctaves(o)}>{o} окт</button>)}</span>

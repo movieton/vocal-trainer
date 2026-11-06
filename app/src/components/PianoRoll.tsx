@@ -6,6 +6,8 @@ import { targetAt, type Target } from '../lib/run'
 type Props = {
   /** Видимые ноты по вертикали, вызывается каждый кадр */
   view: () => { lo: number; hi: number }
+  /** раздвигать доску, если голос ушёл за край (тюнер, замер диапазона) */
+  follow?: boolean
   targets?: () => Target[]
   windowSec?: number
   /** Где стоит курсор «сейчас», доля ширины */
@@ -28,7 +30,7 @@ type Props = {
 
 const LABEL_W = 72
 
-export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className }: Props) {
+export default function PianoRoll({ follow = false, view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
   props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
@@ -52,8 +54,8 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
         good: c('--good'), near: c('--near'), bad: c('--bad'), text: c('--text'), voice: c('--roll-voice') }
 
       let { lo, hi } = view()
-      // голос всегда в кадре: если ушёл за край, доска раздвигается (не больше трёх октав)
-      const v = replay ? null : engine.current
+      // в тюнере и замере диапазона доска следует за голосом; в упражнениях — стоит на месте
+      const v = replay || !follow ? null : engine.current
       if (v != null) {
         if (v < lo + 0.5) lo = Math.max(Math.floor(v) - 1, hi - 36)
         if (v > hi - 0.5) hi = Math.min(Math.ceil(v) + 1, lo + 36)
@@ -168,6 +170,11 @@ export default function PianoRoll({ view, targets, windowSec = 8, playhead = 0.3
         g.fillStyle = neutral ? C.voice : d <= lim ? C.good : d <= lim * 2 ? C.near : C.bad
         g.strokeStyle = C.bg; g.lineWidth = 2
         g.beginPath(); g.arc(px, y(cur), 7, 0, Math.PI * 2); g.fill(); g.stroke()
+      } else if (cur != null) {
+        // голос за краем доски: стрелка у края вместо прыжка масштаба
+        const up = cur > hi, ey = up ? 10 : H - 10
+        g.fillStyle = C.voice
+        g.beginPath(); g.moveTo(px, up ? ey - 6 : ey + 6); g.lineTo(px - 8, up ? ey + 6 : ey - 6); g.lineTo(px + 8, up ? ey + 6 : ey - 6); g.closePath(); g.fill()
       }
       const label = overlay?.()
       if (label) {

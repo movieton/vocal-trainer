@@ -1,5 +1,6 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { Goal } from './Welcome'
+import { startPlan } from '../components/PlanBar'
 import { Check, ChevronRight, Flame, Play } from 'lucide-react'
 import { BeanWave } from '../components/Beans'
 import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
@@ -66,7 +67,10 @@ export default function Home() {
   const today = log.filter(l => new Date(l.date).toDateString() === new Date().toDateString())
   const go = useNavigate()
   const st = streak(log)
-  const plan = dayPlan(log, goal, minutes).map(p => ({ ...p, done: today.some(l => p.id && l.id.startsWith(p.id)) }))
+  const [planDone] = useStored<{ day: string; tos: string[] }>('plan.done', { day: '', tos: [] })
+  const doneTos = planDone.day === new Date().toDateString() ? planDone.tos : []
+  const plan = dayPlan(log, goal, minutes).map(p => ({ ...p, done: doneTos.includes(p.to) || today.some(l => p.id && l.id.startsWith(p.id)) }))
+  const begin = () => startPlan(plan.map(({ to, title, text }) => ({ to, title, text })))
   const doneN = plan.filter(p => p.done).length
   const next = plan.find(p => !p.done)
   if (!onboarded && !log.length) return <Navigate to="/welcome" replace />
@@ -80,7 +84,7 @@ export default function Home() {
         <BeanWave />
         {next ? <>
           <p className="hero-next"><small>Шаг {plan.indexOf(next) + 1} из {plan.length} · {next.min}&nbsp;мин</small><b>{next.title}</b>{next.text}</p>
-          <button className="btn hero-btn" onClick={() => go(next.to)}>{doneN ? 'Продолжить' : 'Начать'} <Play size={18} fill="currentColor" /></button>
+          <button className="btn hero-btn" onClick={() => { begin(); go(next.to) }}>{doneN ? 'Продолжить' : 'Начать'} <Play size={18} fill="currentColor" /></button>
         </> : <p className="hero-next"><b>Программа на сегодня выполнена</b>Можно потренировать слух или сочинить мелодию.</p>}
       </div>
       {!voice && (
@@ -97,7 +101,7 @@ export default function Home() {
         <ol className="plan">
           {plan.map(p => (
             <li key={p.title} className={p.done ? 'done' : ''}>
-              <Link to={p.to}>
+              <Link to={p.to} onClick={begin}>
                 <span className="min">{p.done ? <Check size={16} /> : `${p.min} мин`}</span>
                 <strong>{p.title}</strong><span className="muted">{p.text}</span>
                 <ChevronRight size={18} className="chev" />

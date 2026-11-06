@@ -8,7 +8,7 @@ import { buildRoots, ExerciseRun, type Key, type Mode, type Phase, type Target }
 import { logSession, useStored, useWorkRange } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
 import { libExercise } from '../data/library'
-import { RefTimbre, TakeBar, useTake } from '../components/Take'
+import { TakeBar, useTake } from '../components/Take'
 import { TEXTS } from '../data/exerciseTexts'
 import KeySelect from '../components/KeySelect'
 
@@ -44,6 +44,8 @@ export default function Trainer() {
     if (!cur) return
     cur.stop(); run.current = null; setRunning(false)
     void tk.end(cur.all)
+    // хвост линии голоса прошлого прогона не должен оставаться на доске
+    engine.history = []; setTimeout(() => { engine.history = [] }, 500)
     setStatus(s => ({ ...s, phase: 'idle' }))
     if (cur.results.length && ex) {
       const sum = cur.summary()
@@ -114,10 +116,10 @@ export default function Trainer() {
       const ms = tk.take.targets.flatMap(t => [t.midi, t.midiEnd ?? t.midi])
       return { lo: Math.min(...ms) - 2, hi: Math.max(Math.max(...ms) + 2, Math.min(...ms) + 9) }
     }
-    const x = run.current
-    const root = x ? x.root : buildRoots(ex, r, shift, key)[0]
+    // доска неподвижна на всё упражнение: охватывает все круги сразу, не прыгает между ними
+    const roots = run.current?.roots ?? buildRoots(ex, r, shift, key)
     const notes = ex.notes.filter(n => !n.rest).flatMap(n => [n.s, n.glide ?? n.s])
-    const lo = root + Math.min(...notes) - 2, hi = root + Math.max(...notes) + 2
+    const lo = Math.min(...roots) + Math.min(...notes) - 2, hi = Math.max(...roots) + Math.max(...notes) + 2
     return { lo, hi: Math.max(hi, lo + 9) }
   }
 
@@ -156,7 +158,6 @@ export default function Trainer() {
       {!running && <TakeBar t={tk} />}
 
       <div className="settings">
-        <RefTimbre disabled={running} />
         <label className="chk"><input type="checkbox" checked={inner} disabled={running} onChange={e => setInner(e.target.checked)} /> Пауза «услышь про себя»</label>
         <label className="chk"><input type="checkbox" checked={fade} disabled={running} onChange={e => setFade(e.target.checked)} /> Подсказка через круг</label>
         <label>Темп {Math.round(tempo * 100)}%
