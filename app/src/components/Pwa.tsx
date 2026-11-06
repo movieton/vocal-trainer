@@ -2,11 +2,25 @@ import { tr } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-/** Плашка «Есть новая версия» — чтобы не застревать на закэшированной */
+/** Новая версия: проверяем при каждом возврате в приложение и ставим сами, если человек не поёт; иначе — плашка */
 export function UpdateBanner() {
   const { needRefresh: [need, setNeed], updateServiceWorker } = useRegisterSW({
-    onRegisteredSW(_url, reg) { if (reg) setInterval(() => void reg.update(), 60 * 60 * 1000) },
+    onRegisteredSW(_url, reg) {
+      if (!reg) return
+      const check = () => { if (navigator.onLine) void reg.update() }
+      // установленное приложение живёт в фоне днями — проверяем, когда его снова открыли, и раз в 15 минут
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check() })
+      setInterval(check, 15 * 60 * 1000)
+    },
   })
+  // во время упражнения (режим фокуса) не перезагружаем — ждём, пока закончит
+  useEffect(() => {
+    if (!need) return
+    const apply = () => { if (!document.documentElement.dataset.focus) void updateServiceWorker(true) }
+    apply()
+    const t = setInterval(apply, 5000)
+    return () => clearInterval(t)
+  }, [need, updateServiceWorker])
   if (!need) return null
   return (
     <div className="update-banner" role="status">
