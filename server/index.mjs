@@ -3,6 +3,9 @@
 import http from 'node:http'
 import crypto from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
+import fs from 'node:fs'
+import path from 'node:path'
+import webpush from 'web-push'
 
 const env = process.env
 const BASE = env.BASE_URL ?? 'https://fasol.app'
@@ -23,6 +26,57 @@ db.exec('PRAGMA foreign_keys = ON')
 // вход по почте и паролю: хэш scrypt с солью
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'pass'").get()) db.exec('ALTER TABLE users ADD COLUMN pass TEXT')
 db.exec('CREATE TABLE IF NOT EXISTS resets (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL)')
+
+// напоминания: веб-пуш. Ключи VAPID создаются один раз и лежат рядом с базой
+db.exec('CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, sub TEXT NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL, tz TEXT NOT NULL, user_id TEXT, last_day TEXT, created INTEGER NOT NULL)')
+if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'fails'").get()) db.exec('ALTER TABLE push_subs ADD COLUMN fails INTEGER NOT NULL DEFAULT 0')
+const MAX_SUBS = 50000
+const VAPID_FILE = path.join(path.dirname(env.DB_PATH ?? '/data/fasol.db'), 'vapid.json')
+if (!fs.existsSync(VAPID_FILE)) fs.writeFileSync(VAPID_FILE, JSON.stringify(webpush.generateVAPIDKeys()), { mode: 0o600 })
+const VAPID = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'))
+webpush.setVapidDetails('https://fasol.app', VAPID.publicKey, VAPID.privateKey)
+// отправляем только на серверы пуш-уведомлений браузеров — никаких произвольных адресов
+const PUSH_HOSTS = /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/
+// ключи подписки: p256dh — 65 байт, auth — 16 байт в base64url
+const B64 = /^[A-Za-z0-9_-]+$/
+const validSub = s => { try { const u = new URL(s?.endpoint); return u.protocol === 'https:' && !u.port && !u.username && PUSH_HOSTS.test(u.hostname) && B64.test(s.keys?.p256dh ?? '') && s.keys.p256dh.length >= 86 && s.keys.p256dh.length <= 88 && B64.test(s.keys?.auth ?? '') && s.keys.auth.length >= 21 && s.keys.auth.length <= 24 && s.endpoint.length < 1000 } catch { return false } }
+const validTz = tz => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true } catch { return false } }
+const localNow = tz => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map(p => [p.type, p.value]))
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, h: +parts.hour, m: +parts.minute }
+}
+/** Занимался ли сегодня (по синхронизированному журналу) — тогда не беспокоим */
+function practicedToday(userId, day, tz) {
+  if (!userId) return false
+  const row = db.prepare('SELECT data FROM progress WHERE user_id = ?').get(userId)
+  try { return (JSON.parse(row?.data ?? '{}').log ?? []).some(l => localNowAt(l.date, tz) === day) } catch { return false }
+}
+const localNowAt = (t, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t))
+const REMINDERS = ['Твоя распевка ждёт — 10 минут, и голос скажет спасибо', 'Пора распеться: серия дней сама себя не продлит', 'Пять минут на голос? Программа дня уже готова']
+let sending = false
+async function sendReminders() {
+  if (sending) return // предыдущий прогон ещё идёт
+  sending = true
+  try {
+    const due = []
+    for (const r of db.prepare('SELECT endpoint, sub, hour, minute, tz, user_id, last_day FROM push_subs').all()) {
+      const now = localNow(r.tz), t = now.h * 60 + now.m, at = r.hour * 60 + r.minute
+      if (r.last_day === now.day || t < at || t > at + 30) continue
+      db.prepare('UPDATE push_subs SET last_day = ? WHERE endpoint = ?').run(now.day, r.endpoint)
+      if (!practicedToday(r.user_id, now.day, r.tz)) due.push(r)
+    }
+    // пачками по 15, чтобы не ждать каждое уведомление по очереди
+    for (let i = 0; i < due.length; i += 15) await Promise.allSettled(due.slice(i, i + 15).map(r =>
+      webpush.sendNotification(JSON.parse(r.sub), JSON.stringify({ title: 'fasol.app', body: REMINDERS[Math.floor(Math.random() * REMINDERS.length)], url: '/' }), { TTL: 3600 })
+        .then(() => db.prepare('UPDATE push_subs SET fails = 0 WHERE endpoint = ?').run(r.endpoint))
+        .catch(e => {
+          // мёртвая или мусорная подписка: 404/410/400/403/413 — сразу, прочие ошибки — после трёх подряд
+          if ([400, 403, 404, 410, 413].includes(e.statusCode)) db.prepare('DELETE FROM push_subs WHERE endpoint = ?').run(r.endpoint)
+          else db.prepare('UPDATE push_subs SET fails = fails + 1 WHERE endpoint = ?').run(r.endpoint), db.prepare('DELETE FROM push_subs WHERE endpoint = ? AND fails >= 3').run(r.endpoint)
+        })))
+  } finally { sending = false }
+}
+setInterval(() => sendReminders().catch(e => console.error(e)), 60e3).unref()
 
 // письма отправляются через Resend (https://resend.com); без ключа сброс пароля выключен
 const MAIL = env.RESEND_API_KEY && env.MAIL_FROM ? { key: env.RESEND_API_KEY, from: env.MAIL_FROM } : null
@@ -213,11 +267,34 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true })
     }
 
+    if (path === '/push/key') return json(res, 200, { key: VAPID.publicKey })
+    if (path === '/push/subscribe' && req.method === 'POST') {
+      if (!sameOrigin(req)) return json(res, 403, { error: 'bad_origin' })
+      const b = await readBody(req), h = +b.hour, m = +b.minute, tz = String(b.tz ?? '')
+      if (!validSub(b.subscription) || !(h >= 0 && h < 24 && m >= 0 && m < 60) || !validTz(tz)) return json(res, 400, { error: 'bad_request' })
+      const sub = JSON.stringify({ endpoint: b.subscription.endpoint, keys: { p256dh: b.subscription.keys.p256dh, auth: b.subscription.keys.auth } })
+      if (sub.length > 2000) return json(res, 400, { error: 'bad_request' })
+      const me = currentUser(req), old = db.prepare('SELECT sub FROM push_subs WHERE endpoint = ?').get(b.subscription.endpoint)
+      // менять существующую подписку можно только с теми же ключами
+      if (old && JSON.parse(old.sub).keys.auth !== b.subscription.keys.auth) return json(res, 403, { error: 'forbidden' })
+      if (!old && db.prepare('SELECT COUNT(*) AS n FROM push_subs').get().n >= MAX_SUBS) return json(res, 503, { error: 'busy' })
+      db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created) VALUES (?, ?, ?, ?, ?, ?, NULL, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now())
+      return json(res, 200, { ok: true })
+    }
+    if (path === '/push/unsubscribe' && req.method === 'POST') {
+      if (!sameOrigin(req)) return json(res, 403, { error: 'bad_origin' })
+      const b = await readBody(req), row = db.prepare('SELECT sub FROM push_subs WHERE endpoint = ?').get(String(b.endpoint ?? ''))
+      if (row && JSON.parse(row.sub).keys.auth === String(b.auth ?? '')) db.prepare('DELETE FROM push_subs WHERE endpoint = ?').run(String(b.endpoint))
+      return json(res, 200, { ok: true })
+    }
+
     if (path === '/me') { const u = currentUser(req); return u ? json(res, 200, { user: u }) : json(res, 401, { error: 'unauthorized' }) }
 
     if (!sameOrigin(req) && req.method !== 'GET') return json(res, 403, { error: 'bad_origin' })
     if (path === '/logout' && req.method === 'POST') {
       const sid = cookies(req)[SID]
+      const who = currentUser(req)
+      if (who) db.prepare('UPDATE push_subs SET user_id = NULL WHERE user_id = ?').run(who.id) // напоминания больше не смотрят на чужой журнал
       if (sid) db.prepare('DELETE FROM sessions WHERE hash = ?').run(sha(sid))
       setCookie(res, SID, '', 0)
       return json(res, 200, { ok: true })

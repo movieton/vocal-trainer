@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Cloud, CloudOff, LogOut } from 'lucide-react'
 import { authEmail, confirmReset, deleteAccount, loginUrl, logout, requestReset, useAccount } from '../lib/account'
 import { useNavigate } from 'react-router-dom'
+import { ReminderCard } from '../components/Reminder'
 
 const PROVIDER_NAME: Record<string, string> = { google: 'Google', yandex: 'Яндекс ID', email: 'почту и пароль', dev: 'тестовый вход' }
 
@@ -51,6 +52,7 @@ export default function Account() {
       <button className="btn ghost" onClick={async () => {
         if (!(await logout()) && confirm('Последние изменения не сохранились на сервере. Выйти всё равно? Они останутся только если не выходить.')) await logout(true)
       }}><LogOut size={16} /> Выйти</button>
+      <ReminderCard />
       <div className="danger-zone">
         <p className="muted small">Удаление сотрёт профиль и прогресс — и на сервере, и в этом браузере. Восстановить их будет нельзя.</p>
         {!confirming

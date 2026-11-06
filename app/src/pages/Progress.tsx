@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Flame, Target, TrendingUp } from 'lucide-react'
 import { noteName, plural } from '../lib/music'
+import { AchievementGrid } from '../components/Achievements'
 import { dailyScores, problemNotes, streak, useStored, type SessionLog } from '../lib/store'
 
 const KINDS = { exercise: 'Распевки', ear: 'Слух', breath: 'Дыхание' } as const
@@ -103,6 +104,7 @@ export default function Progress() {
     <div className="page">
       <h1>Прогресс</h1>
       <Growth log={log} />
+      <AchievementGrid />
       <div className="card monthly">
         <h2>Ежемесячный замер</h2>
         <p className="muted small">Раз в месяц — короткие замеры, чтобы видеть прогресс не по ощущениям, а по цифрам.</p>

@@ -1,6 +1,7 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { Goal } from './Welcome'
 import { startPlan } from '../components/PlanBar'
+import { ReminderCard } from '../components/Reminder'
 import { Check, ChevronRight, Flame, Play } from 'lucide-react'
 import { BeanWave } from '../components/Beans'
 import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
@@ -110,6 +111,7 @@ export default function Home() {
           ))}
         </ol>
       </div>
+      {log.length > 0 && <ReminderCard compact />}
       <div className="chips">
         <span>Рабочий диапазон <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>
         <span>Сегодня упражнений <b>{today.length}</b></span>

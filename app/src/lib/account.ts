@@ -15,7 +15,7 @@ const set = (p: Partial<State>) => { state = { ...state, ...p }; subs.forEach(f 
 export const useAccount = () => useSyncExternalStore(f => { subs.add(f); return () => subs.delete(f) }, () => state)
 
 /** Настройки конкретного устройства — не переносим между устройствами */
-const LOCAL_ONLY = new Set(['rh.latency'])
+const LOCAL_ONLY = new Set(['rh.latency', 'reminder'])
 
 const api = (path: string, init?: RequestInit) => fetch('/api' + path, { credentials: 'same-origin', ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } })
 

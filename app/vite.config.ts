@@ -32,6 +32,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,jpg,woff2}'],
         navigateFallback: 'index.html',
+        // обработчик напоминаний (push) подключается к сервис-воркеру
+        importScripts: ['push-sw.js'],
         // вход через Google/Яндекс — это переходы на /api, их не подменяем приложением из кэша
         navigateFallbackDenylist: [/^\/api\//],
         // сэмплы рояля с CDN — в кэш при первом проигрывании, дальше работают без сети
