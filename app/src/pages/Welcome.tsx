@@ -1,6 +1,6 @@
 import { tr } from '../lib/i18n'
 import LangSwitch from '../components/LangSwitch'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Ear, Feather, MoveVertical, PenLine, Target, Wind } from 'lucide-react'
 import { BeanWave } from '../components/Beans'
@@ -24,6 +24,8 @@ const VOICE_HINT: Record<string, string> = {
 
 /** Первое знакомство: цель, голос, время — и программа дня собирается под человека */
 export default function Welcome() {
+  // в приветствии нижнее меню не показываем — сначала настройка
+  useEffect(() => { document.documentElement.dataset.welcome = '1'; return () => { delete document.documentElement.dataset.welcome } }, [])
   const go = useNavigate()
   const [step, setStep] = useState(0)
   const [goal, setGoal] = useState<Goal | null>(null)

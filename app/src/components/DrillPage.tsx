@@ -1,5 +1,9 @@
+import Delta from './Delta'
+import LatencySelect from './Latency'
+import { setFocus } from '../lib/focus'
 import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import PianoRoll from './PianoRoll'
 import { LiveNote, MicGate, useEngine } from './Mic'
@@ -7,7 +11,7 @@ import { engine } from '../lib/audio'
 import { PhraseRun, type Phrase } from '../lib/phrase'
 import type { Target } from '../lib/run'
 import { TakeBar, useTake } from './Take'
-import { logSession, useStored, useWorkRange } from '../lib/store'
+import { logSession, read, useStored, useWorkRange, write } from '../lib/store'
 import { noteName } from '../lib/music'
 
 type Props = {
@@ -45,8 +49,16 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
   const wr = useWorkRange()
   const [running, setRunning] = useState(false)
   const [repeat, setRepeat] = useState(false)
+  const [hint, setHint] = useStored<0 | 1 | 2>('drill.hint.' + id, 0)
+  const today = new Date().toDateString()
+  const [passed] = useStored<{ day: string; lv: Record<string, number> }>('drill.passed', { day: '', lv: {} })
+  const passedLv = passed.day === today ? passed.lv[id] ?? -1 : -1
+  const [force, setForce] = useState(false)
+  const open = (lv: number) => force || lv <= passedLv + 1
+  // вчерашний сложный режим сегодня снова закрыт — работаем в самом сложном открытом
+  const hintNow = (open(hint) ? hint : Math.max(0, Math.min(2, passedLv + 1))) as 0 | 1 | 2
   const [status, setStatus] = useState<{ n: number; last: number | null }>({ n: 0, last: null })
-  const [result, setResult] = useState<{ score: number; reps: number; lines: string[] } | null>(null)
+  const [result, setResult] = useState<{ score: number; reps: number; lines: string[]; hit: number; total: number; out: boolean; hint: number; opened?: boolean; prev?: number | null } | null>(null)
   const run = useRef<PhraseRun | null>(null)
   const tk = useTake()
   const finishRef = useRef(onFinish)
@@ -69,8 +81,18 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
     engine.history = []; setTimeout(() => { engine.history = [] }, 500)
     if (x.results.length) {
       const s = x.summary()
-      setResult({ ...s, lines: x.results.map(r => `${r.label || tr('Фраза')}: ${Math.round(r.score * 100)}%`) })
-      logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round(s.score * 100), reps: s.reps })
+      const notes = x.results.flatMap(r => r.notes)
+      const before = read<{ id: string; score: number }[]>('log', []).find(l => l.id === id)
+      const out = x.hint > 0 && x.misses >= PhraseRun.MAX_MISSES
+      setResult({ ...s, hit: notes.filter(n => n.score >= 0.5).length, total: notes.length, out, hint: x.hint, prev: before ? before.score : null, lines: x.results.map(r => `${r.label || tr('Фраза')}: ${Math.round(r.score * 100)}%`) })
+      // режим сдан на 70% — сегодня открывается следующий
+      // (stop вызывается и из подписки на движок — читаем свежие данные, а не замыкание)
+      const d = new Date().toDateString(), cur = read<{ day: string; lv: Record<string, number> }>('drill.passed', { day: '', lv: {} })
+      const lv = cur.day === d ? cur.lv : {}
+      const opened = s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1) && x.hint < 2
+      if (s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1)) write('drill.passed', { day: d, lv: { ...lv, [id]: x.hint } })
+      setResult(r => (r ? { ...r, opened } : r))
+      logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round(s.score * 100), reps: s.reps, hits: notes.filter(n => n.score >= 0.5).length })
       finishRef.current?.(s.score)
     }
   }
@@ -79,6 +101,7 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
     const x = new PhraseRun(make(), tol)
     x.repeat = repeat
     x.shift = shift
+    x.hint = hintNow
     tk.stop(); tk.begin()
     run.current = x; x.start(); setRunning(true)
   }
@@ -95,9 +118,8 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
   useEffect(() => { if (run.current) run.current.repeat = repeat }, [repeat])
   useEffect(() => () => { run.current?.stop() }, [])
   useEffect(() => {
-    if (running) document.documentElement.dataset.focus = '1'
-    else delete document.documentElement.dataset.focus
-    return () => { delete document.documentElement.dataset.focus }
+    setFocus(running)
+    return () => setFocus(false)
   }, [running])
 
   // по вертикали — все видимые цели текущей и прошлой фразы с запасом
@@ -126,7 +148,7 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
     if (tk.replay) return tr('Запись')
     if (!x) return ''
     const mark = x.mark(engine.now())
-    const ph = x.phase === 'sing' ? tr('Пой') : tr('Слушай')
+    const ph = x.phase === 'sing' ? tr('Пой') : x.phase === 'count' ? tr('Приготовься… {0}', x.count) : tr('Слушай')
     return mark && mark !== ph && mark !== tr('Повтори') ? `${mark} · ${ph}` : ph
   }
 
@@ -138,24 +160,24 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
         <LiveNote />
       </div>
       {extra}
-      <div className="settings drill-controls">
-        {controls?.(running)}
-        {tolerance == null && <label>{tr('Строгость')}
-          <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
-            <option value={50}>{tr('Мягко, ±50 ц')}</option><option value={25}>{tr('Обычно, ±25 ц')}</option><option value={12}>{tr('Строго, ±12 ц')}</option>
-          </select>
-        </label>}
-        <label>{tr('Высота')}
-          <span className="stepper">
-            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label={tr('Октава ниже')} title={tr('Октава ниже')}>«</button>
-            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label={tr('Полутон ниже')}>−</button>
-            <span>{shift === 0 ? tr('авто') : (shift > 0 ? '+' : '') + shift}</span>
-            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label={tr('Полутон выше')}>+</button>
-            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label={tr('Октава выше')} title={tr('Октава выше')}>»</button>
-          </span>
-        </label>
+      {controls && <div className="settings drill-controls">{controls(running)}</div>}
+      <div className="hint-modes">
+        <span className="muted small" id="hint-lbl">{tr('Подсказка')}</span>
+        <div className="seg" role="group" aria-labelledby="hint-lbl">
+          {[tr('Пианино'), tr('Метроном'), tr('Тишина')].map((t, lv) => (
+            <button key={lv} aria-pressed={hintNow === lv} disabled={running || !open(lv)} onClick={() => setHint(lv as 0 | 1 | 2)}>
+              {!open(lv) && <Lock size={12} aria-hidden />} {t}
+            </button>
+          ))}
+        </div>
+        <span className="muted small hint-note">
+          {hintNow === 1 ? tr('Мелодию слышишь в показе, при пении — только щелчки. Три промаха — конец захода.')
+            : hintNow === 2 ? tr('Только первая нота, твои ноты проявляются после пения. Три промаха — конец захода.')
+            : !open(1) ? <>{tr('Набери 70%, и откроется режим без пианино.')} <button className="linkbtn" onClick={() => setForce(true)}>{tr('Открыть сразу')}</button></>
+            : tr('Пианино ведёт мелодию вместе с тобой.')}
+        </span>
       </div>
-      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(wr.lo)}–{noteName(wr.hi)} ({wr.source}{tr('). Слишком высоко или низко —')} <Link to="/range">{tr('смени тип голоса')}</Link> {tr('или сдвинь высоту.')}</p>
+      {how && <details className="howto-mini"><summary>{tr('Как делать')}</summary><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></details>}
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
@@ -170,11 +192,35 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
       )}
       <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? previewTargets())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.25} overlay={overlay} className="tall" lyrics={lyrics} />
       {!running && <TakeBar t={tk} />}
+      <details className="settings-wrap" open={typeof matchMedia !== 'undefined' && matchMedia('(min-width: 761px)').matches}>
+      <summary>{tr('Настройки: строгость, наушники, высота')}</summary>
+      <div className="settings drill-controls">
+        {tolerance == null && <label>{tr('Строгость')}
+          <select value={tol} onChange={e => setTol(+e.target.value)} disabled={running}>
+            <option value={50}>{tr('Мягко, ±50 ц')}</option><option value={25}>{tr('Обычно, ±25 ц')}</option><option value={12}>{tr('Строго, ±12 ц')}</option>
+          </select>
+        </label>}
+        <LatencySelect disabled={running} />
+        <label>{tr('Высота')}
+          <span className="stepper">
+            <button onClick={() => setShift(shift - 12)} disabled={running} aria-label={tr('Октава ниже')} title={tr('Октава ниже')}>«</button>
+            <button onClick={() => setShift(shift - 1)} disabled={running} aria-label={tr('Полутон ниже')}>−</button>
+            <span>{shift === 0 ? tr('авто') : (shift > 0 ? '+' : '') + shift}</span>
+            <button onClick={() => setShift(shift + 1)} disabled={running} aria-label={tr('Полутон выше')}>+</button>
+            <button onClick={() => setShift(shift + 12)} disabled={running} aria-label={tr('Октава выше')} title={tr('Октава выше')}>»</button>
+          </span>
+        </label>
+      </div>
+      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(wr.lo)}–{noteName(wr.hi)} ({wr.source}{tr('). Слишком высоко или низко —')} <Link to="/range">{tr('смени тип голоса')}</Link> {tr('или сдвинь высоту.')}</p>
+      </details>
       <div className="howto">
-        {how && <div><h2>{tr('Как делать')}</h2><ol>{how.map(t => <li key={t}>{t}</li>)}</ol></div>}
         {result && (
           <div className="result">
             <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
+            {result.prev != null && <Delta now={Math.round(result.score * 100)} prev={result.prev} />}
+            <p className="muted">{tr('Попал нот: {0} из {1}', result.hit, result.total)}{result.hint ? ' · ' + [tr('пианино'), tr('метроном'), tr('тишина')][result.hint] : ''}</p>
+            {result.out && <p className="muted small">{tr('Три промаха — заход окончен. Вернись к подсказке ступенью ниже или сбавь строгость.')}</p>}
+            {result.opened && <p className="ok-msg small">{tr('Сдано — следующий режим открыт на сегодня.')}</p>}
             <ol className="plain">{result.lines.slice(-12).map((l, i) => <li key={i}>{l}</li>)}</ol>
           </div>
         )}

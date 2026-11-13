@@ -1,7 +1,8 @@
 import { tr } from './i18n'
 import { PitchDetector } from 'pitchy'
-import { SplendidGrandPiano } from 'smplr'
+import { CacheStorage, SplendidGrandPiano } from 'smplr'
 import { ftom, median, mtof } from './music'
+import { read, write } from './store'
 
 // ?sim — синтетический «голос» вместо микрофона, для проверки без певца
 export const SIM = new URLSearchParams(location.search).has('sim')
@@ -11,6 +12,8 @@ export type MicState = 'off' | 'starting' | 'on' | 'error'
 export type Take = { url: string; t0: number; t1: number; history: PitchSample[] }
 
 const HISTORY_SEC = 180
+/** Свой кэш сэмплов рояля: офлайн работает с первого визита, без ожидания сервис-воркера */
+const pianoCache = () => { try { return 'caches' in self ? new CacheStorage('fasol-piano') : undefined } catch { return undefined } }
 
 class Engine {
   ctx: AudioContext | null = null
@@ -20,6 +23,8 @@ class Engine {
   mic: MicState = 'off'
   micError = ''
   history: PitchSample[] = []
+  /** Задержка звука в наушниках (Bluetooth), с: голос сдвигается назад, чтобы точно совпасть с нотами */
+  latency = SIM ? 0 : read('latencyMs', 0) / 1000
   current: number | null = null
   /** Громкость сигнала с микрофона (RMS) — для поиска начала звука в ритме голосом */
   level = 0
@@ -34,6 +39,13 @@ class Engine {
   private recent: number[] = []
   private listeners = new Set<() => void>()
   private running = false
+  private stream: MediaStream | null = null
+  private source: MediaStreamAudioSourceNode | null = null
+  /** Сколько экранов сейчас пользуются микрофоном */
+  private users = 0
+  private idleTimer: ReturnType<typeof setTimeout> | undefined
+  /** Звук остановлен извне (свернули, звонок) посреди упражнения — ждём «Продолжить» */
+  interrupted = false
   private recSource: MediaStream | null = null
   private recorder: MediaRecorder | null = null
   private recChunks: Blob[] = []
@@ -48,9 +60,13 @@ class Engine {
       this.master = this.ctx.createGain()
       this.master.gain.value = 0.9
       this.master.connect(this.ctx.destination)
-      this.piano = new SplendidGrandPiano(this.ctx, { destination: this.master, volume: 90 })
+      this.piano = new SplendidGrandPiano(this.ctx, { destination: this.master, volume: 90, storage: pianoCache() })
       this.piano.load.then(() => { this.pianoReady = true }).catch(() => { this.pianoReady = false })
       this.startLoop()
+      // звонок или другое приложение остановили звук посреди упражнения
+      this.ctx.onstatechange = () => {
+        if (this.ctx && this.ctx.state !== 'running' && document.documentElement.dataset.focus) { this.interrupted = true; this.emit() }
+      }
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume()
     return this.ctx
@@ -76,19 +92,78 @@ class Engine {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         })
-        ctx.createMediaStreamSource(stream).connect(this.analyser)
+        this.source = ctx.createMediaStreamSource(stream)
+        this.source.connect(this.analyser)
         this.recSource = stream
+        this.stream = stream
+        write('micOk', true, true)
+        // включили сами (без нажатия) — пробуем запустить звук; Safari разрешает при активном микрофоне
+        if (ctx.state !== 'running') void ctx.resume().catch(() => {})
       }
       this.buf = new Float32Array(this.analyser.fftSize)
       this.detector = PitchDetector.forFloat32Array(this.buf.length)
       this.mic = 'on'
+      // пока ждали разрешения, человек ушёл с экрана — сразу отпускаем
+      if (!this.users && !document.documentElement.dataset.focus) { this.emit(); this.stopMic(); return }
     } catch (e) {
       this.mic = 'error'
       const err = e as DOMException
+      if (err?.name === 'NotAllowedError') write('micOk', false, true)
       this.micError = err?.name === 'NotAllowedError'
         ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
         : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
     }
+    this.emit()
+  }
+
+  /** Отпустить микрофон: гаснет индикатор, iOS возвращает обычный звук */
+  stopMic() {
+    if (this.mic === 'off' || this.mic === 'starting') return
+    this.stream?.getTracks().forEach(t => t.stop())
+    this.source?.disconnect()
+    try { this.simOsc?.stop() } catch { /* уже остановлен */ }
+    this.simOsc?.disconnect(); this.simGain?.disconnect()
+    this.stream = this.source = this.simOsc = this.simGain = this.recSource = null
+    this.analyser = null
+    this.mic = 'off'; this.current = null; this.recent = []
+    this.emit()
+  }
+
+  /** Экран с микрофоном открылся: включаем сами, если разрешение уже давали */
+  acquireMic(autoStart = true) {
+    this.users++
+    clearTimeout(this.idleTimer)
+    if (autoStart && this.mic === 'off' && (SIM || read('micOk', false)) && document.visibilityState === 'visible') void this.startMic()
+  }
+  /** Экран закрылся: микрофон отпускаем с небольшой задержкой — вдруг следующий экран тоже с ним */
+  releaseMic() {
+    this.users = Math.max(0, this.users - 1)
+    this.scheduleIdleStop()
+  }
+  scheduleIdleStop() {
+    clearTimeout(this.idleTimer)
+    this.idleTimer = setTimeout(() => { if (!this.users && !document.documentElement.dataset.focus) this.stopMic() }, 1500)
+  }
+
+  /** Свернули приложение: посреди упражнения ставим звук на паузу, иначе отпускаем микрофон */
+  onHidden() {
+    if (document.documentElement.dataset.focus) {
+      if (this.ctx?.state === 'running') void this.ctx.suspend()
+      this.interrupted = true
+      this.emit()
+    } else this.stopMic()
+  }
+  onVisible() {
+    if (!this.interrupted && this.users && this.mic === 'off' && (SIM || read('micOk', false))) void this.startMic()
+  }
+  /** «Продолжить» после паузы — по нажатию, иначе iOS не включит звук */
+  async resume() {
+    // iOS мог закрыть микрофон, пока приложение было свёрнуто
+    if (this.mic === 'on' && this.stream?.getAudioTracks()[0]?.readyState === 'ended') this.stopMic()
+    if (this.mic === 'off' && (this.users || document.documentElement.dataset.focus)) await this.startMic()
+    if (this.ctx && this.ctx.state !== 'running') await this.ctx.resume().catch(() => {})
+    // звонок ещё идёт — звук не вернулся, плашку не снимаем
+    this.interrupted = !!this.ctx && this.ctx.state !== 'running' && !!document.documentElement.dataset.focus
     this.emit()
   }
 
@@ -264,7 +339,7 @@ class Engine {
         else { this.recent.push(m); if (this.recent.length > 3) this.recent.shift() }
         const smooth = m == null ? null : median(this.recent)
         this.current = smooth
-        const t = this.ctx.currentTime
+        const t = this.ctx.currentTime - this.latency
         this.history.push({ t, midi: smooth })
         while (this.history.length && this.history[0].t < t - HISTORY_SEC) this.history.shift()
       }
@@ -277,3 +352,6 @@ class Engine {
 }
 
 export const engine = new Engine()
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') engine.onHidden(); else engine.onVisible()
+})

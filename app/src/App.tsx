@@ -5,6 +5,8 @@ import Compose from './pages/Compose'
 import logo from './assets/brand/fasol-logo-cobalt.svg'
 import logoWhite from './assets/brand/fasol-logo-white.svg'
 import { UpdateBanner } from './components/Pwa'
+import NotFound from './components/NotFound'
+import { PauseOverlay } from './components/Mic'
 import { PlanBar } from './components/PlanBar'
 import LangSwitch from './components/LangSwitch'
 import { AchievementToast } from './components/Achievements'
@@ -14,7 +16,8 @@ import Account, { ResetPassword } from './pages/Account'
 import Privacy from './pages/Privacy'
 import { NotationLesson, NotationList } from './pages/Notation'
 import { useEffect } from 'react'
-import { initAccount } from './lib/account'
+import { initAccount, useAccount } from './lib/account'
+import { avatarSrc } from './components/Avatar'
 import Library from './pages/Library'
 import LibItem from './pages/LibItem'
 import Trainer from './pages/Trainer'
@@ -35,6 +38,7 @@ import Dictation from './pages/Dictation'
 import KeyGames from './pages/KeyGames'
 import { Levels, Melody } from './pages/EarMore'
 import { SongList, SongPage } from './pages/Songs'
+import Course from './pages/Course'
 
 const NAV = [
   { to: '/', label: tr('Сегодня'), icon: Sun, main: true },
@@ -52,13 +56,15 @@ const NAV = [
 
 export default function App() {
   useEffect(() => { initAccount() }, [])
+  const me = useAccount().user
   return (
     <HashRouter>
       <UpdateBanner />
+      <PauseOverlay />
       <div className="shell">
         <aside className="side">
           <Link to="/" className="brand" aria-label={tr('fasol.app — на главную')}><img src={logo} alt="fasol.app" className="logo-light" /><img src={logoWhite} alt="" className="logo-dark" /></Link>
-          <nav>{NAV.map(n => <NavLink key={n.to} to={n.to} end={n.to === '/'}><n.icon size={20} strokeWidth={1.75} />{n.label}</NavLink>)}</nav>
+          <nav>{NAV.map(n => <NavLink key={n.to} to={n.to} end={n.to === '/'}>{n.to === '/account' && me?.avatarId ? <img src={avatarSrc(me.avatarId)} alt="" className="nav-av" /> : <n.icon size={20} strokeWidth={1.75} />}{n.label}</NavLink>)}</nav>
           <LangSwitch className="side-lang" />
         </aside>
         <main>
@@ -99,6 +105,7 @@ export default function App() {
             <Route path="/progress" element={<Progress />} />
             <Route path="/songs" element={<SongList />} />
             <Route path="/songs/:id" element={<SongPage />} />
+            <Route path="/course" element={<Course />} />
             <Route path="/compose" element={<Compose />} />
             <Route path="/more" element={<More />} />
             <Route path="/account" element={<Account />} />
@@ -106,6 +113,7 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/notation" element={<NotationList />} />
             <Route path="/notation/:id" element={<NotationLesson />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
         <nav className="tabbar">

@@ -474,3 +474,6 @@
 - **Тренировка скорости вибрато** — исследования: скорость от обучения почти не меняется; оставлены упражнения на регулярность.
 - **Estill: ложные складки, черпалонадгортанный сфинктер, наклон перстневидного** — нужен педагог, риск ошибок самостоятельно; пересекаются с cvt-overdrive/twang.
 - **«Трель Гарсиа»** — источник с упражнением не найден.
+
+## Добавлено 2026-11-07 (вне build_library.py — внесено прямо в library.json / library.en.json)
+emel-scary-tale, emel-register-break, emel-fry-chest-falsetto, emel-consonants, emel-wave, emel-call-howl (Емельянов, метка Т); hand-over-mouth (И); giggle-staccato, bee-mosquito-siren (П). Источники — research/market-2026-11.md.

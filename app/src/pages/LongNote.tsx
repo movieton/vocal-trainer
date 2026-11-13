@@ -5,7 +5,10 @@ import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine, SIM } from '../lib/audio'
 import { analyzeTone, noteName } from '../lib/music'
-import { logSession, useStored, useWorkRange } from '../lib/store'
+import { logSession, read, useStored, useWorkRange, write } from '../lib/store'
+
+/** Замеры вибрато для сравнения с прошлым разом */
+type VibLog = { date: number; rate: number; extent: number; reg: number }
 import type { Target } from '../lib/run'
 
 const TOL = 15
@@ -22,7 +25,7 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
   const [note, setNote] = useState(presets ? base + presets[0] : fromPlan ?? Math.round((r.lo + r.hi) / 2) - 2)
   const bestKey = presets ? `${id}:${note}` : id
   const [best, setBest] = useStored<Record<string, number>>('breathBest', {})
-  const [res, setRes] = useState<{ sec: number; stable: number; tone: ReturnType<typeof analyzeTone> } | null>(null)
+  const [res, setRes] = useState<{ sec: number; stable: number; tone: ReturnType<typeof analyzeTone>; prev: VibLog | null } | null>(null)
   const st = useRef<{ phase: 'idle' | 'wait' | 'sing'; t0: number; frames: number; good: number; silence: number }>({ phase: 'idle', t0: 0, frames: 0, good: 0, silence: 0 })
   const target = useRef<Target | null>(null)
 
@@ -66,7 +69,9 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
     s.phase = 'idle'
     const now = engine.now()
     const tone = analyzeTone(engine.history.filter(h => h.t >= s.t0 && h.t <= now), note, TOL)
-    setRes({ sec, stable: tone?.inTune ?? stable, tone })
+    const prev = read<VibLog[]>('vib.log', [])[0] ?? null
+    setRes({ sec, stable: tone?.inTune ?? stable, tone, prev })
+    if (tone?.vibrato) write('vib.log', [{ date: Date.now(), rate: tone.rate, extent: tone.extent, reg: tone.regularity }, ...read<VibLog[]>('vib.log', [])].slice(0, 30))
     if (sec > (best[bestKey] ?? 0)) setBest({ ...best, [bestKey]: sec })
     logSession({ date: Date.now(), kind: 'breath', id, title: presets ? tr('Длинная нота {0}', noteName(note)) : tr('Длинная нота'), score: Math.round((tone?.inTune ?? stable) * 100) })
   }
@@ -99,9 +104,10 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
               <div><b>±{Math.round(res.tone.sd)} {tr('ц')}</b><span>{tr('разброс высоты')}</span></div>
               <div><b>{res.tone.vibrato ? res.tone.rate.toFixed(1) + tr(' Гц') : '—'}</b><span>{tr('частота вибрато')}</span></div>
               <div><b>{res.tone.vibrato ? '±' + Math.round(res.tone.extent) + tr(' ц') : '—'}</b><span>{tr('размах вибрато')}</span></div>
+              <div><b>{res.tone.vibrato ? Math.round(res.tone.regularity * 100) + '%' : '—'}</b><span>{tr('ровность вибрато')}{res.tone.vibrato && res.prev ? tr(' · в прошлый раз {0}%', Math.round(res.prev.reg * 100)) : ''}</span></div>
             </div>
           )}
-          <p className="muted">{tr('Стабильность — доля времени, когда центр звука (без учёта вибрато) в пределах ±')}{TOL} {tr('центов от ноты.')} {res.stable < 0.6 ? tr('Нота гуляет: попробуй тише и ровнее, с опорой на выдохе.') : tr('Хорошая ровная нота.')}{res.tone?.vibrato ? tr(' Вибрато {0}.', res.tone.rate < 4.5 ? tr('медленное — может звучать как «качание»') : res.tone.rate > 6.5 ? tr('частое — похоже на дрожание, часто от зажима') : tr('в обычной для певцов норме (4,5–6,5 Гц)')) : ''}</p>
+          <p className="muted">{tr('Стабильность — доля времени, когда центр звука (без учёта вибрато) в пределах ±')}{TOL} {tr('центов от ноты.')} {res.stable < 0.6 ? tr('Нота гуляет: попробуй тише и ровнее, с опорой на выдохе.') : tr('Хорошая ровная нота.')}{res.tone?.vibrato ? tr(' Вибрато {0}.', res.tone.rate < 4.5 ? tr('медленное — может звучать как «качание»') : res.tone.rate > 6.5 ? tr('частое — похоже на дрожание, часто от зажима') : tr('в обычной для певцов норме (4,5–6,5 Гц)')) + ' ' + tr('С тренировкой растёт прежде всего ровность колебаний, а не их размах.') : ''}</p>
         </div>
       )}
     </>

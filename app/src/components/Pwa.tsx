@@ -2,7 +2,7 @@ import { tr } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-/** Новая версия: проверяем при каждом возврате в приложение и ставим сами, если человек не поёт; иначе — плашка */
+/** Новая версия: проверяем при каждом возврате в приложение; ставим сами при запуске и на главной, иначе — плашка */
 export function UpdateBanner() {
   const { needRefresh: [need, setNeed], updateServiceWorker } = useRegisterSW({
     onRegisteredSW(_url, reg) {
@@ -16,7 +16,11 @@ export function UpdateBanner() {
   // во время упражнения (режим фокуса) не перезагружаем — ждём, пока закончит
   useEffect(() => {
     if (!need) return
-    const apply = () => { if (!document.documentElement.dataset.focus) void updateServiceWorker(true) }
+    // сами ставим только на главной (или в первые секунды после запуска) — иначе можно перезагрузить посреди дела
+    const apply = () => {
+      const home = location.hash === '' || location.hash === '#/' || location.hash.startsWith('#/?')
+      if (!document.documentElement.dataset.focus && (home || performance.now() < 8000)) void updateServiceWorker(true)
+    }
     apply()
     const t = setInterval(apply, 5000)
     return () => clearInterval(t)

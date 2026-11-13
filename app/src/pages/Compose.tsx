@@ -1,12 +1,12 @@
 import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Download, Pause, Play, Plus, Trash2, X } from 'lucide-react'
+import { Dices, Download, Pause, Play, Plus, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
 import MelodyEditor, { type MelNote } from '../components/MelodyEditor'
 import MelodyAnalysis from '../components/MelodyAnalysis'
 import CheckList from '../components/CheckList'
 import PianoRoll from '../components/PianoRoll'
-import { MicGate, LiveNote, useEngine } from '../components/Mic'
+import { MicGate, LiveNote, useEngine, useMicUser } from '../components/Mic'
 import { engine } from '../lib/audio'
 import { isBlack, noteName, plural, transcribe } from '../lib/music'
 import type { Target } from '../lib/run'
@@ -37,6 +37,7 @@ function ContrastCheck({ parts }: { parts: { name: string; prog: KeyChord[]; mel
 }
 
 export default function Compose() {
+  useMicUser(false)
   useEngine(10)
   const work = useWorkRange()
   const [sel, setSel] = useStored('cmp.sel', 0)
@@ -132,7 +133,11 @@ export default function Compose() {
 
   // ---- клавиатура: две октавы вокруг голоса ----
   const kLo = 12 * Math.floor(work.lo / 12) + (work.lo % 12 > 6 ? 12 : 0)
-  const keys = Array.from({ length: 25 }, (_, i) => kLo + i)
+  // на телефоне — одна октава с широкими клавишами и сдвигом по октавам
+  const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 560px)').matches
+  const [kOct, setKOct] = useState(0)
+  const kStart = narrow ? kLo + 12 * kOct : kLo, kLen = narrow ? 13 : 25
+  const keys = Array.from({ length: kLen }, (_, i) => kStart + i)
   // запись с клавиш: начало — по нажатию, длительность — по отпусканию, сетка восьмых
   const held = useRef<{ m: number; beat: number; t: number } | null>(null)
   const loopPos = () => (((engine.now() - t0.current) / beat) % (bars * 4) + bars * 4) % (bars * 4)
@@ -311,7 +316,11 @@ export default function Compose() {
         </div>
       </div>
 
-      <p className="muted small kb-caption">{tr('Клавиатура')} {noteName(kLo)}–{noteName(kLo + 24)}</p>
+      <div className="kb-caption">
+        {narrow && <button className="kb-shift" aria-label={tr('Октава ниже')} disabled={kOct <= -1} onClick={() => setKOct(kOct - 1)}><ChevronLeft size={18} /></button>}
+        <span className="muted small">{tr('Клавиатура')} {noteName(kStart)}–{noteName(kStart + kLen - 1)}</span>
+        {narrow && <button className="kb-shift" aria-label={tr('Октава выше')} disabled={kOct >= 1} onClick={() => setKOct(kOct + 1)}><ChevronRight size={18} /></button>}
+      </div>
       <div className="keyboard" role="group" aria-label={tr('Клавиатура')}>
         {keys.map(m => {
           const role = noteRole(m, keyPc, steps, curChord ?? (prog[0] ?? null))

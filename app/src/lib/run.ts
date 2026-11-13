@@ -28,7 +28,7 @@ export type Key = 'auto' | number
  * inner — пауза «услышь про себя» между показом и пением (внутренний слух, Pfordresher & Halpern 2013);
  * fade — затухающая подсказка: звук эталона во время пения только через круг
  */
-export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key; inner?: boolean; fade?: boolean }
+export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key; inner?: boolean; fade?: boolean; ladder?: boolean }
 
 /** Высота цели в момент t (с учётом глиссандо) */
 export const targetAt = (g: Target, t: number) =>
@@ -53,6 +53,8 @@ export class ExerciseRun {
   opts: RunOptions
   roots: number[]
   rep = 0
+  /** Сквозной номер прохода (растёт и в режиме повтора) */
+  seq = 0
   repeat = false
   targets: Target[] = []
   /** Все цели прогона — для прослушивания записи */
@@ -98,7 +100,7 @@ export class ExerciseRun {
         const len = n.d * b
         if (!n.rest) {
           const t1 = cur + (n.stacc ? len * 0.5 : len)
-          const tg = { midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.rep }
+          const tg = { midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.seq }
           this.targets.push(tg); this.all.push(tg)
           if (playPiano) {
             engine.ref(root + n.s, cur, t1 - cur, vel)
@@ -126,7 +128,7 @@ export class ExerciseRun {
     }
     this.singEnd = cur
     // держим в памяти только текущий и прошлый круг
-    this.targets = this.targets.filter(g => g.rep >= this.rep - 1)
+    this.targets = this.targets.filter(g => g.rep >= this.seq - 1)
   }
 
   /** Вызывается каждый кадр; возвращает true, если поменялось состояние для интерфейса */
@@ -138,8 +140,10 @@ export class ExerciseRun {
     else if (now < this.singStart) this.phase = now < this.singStart - this.beat ? 'inner' : 'breath'
     else this.phase = 'sing'
     engine.listenOnly = this.phase !== 'sing'
-    if (now > this.singEnd + 0.3) {
+    if (now > this.singEnd + 0.3 + engine.latency) {
       this.scoreRep()
+      this.climb()
+      this.seq++
       if (!this.repeat) this.rep++
       if (this.rep >= this.roots.length) { this.stop(); return true }
       this.schedule(now + 0.3)
@@ -148,9 +152,23 @@ export class ExerciseRun {
     return prev !== this.phase
   }
 
+  /** Самый быстрый темп, на котором круг спет чисто */
+  peak = 0
+  /**
+   * Лестница темпа: круг спет чисто (от 80%) — следующий на 5% быстрее, не вышло (ниже 60%) — на 5% медленнее.
+   * Так учат рифы и быстрые пассажи: точность раньше скорости.
+   */
+  private climb() {
+    if (!this.opts.ladder) return
+    const s = this.results.at(-1)?.score ?? 0
+    if (s >= 0.8) { this.peak = Math.max(this.peak, this.opts.tempo); this.opts.tempo = Math.min(1.6, +(this.opts.tempo + 0.05).toFixed(2)) }
+    else if (s < 0.6) this.opts.tempo = Math.max(0.5, +(this.opts.tempo - 0.05).toFixed(2))
+  }
+  get tempo() { return this.opts.tempo }
+
   private scoreRep() {
     const tol = this.opts.tolerance
-    const sung = this.targets.filter(g => g.rep === this.rep && g.sing)
+    const sung = this.targets.filter(g => g.rep === this.seq && g.sing)
     const notes = sung.map(g => {
       const from = g.t0 + 0.2 * (g.t1 - g.t0)
       const frames = engine.history.filter(s => s.t >= from && s.t < g.t1)

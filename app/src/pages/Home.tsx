@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { Goal } from './Welcome'
 import { startPlan } from '../components/PlanBar'
 import { ReminderCard } from '../components/Reminder'
+import { CourseCard, idMatch, useCourse } from './Course'
 import { Check, ChevronRight, Flame, Play } from 'lucide-react'
 import { BeanWave } from '../components/Beans'
 import { problemNotes, streak, useStored, useWorkRange, type SessionLog } from '../lib/store'
@@ -71,9 +72,22 @@ export default function Home() {
   const st = streak(log)
   const [planDone] = useStored<{ day: string; tos: string[] }>('plan.done', { day: '', tos: [] })
   const doneTos = planDone.day === new Date().toDateString() ? planDone.tos : []
-  const plan = dayPlan(log, goal, minutes).map(p => ({ ...p, done: doneTos.includes(p.to) || today.some(l => p.id && l.id.startsWith(p.id)) }))
-  const begin = () => startPlan(plan.map(({ to, title, text }) => ({ to, title, text })))
+  // курс начат — день курса и есть программа на сегодня (одно «сегодня» вместо двух)
+  const course = useCourse()
+  const cDay = course.current
+  // новичок (ещё ни одного занятия) сразу идёт по курсу — одна программа и одна кнопка
+  const fresh = !log.length && course.doneN === 0
+  const courseOn = !!cDay && !course.locked && (course.doneN > 0 || course.p.active != null || fresh)
+  const plan = courseOn
+    ? course.steps(cDay!).map((s, i) => ({ ...s, done: course.stepDone(cDay!, i) }))
+    : dayPlan(log, goal, minutes).map(p => ({ ...p, done: doneTos.includes(p.to) || today.some(l => p.id && idMatch(l.id, p.id)) }))
+  const begin = (to?: string) => (courseOn ? course.open(cDay!, to) : startPlan(plan.map(({ to, title, text }) => ({ to, title, text }))))
   const doneN = plan.filter(p => p.done).length
+  // цель дня в чисто спетых нотах: ~20 нот на минуту программы
+  const hits = today.reduce((a, l) => a + (l.hits ?? 0), 0)
+  // первую неделю — мягкая цель, чтобы не отпугнуть
+  const newbie = !log.length || Date.now() - log[log.length - 1].date < 7 * 864e5
+  const goalHits = newbie ? 100 : Math.max(100, minutes * 20)
   const next = plan.find(p => !p.done)
   if (!onboarded && !log.length) return <Navigate to="/welcome" replace />
   return (
@@ -86,25 +100,19 @@ export default function Home() {
         <BeanWave />
         {next ? <>
           <p className="hero-next"><small>{tr('Шаг')} {plan.indexOf(next) + 1} {tr('из')} {plan.length} · {next.min}{tr(' мин')}</small><b>{next.title}</b>{next.text}</p>
-          <button className="btn hero-btn" onClick={() => { begin(); go(next.to) }}>{doneN ? tr('Продолжить') : tr('Начать')} <Play size={18} fill="currentColor" /></button>
+          <button className="btn hero-btn" onClick={() => { begin(next.to); go(next.to) }}>{doneN ? tr('Продолжить') : tr('Начать')} <Play size={18} fill="currentColor" /></button>
         </> : <p className="hero-next"><b>{tr('Программа на сегодня выполнена')}</b>{tr('Можно потренировать слух или сочинить мелодию.')}</p>}
       </div>
-      {!voice && (
-        <Link to="/range" className="card cta">
-          <strong>{tr('Определи свой голос за минуту')}</strong>
-          <span className="muted">{tr('Спой несколько нот — и упражнения встанут в удобную для тебя высоту →')}</span>
-        </Link>
-      )}
       <div className="card">
         <div className="prog-head">
-          <h2>{tr('Программа на')} {minutes} {plural(minutes, [tr('минуту'), tr('минуты'), tr('минут')])}</h2>
-          <span className="muted small">{doneN} {tr('из')} {plan.length} · <Link to="/welcome">{tr('цель и время')}</Link></span>
+          {courseOn ? <h2>{tr('День {0} из 30: {1}', cDay!.n, cDay!.title)}</h2> : <h2>{tr('Программа на')} {minutes} {plural(minutes, [tr('минуту'), tr('минуты'), tr('минут')])}</h2>}
+          <span className="muted small">{tr('готово {0} из {1}', doneN, plan.length)} · {courseOn ? <Link to="/course">{tr('весь курс')}</Link> : <Link to="/welcome">{tr('цель и время')}</Link>}</span>
         </div>
         <ol className="plan">
           {plan.map(p => (
-            <li key={p.title} className={p.done ? 'done' : ''}>
-              <Link to={p.to} onClick={begin}>
-                <span className="min">{p.done ? <Check size={16} /> : tr('{0} мин', p.min)}</span>
+            <li key={p.title} className={p.done ? 'done' : p === next ? 'cur' : ''}>
+              <Link to={p.to} onClick={() => begin(p.to)}>
+                <span className="min">{p.done ? <Check size={16} /> : p === next ? tr('сейчас') : tr('{0} мин', p.min)}</span>
                 <strong>{p.title}</strong><span className="muted">{p.text}</span>
                 <ChevronRight size={18} className="chev" />
               </Link>
@@ -112,12 +120,24 @@ export default function Home() {
           ))}
         </ol>
       </div>
+      {log.length > 0 && <div className="card notes-goal">
+        <div className="ng-head"><b>{tr('Цель дня: {0} чистых нот', goalHits)}</b><span className={'muted small' + (hits >= goalHits ? ' done' : '')}>{hits >= goalHits ? tr('Выполнено') : tr('{0} из {1}', hits, goalHits)}</span></div>
+        <div className="cc-bar" role="progressbar" aria-valuemin={0} aria-valuemax={goalHits} aria-valuenow={Math.min(hits, goalHits)}><i style={{ width: `${Math.min(100, (hits / goalHits) * 100)}%` }} /></div>
+        {hits === 0 && <span className="muted small">{tr('Чисто спетые ноты во всех упражнениях с оценкой.')}</span>}
+      </div>}
+      {!voice && !courseOn && (
+        <Link to="/range" className="card cta">
+          <strong>{tr('Определи свой голос за минуту')}</strong>
+          <span className="muted">{tr('Спой несколько нот — и упражнения встанут в удобную для тебя высоту →')}</span>
+        </Link>
+      )}
+      {!courseOn && <CourseCard />}
       {log.length > 0 && <ReminderCard compact />}
-      <div className="chips">
-        <span>{tr('Рабочий диапазон')} <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>
-        <span>{tr('Сегодня упражнений')} <b>{today.length}</b></span>
+      {(voice || log.length > 0) && <div className="chips">
+        {voice && <span>{tr('Рабочий диапазон')} <b>{noteName(work.lo)}–{noteName(work.hi)}</b> ({work.source})</span>}
+        {log.length > 0 && <span>{tr('Сегодня упражнений')} <b>{today.length}</b></span>}
         {log.length > 0 && <span>{tr('Точность')}{log.length > 1 ? tr(', последние {0}', Math.min(10, log.length)) : ''} <b>{Math.round(log.slice(0, 10).reduce((a, l) => a + l.score, 0) / Math.min(10, log.length))}%</b></span>}
-      </div>
+      </div>}
     </div>
   )
 }

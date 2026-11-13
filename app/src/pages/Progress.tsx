@@ -1,4 +1,4 @@
-import { tr } from '../lib/i18n'
+import { lang, locale, tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Flame, Target, TrendingUp } from 'lucide-react'
@@ -46,7 +46,7 @@ function Growth({ log }: { log: SessionLog[] }) {
   const records = [
     { v: `${bestStreak(log)}`, t: plural(bestStreak(log), [tr('день'), tr('дня'), tr('дней')]) + tr(' подряд — рекорд') },
     { v: dayAvg.length ? `${Math.round(Math.max(...dayAvg))}%` : '—', t: tr('лучший день по точности') },
-    { v: `${days}`, t: plural(days, [tr('день'), tr('дня'), tr('дней')]) + tr(' занятий') },
+    { v: `${days}`, t: lang === 'en' ? (days === 1 ? 'day of practice' : 'days of practice') : plural(days, ['день занятий', 'дня занятий', 'дней занятий']) },
     { v: `≈${Math.round(log.length * 3)}`, t: tr('минут практики') },
   ]
   return (
@@ -86,7 +86,7 @@ export default function Progress() {
   const totalN = Math.max(1, counts.reduce((a, c) => a + c.n, 0))
 
   if (!log.length) return (
-    <div className="page"><h1>{tr('Прогресс')}</h1><div className="card empty">{tr('Пока пусто: закончи первое упражнение, и здесь появятся графики.')}</div></div>
+    <div className="page"><h1>{tr('Прогресс')}</h1><div className="card empty"><p>{tr('Пока пусто: закончи первое упражнение, и здесь появятся графики.')}</p><Link className="btn" to="/">{tr('Начать первое упражнение')}</Link></div></div>
   )
 
   // график средней точности по дням
@@ -113,7 +113,7 @@ export default function Progress() {
           const due = !c.last || Date.now() - c.last > MONTH
           return (
             <li key={c.title}>
-              <div><b>{c.title}</b><span className="muted small">{c.value ?? tr('ещё не было')}{c.last ? ` · ${new Date(c.last).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}` : ''}</span></div>
+              <div><b>{c.title}</b><span className="muted small">{c.value ?? tr('ещё не было')}{c.last ? ` · ${new Date(c.last).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}` : ''}</span></div>
               <Link to={c.to} className={due && c.last !== undefined ? 'btn small-btn' : 'btn ghost small-btn'}>{due && c.last !== undefined ? tr('Пора') : tr('Открыть')}</Link>
             </li>
           )
@@ -131,8 +131,8 @@ export default function Progress() {
         <div className="scroll-x"><svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label={tr('График точности по дням')}>
           {[yMin, Math.round((yMin + 100) / 2), 100].map(v => <g key={v}><path d={`M${P} ${y(v)} H${W - P}`} className="grid-line" /><text x={P - 6} y={y(v) + 4} textAnchor="end" className="axis">{v}</text></g>)}
           <path d={path} className="line" />
-          {pts.map((p, i) => p && <circle key={i} cx={p[0]} cy={p[1]} r="3.5" className="dot"><title>{days[i].day.toLocaleDateString('ru', { day: 'numeric', month: 'short' })}: {Math.round(days[i].avg!)}{tr('%, занятий')} {days[i].count}</title></circle>)}
-          {[0, 14, 29].map(i => <text key={i} x={x(i)} y={H - 6} textAnchor="middle" className="axis">{days[i].day.toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</text>)}
+          {pts.map((p, i) => p && <circle key={i} cx={p[0]} cy={p[1]} r="3.5" className="dot"><title>{days[i].day.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}: {Math.round(days[i].avg!)}{tr('%, занятий')} {days[i].count}</title></circle>)}
+          {[0, 14, 29].map(i => <text key={i} x={x(i)} y={H - 6} textAnchor="middle" className="axis">{days[i].day.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}</text>)}
         </svg></div>
       </div>
 
@@ -167,7 +167,7 @@ export default function Progress() {
         <ul className="hist">
           {log.slice(0, shown).map(l => (
             <li key={l.date}>
-              <div><b>{l.title}</b><span className="muted small">{KINDS[l.kind]} · {new Date(l.date).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
+              <div><b>{l.title}</b><span className="muted small">{KINDS[l.kind] ? KINDS[l.kind] + ' · ' : ''}{new Date(l.date).toLocaleString(locale, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span></div>
               <b className="res">{l.kind === 'breath' && l.id === 'long-s' ? l.score + tr(' с') : l.score + '%'}</b>
             </li>
           ))}

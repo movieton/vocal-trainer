@@ -1,4 +1,4 @@
-import { tr } from '../lib/i18n'
+import { locale, tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDown, ArrowUp } from 'lucide-react'
@@ -86,7 +86,7 @@ export default function Threshold() {
           <h2>{tr('Замеры')}</h2>
           <p className="muted small">{tr('Ориентиры: у большинства нетренированных людей — 20–50 центов, у опытных музыкантов — 5–10. Лучший результат:')} <b>{best} {tr('ц')}</b>.</p>
           <ul className="hist">{hist.slice(0, 12).map(h => (
-            <li key={h.date}><span className="muted small">{new Date(h.date).toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })}</span><b className="res">{h.cents} {tr('ц')}</b></li>
+            <li key={h.date}><span className="muted small">{new Date(h.date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}</span><b className="res">{h.cents} {tr('ц')}</b></li>
           ))}</ul>
         </div>
       )}

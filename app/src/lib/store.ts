@@ -4,6 +4,8 @@ import { VOICE_TYPES } from './music'
 
 const PREFIX = 'vt:'
 const listeners = new Set<() => void>()
+/** Настройки устройства: без меток времени, не синхронизируются */
+export const DEVICE_KEYS = new Set(['rh.latency', 'reminder', 'latencyMs', 'micOk', 'syncDirty'])
 const cache = new Map<string, unknown>()
 
 export function read<T>(key: string, fallback: T): T {
@@ -24,6 +26,12 @@ export const onWrite = (f: (key: string) => void) => { writeHooks.add(f); return
 export function write<T>(key: string, value: T, silent = false) {
   cache.set(key, value)
   try { localStorage.setItem(PREFIX + key, JSON.stringify(value)) } catch { /* нет хранилища */ }
+  // время правки каждого ключа: при слиянии устройств побеждает более свежая
+  if (!silent && key !== 'meta' && !DEVICE_KEYS.has(key)) {
+    const meta = { ...read<Record<string, number>>('meta', {}), [key]: Date.now() }
+    cache.set('meta', meta)
+    try { localStorage.setItem(PREFIX + 'meta', JSON.stringify(meta)) } catch { /* нет хранилища */ }
+  }
   listeners.forEach(l => l())
   if (!silent) writeHooks.forEach(h => h(key))
 }
@@ -90,6 +98,8 @@ export type SessionLog = {
   title: string
   score: number
   reps?: number
+  /** Сколько нот спето чисто — для цели дня */
+  hits?: number
   drift?: { m: number; c: number }[]
 }
 

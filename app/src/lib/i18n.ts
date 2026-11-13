@@ -1,4 +1,3 @@
-import en from '../locales/en.json'
 
 export type Lang = 'ru' | 'en'
 const KEY = 'vt:lang'
@@ -15,9 +14,21 @@ function detect(): Lang {
 }
 
 export const lang: Lang = detect()
+/** Локаль дат и времени по языку интерфейса */
+export const locale = lang === 'en' ? 'en-US' : 'ru'
 document.documentElement.lang = lang
 
-const dict = en as Record<string, string>
+let dict: Record<string, string> = {}
+/** Английская библиотека упражнений — грузится только для английского языка */
+export let libEn: unknown = null
+
+/** Подгрузить словарь и английские данные до запуска приложения (русским они не нужны) */
+export async function loadLang() {
+  if (lang !== 'en') return
+  const [d, l] = await Promise.all([import('../locales/en.json'), import('../data/library.en.json')])
+  dict = d.default as Record<string, string>
+  libEn = l.default
+}
 
 /** Перевод по русской фразе; {0}, {1} — подстановки */
 export function tr(ru: string, ...args: unknown[]): string {

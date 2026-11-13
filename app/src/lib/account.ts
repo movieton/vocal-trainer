@@ -1,13 +1,13 @@
 import { lang, tr } from './i18n'
 import { useSyncExternalStore } from 'react'
-import { clearSynced, onWrite, read, snapshot, write, type SessionLog } from './store'
+import { DEVICE_KEYS, clearSynced, onWrite, read, snapshot, write, type SessionLog } from './store'
 
 /**
  * Аккаунт и синхронизация прогресса. Без входа приложение работает как раньше — всё в браузере.
  * После входа данные хранятся и на сервере: при входе локальный прогресс объединяется с серверным,
  * дальше каждое изменение отправляется с задержкой в несколько секунд.
  */
-export type User = { id: string; provider: string; name: string | null; email: string | null; avatar: string | null }
+export type User = { id: string; provider: string; name: string | null; email: string | null; avatar: string | null; avatarId?: string | null }
 type State = { user: User | null; ready: boolean; providers: string[]; syncedAt: number | null; syncing: boolean; error: string | null }
 
 let state: State = { user: null, ready: false, providers: [], syncedAt: null, syncing: false, error: null }
@@ -16,32 +16,70 @@ const set = (p: Partial<State>) => { state = { ...state, ...p }; subs.forEach(f 
 export const useAccount = () => useSyncExternalStore(f => { subs.add(f); return () => subs.delete(f) }, () => state)
 
 /** Настройки конкретного устройства — не переносим между устройствами */
-const LOCAL_ONLY = new Set(['rh.latency', 'reminder'])
+const LOCAL_ONLY = DEVICE_KEYS
 
 const api = (path: string, init?: RequestInit) => fetch('/api' + path, { credentials: 'same-origin', ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } })
 
-/** Объединение: журнал занятий — без потерь с обеих сторон, остальное — серверная версия, если она есть */
-function merge(local: Record<string, unknown>, remote: Record<string, unknown> | null) {
+/** Объединение: журнал — без потерь с обеих сторон; остальное — более свежая правка по меткам времени (без меток — серверная) */
+export function merge(local: Record<string, unknown>, remote: Record<string, unknown> | null) {
   if (!remote) return local
-  const out = { ...local, ...remote }
+  const lm = (local.meta ?? {}) as Record<string, number>, rm = (remote.meta ?? {}) as Record<string, number>
+  const out: Record<string, unknown> = { ...local, ...remote }
+  for (const k of Object.keys(local)) if (k in remote && (lm[k] ?? 0) > (rm[k] ?? 0)) out[k] = local[k]
+  const meta: Record<string, number> = { ...rm }
+  for (const [k, t] of Object.entries(lm)) meta[k] = Math.max(t, meta[k] ?? 0)
+  out.meta = meta
   const logs = [...((local.log as SessionLog[]) ?? []), ...((remote.log as SessionLog[]) ?? [])]
   const seen = new Set<string>()
-  out.log = logs.filter(l => l && typeof l === 'object' && typeof l.date === 'number').filter(l => { const k = l.date + ':' + l.id; if (seen.has(k)) return false; seen.add(k); return true }).sort((a, b) => b.date - a.date)
+  out.log = logs.filter(l => l && typeof l === 'object' && typeof l.date === 'number').filter(l => { const k = l.date + ':' + l.id; if (seen.has(k)) return false; seen.add(k); return true }).sort((a, b) => b.date - a.date).slice(0, 1000)
+  // курс: закрытые дни с обеих сторон, текущий день — локальный (он свежее)
+  type C = { done?: Record<string, number>; active?: unknown }
+  const lc = local.course as C | undefined, rc = remote.course as C | undefined
+  if (lc && rc) out.course = { done: { ...(rc.done ?? {}), ...(lc.done ?? {}) }, active: lc.active ?? rc.active ?? null }
+  // сданные сегодня режимы подсказки: берём более свежий день, в один день — объединяем
+  type P = { day: string; lv: Record<string, number> }
+  const lp = local['drill.passed'] as P | undefined, rp = remote['drill.passed'] as P | undefined
+  if (lp && rp) out['drill.passed'] = lp.day === rp.day ? { day: lp.day, lv: Object.fromEntries([...new Set([...Object.keys(lp.lv), ...Object.keys(rp.lv)])].map(k => [k, Math.max(lp.lv[k] ?? -1, rp.lv[k] ?? -1)])) } : (Date.parse(lp.day) >= Date.parse(rp.day) ? lp : rp)
   return out
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined
-async function push(keepalive = false): Promise<boolean> {
-  clearTimeout(timer)
-  if (!state.user) return false
-  const data = Object.fromEntries(Object.entries(snapshot()).filter(([k]) => !LOCAL_ONLY.has(k)))
-  set({ syncing: true })
-  try {
-    const r = await api('/progress', { method: 'PUT', body: JSON.stringify({ data }), keepalive })
-    if (!r.ok) throw new Error(String(r.status))
-    set({ syncedAt: Date.now(), syncing: false, error: null })
-    return true
-  } catch { set({ syncing: false, error: tr('Не удалось сохранить на сервере, повторим позже') }); return false }
+/** Есть правки, которых ещё нет на сервере (переживает перезапуск) */
+const DIRTY = 'vt:syncDirty'
+const isDirty = () => { try { return localStorage.getItem(DIRTY) === '1' } catch { return false } }
+const setDirty = (v: boolean) => { try { if (v) localStorage.setItem(DIRTY, '1'); else localStorage.removeItem(DIRTY) } catch { /* нет хранилища */ } }
+const synced = (d: Record<string, unknown>) => Object.fromEntries(Object.entries(d).filter(([k]) => !LOCAL_ONLY.has(k) && k !== 'owner'))
+let busy: Promise<boolean> | null = null
+
+/** Отправить свои правки: сначала забираем серверную версию и сливаем, чтобы не затереть правки других устройств */
+function push(): Promise<boolean> {
+  clearTimeout(timer); timer = undefined
+  if (!state.user || !isDirty()) return Promise.resolve(true)
+  if (busy) return busy
+  busy = (async () => {
+    set({ syncing: true })
+    try {
+      const g = await api('/progress')
+      if (!g.ok) throw new Error(String(g.status))
+      const { data: remote } = await g.json() as { data: Record<string, unknown> | null }
+      setDirty(false) // правки, сделанные во время отправки, снова поднимут флаг
+      const merged = merge(snapshot(), remote)
+      for (const [k, v] of Object.entries(synced(merged))) write(k, v, true)
+      const r = await api('/progress', { method: 'PUT', body: JSON.stringify({ data: synced(merged) }) })
+      if (!r.ok) throw new Error(String(r.status))
+      set({ syncedAt: Date.now(), syncing: false, error: null })
+      return true
+    } catch {
+      setDirty(true)
+      set({ syncing: false, error: tr('Не удалось сохранить на сервере, повторим позже') })
+      return false
+    } finally {
+      busy = null
+      // правки, пришедшие во время отправки или после ошибки, — повторим сами
+      if (isDirty() && state.user) { clearTimeout(timer); timer = setTimeout(push, state.error ? 30_000 : 4000) }
+    }
+  })()
+  return busy
 }
 
 async function pull(userId: string) {
@@ -50,10 +88,14 @@ async function pull(userId: string) {
   const { data } = await r.json() as { data: Record<string, unknown> | null }
   // локальные данные чужого аккаунта не сливаем — только «ничьи» (до первого входа) или свои
   const owner = read<string | null>('owner', null)
-  if (owner && owner !== userId) clearSynced(LOCAL_ONLY)
+  if (owner && owner !== userId) { clearSynced(LOCAL_ONLY); setDirty(false) }
   const merged = merge(snapshot(), data)
   merged.owner = userId
   for (const [k, v] of Object.entries(merged)) if (!LOCAL_ONLY.has(k)) write(k, v, true)
+  // на устройстве есть то, чего нет на сервере (первый вход, офлайн-правки) — отправим
+  const same = (a: Record<string, unknown>, b: Record<string, unknown>) => { const ka = Object.keys(a); return ka.length === Object.keys(b).length && ka.every(k => JSON.stringify(a[k]) === JSON.stringify(b[k])) }
+  if (!same(synced(merged), synced(data ?? {}))) setDirty(true)
+  set({ syncedAt: Date.now() })
   await push()
 }
 
@@ -61,8 +103,9 @@ let started = false
 export async function initAccount() {
   if (started) return
   started = true
-  onWrite(() => { if (state.user) { clearTimeout(timer); timer = setTimeout(push, 4000) } })
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && timer) push(true) })
+  onWrite(() => { setDirty(true); if (state.user) { clearTimeout(timer); timer = setTimeout(push, 4000) } })
+  // свернули — отправляем сразу, пока страница ещё жива
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && isDirty()) void push() })
   await loadMe()
 }
 
@@ -74,6 +117,20 @@ async function loadMe() {
     set({ user, providers, ready: true, error: null })
     if (user) await pull(user.id)
   } catch { set({ ready: true, error: tr('Сервер аккаунтов недоступен') }) }
+}
+
+/** Выбрать аватарку из набора (null — вернуться к фото из Google/Яндекса). true — сохранено */
+export async function setAvatar(id: string | null): Promise<boolean> {
+  try {
+    if (!state.user) return false
+    // сразу показываем выбор, при ошибке возвращаем прежний
+    const prev = state.user.avatarId ?? null
+    set({ user: { ...state.user, avatarId: id } })
+    const r = await api('/profile/avatar', { method: 'PUT', body: JSON.stringify({ id }) }).catch(() => null)
+    if (r?.ok) return true
+    if (state.user) set({ user: { ...state.user, avatarId: prev } })
+    return false
+  } catch { return false }
 }
 
 const AUTH_ERRORS: Record<string, string> = {

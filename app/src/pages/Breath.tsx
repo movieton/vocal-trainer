@@ -1,5 +1,7 @@
 import { tr } from '../lib/i18n'
+import NotFound from '../components/NotFound'
 import { useEffect, useRef, useState } from 'react'
+import { keepAwake } from '../lib/focus'
 import { Link, useParams } from 'react-router-dom'
 import { BREATH, BREATH_GROUPS, type BreathEx } from '../data/breath'
 import { engine } from '../lib/audio'
@@ -48,7 +50,7 @@ const totalSec = (b: BreathEx) => (b.phases ?? []).reduce((a, p) => a + p.sec, 0
 export function BreathRun() {
   const { id = '' } = useParams()
   const ex = BREATH.find(b => b.id === id)
-  if (!ex) return <div className="page"><p>{tr('Упражнение не найдено.')} <Link to="/breath">{tr('К списку')}</Link></p></div>
+  if (!ex) return <NotFound what="exercise" back="/breath" backLabel={tr('К дыханию')} />
   return (
     <div className="page">
       <div className="crumbs"><Link to="/breath">{tr('Дыхание')}</Link> / {BREATH_GROUPS[ex.group]}</div>
@@ -71,6 +73,8 @@ function Cycle({ ex }: { ex: BreathEx }) {
   const phases = ex.phases!, rounds = ex.rounds ?? 1
   const [state, setState] = useState<{ i: number; left: number; round: number; frac: number } | null>(null)
   const timer = useRef(0)
+  const active = !!state
+  useEffect(() => { if (!active) return; keepAwake(true); return () => keepAwake(false) }, [active])
 
   const stop = () => { clearInterval(timer.current); setState(null) }
   const start = () => {
@@ -127,6 +131,7 @@ function Stopwatch({ ex }: { ex: BreathEx }) {
   const [t, setT] = useState(0)
   const [on, setOn] = useState(false)
   const t0 = useRef(0), timer = useRef(0)
+  useEffect(() => { if (!on) return; keepAwake(true); return () => keepAwake(false) }, [on])
   const toggle = () => {
     if (on) {
       clearInterval(timer.current); setOn(false)

@@ -12,8 +12,9 @@ const BASE = env.BASE_URL ?? 'https://fasol.app'
 const PORT = +(env.PORT ?? 8787)
 // локальный вход без OAuth — только для разработки и никогда на https
 const DEV = env.DEV_LOGIN === '1' && !BASE.startsWith('https')
-const SESSION_DAYS = 180
-const MAX_PROGRESS = 1_000_000
+const MAX_SESSION_DAYS = 180 // потолок: даже постоянно используемый вход живёт не дольше полугода
+const SESSION_DAYS = 30 // скользящий срок: каждый заход (раз в сутки) продлевает ещё на 30 дней
+const MAX_PROGRESS = 512_000 // полный прогресс с журналом ~214 КБ
 
 const db = new DatabaseSync(env.DB_PATH ?? '/data/fasol.db')
 db.exec(`
@@ -25,6 +26,12 @@ db.exec(`
 db.exec('PRAGMA foreign_keys = ON')
 // вход по почте и паролю: хэш scrypt с солью
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'pass'").get()) db.exec('ALTER TABLE users ADD COLUMN pass TEXT')
+// выбранная аватарка из набора fasol (только id, картинки лежат в статике сайта)
+if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'avatar_id'").get()) db.exec('ALTER TABLE users ADD COLUMN avatar_id TEXT')
+const AVATAR_IDS = ['01-cat', '02-dog', '03-fox', '04-raccoon', '05-panda', '06-rabbit', '07-owl', '08-bear', '09-axolotl', '10-capybara', '11-penguin', '12-koala', '13-tiger', '14-frog', '15-lion', '16-red-panda', '17-elephant', '18-hamster', '19-otter', '20-hedgehog']
+const randomAvatar = () => AVATAR_IDS[crypto.randomInt(AVATAR_IDS.length)]
+if (!db.prepare("SELECT 1 FROM pragma_table_info('sessions') WHERE name = 'created'").get()) { db.exec('BEGIN'); db.exec('ALTER TABLE sessions ADD COLUMN created INTEGER NOT NULL DEFAULT 0'); db.prepare('UPDATE sessions SET created = ?').run(Date.now()); db.exec('COMMIT') }
+db.prepare('UPDATE sessions SET expires = ? WHERE expires > ?').run(Date.now() + SESSION_DAYS * 864e5, Date.now() + SESSION_DAYS * 864e5)
 db.exec('CREATE TABLE IF NOT EXISTS resets (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL)')
 
 // напоминания: веб-пуш. Ключи VAPID создаются один раз и лежат рядом с базой
@@ -109,8 +116,17 @@ const hits = k => { const f = fails.get(k); return f && Date.now() - f.t < WINDO
 const tooMany = (email, ip) => hits('e:' + email) >= 10 || hits('i:' + ip) >= 30
 const failed = (...keys) => keys.forEach(k => { const n = hits(k); fails.set(k, { n: n + 1, t: n ? fails.get(k).t : Date.now() }) })
 // устаревшие записи — прочь, и не больше 50 тысяч
-setInterval(() => { const now = Date.now(); for (const [k, f] of fails) if (now - f.t > WINDOW) fails.delete(k); if (fails.size > 5e4) fails.clear() }, 5 * 6e4).unref()
+setInterval(() => { const now = Date.now(); for (const [k, f] of fails) if (now - f.t > WINDOW) fails.delete(k); while (fails.size > 5e4) fails.delete(fails.keys().next().value) }, 5 * 6e4).unref()
 // адрес клиента ставит nginx из $remote_addr — подделать нельзя
+// сеть клиента: для IPv6 — подсеть /64 (у одного абонента их тысячи адресов), для IPv4 — сам адрес
+const netOf = ip => {
+  if (ip.startsWith('::ffff:')) return ip.slice(7)
+  if (!ip.includes(':')) return ip
+  // раскрываем «::», чтобы взять ровно первые 4 группы
+  const [a, b = ''] = ip.split('::'), head = a ? a.split(':') : [], tail = b ? b.split(':') : []
+  const full = [...head, ...Array(Math.max(0, 8 - head.length - tail.length)).fill('0'), ...tail]
+  return full.slice(0, 4).map(x => x.toLowerCase().replace(/^0+(?=.)/, '')).join(':')
+}
 const clientIp = req => String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim()
 
 const PROVIDERS = {
@@ -150,24 +166,32 @@ const setCookie = (res, name, val, maxAge) => res.appendHeader('Set-Cookie', `${
 const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)) }
 const redirect = (res, to) => { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); res.end() }
 
-function currentUser(req) {
+function currentUser(req, res) {
   const sid = cookies(req)[SID]
   if (!sid) return null
-  const row = db.prepare('SELECT u.id, u.provider, u.name, u.email, u.avatar FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ? AND s.expires > ?').get(sha(sid), Date.now())
-  return row ?? null
+  const row = db.prepare('SELECT u.id, u.provider, u.name, u.email, u.avatar, u.avatar_id AS avatarId, s.expires, s.created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ? AND s.expires > ?').get(sha(sid), Date.now())
+  if (!row) return null
+  const { expires, created, ...user } = row
+  // продление не чаще раза в сутки — чтобы не писать в базу на каждый запрос; не дальше потолка от входа
+  const until = Math.min(Date.now() + SESSION_DAYS * 864e5, created + MAX_SESSION_DAYS * 864e5)
+  if (res && until - expires > 864e5) {
+    db.prepare('UPDATE sessions SET expires = ? WHERE hash = ?').run(until, sha(sid))
+    setCookie(res, SID, sid, Math.round((until - Date.now()) / 1000))
+  }
+  return user
 }
 /** Новая сессия для пользователя; старая из этого браузера удаляется */
 function issueSession(req, res, userId) {
   const old = cookies(req)[SID]
   if (old) db.prepare('DELETE FROM sessions WHERE hash = ?').run(sha(old))
   const sid = crypto.randomBytes(32).toString('base64url')
-  db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(sha(sid), userId, Date.now() + SESSION_DAYS * 864e5)
+  db.prepare('INSERT INTO sessions (hash, user_id, expires, created) VALUES (?, ?, ?, ?)').run(sha(sid), userId, Date.now() + SESSION_DAYS * 864e5, Date.now())
   setCookie(res, SID, sid, SESSION_DAYS * 86400)
 }
 function login(req, res, provider, p) {
   let u = db.prepare('SELECT id FROM users WHERE provider = ? AND sub = ?').get(provider, p.sub)
   if (u) db.prepare('UPDATE users SET name = ?, email = ?, avatar = ? WHERE id = ?').run(p.name ?? null, p.email ?? null, p.avatar ?? null, u.id)
-  else { u = { id: crypto.randomUUID() }; db.prepare('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)').run(u.id, provider, p.sub, p.name ?? null, p.email ?? null, p.avatar ?? null, Date.now()) }
+  else { u = { id: crypto.randomUUID() }; db.prepare('INSERT INTO users (id, provider, sub, name, email, avatar, created) VALUES (?, ?, ?, ?, ?, ?, ?)').run(u.id, provider, p.sub, p.name ?? null, p.email ?? null, p.avatar ?? null, Date.now()) }
   issueSession(req, res, u.id)
 }
 async function readBody(req) {
@@ -176,7 +200,17 @@ async function readBody(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') } catch { throw new Error('bad_json') }
 }
 // защита от подделки запросов: изменяющие запросы только с нашего сайта
-const sameOrigin = req => req.headers.origin === BASE && (req.headers['content-type'] ?? '').startsWith('application/json')
+const sameOrigin = req => req.headers.origin === BASE && /^application\/json\s*(;\s*charset=utf-8\s*)?$/i.test(req.headers['content-type'] ?? '')
+/** Глубина вложенности JSON — защита от «матрёшек» */
+function tooDeep(root, max = 10, maxNodes = 200_000) {
+  const stack = [[root, 0]]; let n = 0
+  while (stack.length) {
+    const [v, d] = stack.pop()
+    if (++n > maxNodes || d > max) return true
+    if (v && typeof v === 'object') for (const k in v) stack.push([v[k], d + 1])
+  }
+  return false
+}
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, BASE)
@@ -202,11 +236,12 @@ const server = http.createServer(async (req, res) => {
       const [sp, ss, verifier] = (cookies(req)[STATE] ?? '').split(':')
       if (!P.id || !code || !state || sp !== cb[1] || state !== ss || !verifier) return redirect(res, '/#/account?login=error')
       setCookie(res, STATE, '', 0)
-      const tok = await (await fetch(P.token, {
+      const tok = await fetch(P.token, {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: P.id, client_secret: P.secret, redirect_uri: `${BASE}/api/auth/${cb[1]}/callback`, code_verifier: verifier }),
-      })).json()
-      if (!tok.access_token) return redirect(res, '/#/account?login=error')
+        signal: AbortSignal.timeout(10_000),
+      }).then(r => r.ok ? r.json() : null).catch(() => null) // сбой у провайдера — обратно на сайт, а не ошибка 500
+      if (!tok?.access_token) return redirect(res, '/#/account?login=error')
       const profile = await P.profile(tok.access_token).catch(() => null)
       if (!profile || typeof profile.sub !== 'string' || !profile.sub) return redirect(res, '/#/account?login=error')
       login(req, res, cb[1], profile)
@@ -228,7 +263,7 @@ const server = http.createServer(async (req, res) => {
         if (row) return json(res, 409, { error: 'exists' })
         const name = String(b.name ?? '').trim().slice(0, 80) || null
         const id = crypto.randomUUID()
-        db.prepare('INSERT INTO users (id, provider, sub, name, email, avatar, created, pass) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, 'email', email, name, email, null, Date.now(), await hashPass(pw))
+        db.prepare('INSERT INTO users (id, provider, sub, name, email, avatar, created, pass, avatar_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, 'email', email, name, email, null, Date.now(), await hashPass(pw), randomAvatar())
         login(req, res, 'email', { sub: email, name, email })
         return json(res, 200, { ok: true })
       }
@@ -287,6 +322,18 @@ const server = http.createServer(async (req, res) => {
       // менять существующую подписку можно только с теми же ключами
       if (old && JSON.parse(old.sub).keys.auth !== b.subscription.keys.auth) return json(res, 403, { error: 'forbidden' })
       if (!old && db.prepare('SELECT COUNT(*) AS n FROM push_subs').get().n >= MAX_SUBS) return json(res, 503, { error: 'busy' })
+      if (!old) {
+        // не больше 10 новых подписок за 15 минут из одной сети и 5 на аккаунт
+        const net = netOf(clientIp(req))
+        if (hits('ps:' + net) >= 10) return json(res, 429, { error: 'too_many' })
+        if (me && db.prepare('SELECT COUNT(*) AS n FROM push_subs WHERE user_id = ?').get(me.id).n >= 5) return json(res, 429, { error: 'too_many' })
+        failed('ps:' + net)
+        // пробное уведомление: выдуманный адрес отсеет сам сервис Google/Apple/Mozilla
+        const hm = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(m)).padStart(2, '0')}`
+        const body = langOf(b.lang) === 'en' ? `Reminders are on: every day at ${hm}` : `Напоминания включены: каждый день в ${hm}`
+        const ok = await webpush.sendNotification(JSON.parse(sub), JSON.stringify({ title: 'fasol.app', body, url: '/' }), { TTL: 60, timeout: 5000 }).then(() => true, () => false)
+        if (!ok) return json(res, 400, { error: 'push_failed' })
+      }
       db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id, lang = excluded.lang').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now(), langOf(b.lang))
       return json(res, 200, { ok: true })
     }
@@ -297,7 +344,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true })
     }
 
-    if (path === '/me') { const u = currentUser(req); return u ? json(res, 200, { user: u }) : json(res, 401, { error: 'unauthorized' }) }
+    if (path === '/me') { const u = currentUser(req, res); return u ? json(res, 200, { user: u }) : json(res, 401, { error: 'unauthorized' }) }
 
     if (!sameOrigin(req) && req.method !== 'GET') return json(res, 403, { error: 'bad_origin' })
     if (path === '/logout' && req.method === 'POST') {
@@ -317,7 +364,9 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'PUT') {
         const body = await readBody(req)
-        if (typeof body.data !== 'object' || body.data == null) return json(res, 400, { error: 'bad_data' })
+        // только объект «ключ → значение» приложения, без массивов и глубоких матрёшек
+        if (typeof body.data !== 'object' || body.data == null || Array.isArray(body.data) || tooDeep(body.data)) return json(res, 400, { error: 'bad_data' })
+        if (Object.keys(body.data).length > 300 || Object.keys(body.data).some(k => k.length > 64)) return json(res, 400, { error: 'bad_data' })
         const text = JSON.stringify(body.data)
         if (text.length > MAX_PROGRESS) return json(res, 413, { error: 'too_large' })
         const updated = Date.now()
@@ -325,8 +374,18 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { updated })
       }
     }
+    if (path === '/profile/avatar' && req.method === 'PUT') {
+      if (!u) return json(res, 401, { error: 'unauthorized' })
+      const b = await readBody(req)
+      // только аватарки из набора fasol; null — вернуться к фото из Google/Яндекса
+      const id = b.id == null ? null : String(b.id)
+      if (id !== null && !AVATAR_IDS.includes(id)) return json(res, 400, { error: 'bad_avatar' })
+      db.prepare('UPDATE users SET avatar_id = ? WHERE id = ?').run(id, u.id)
+      return json(res, 200, { avatarId: id })
+    }
     if (path === '/account' && req.method === 'DELETE') {
       if (!u) return json(res, 401, { error: 'unauthorized' })
+      db.prepare('DELETE FROM push_subs WHERE user_id = ?').run(u.id)
       db.prepare('DELETE FROM users WHERE id = ?').run(u.id)
       setCookie(res, SID, '', 0)
       return json(res, 200, { ok: true })

@@ -1,4 +1,5 @@
 import { tr } from '../lib/i18n'
+import { useMicUser } from '../components/Mic'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
@@ -30,6 +31,7 @@ function grade(r: Round, beat: number): Res {
 }
 
 export default function Rhythm() {
+  useMicUser(false)
   const [set, setSet] = useStored('rh.set', 'quarter')
   const [bpm, setBpm] = useStored('rh.bpm', 80)
   const [round, setRound] = useState<Round | null>(null)

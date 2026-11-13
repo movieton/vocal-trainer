@@ -1,8 +1,7 @@
-import { lang, tr } from '../lib/i18n'
+import { lang, libEn, tr } from '../lib/i18n'
 import rawRu from './library.json'
-import rawEn from './library.en.json'
 
-const raw = lang === 'en' ? rawEn : rawRu
+const raw = lang === 'en' && libEn ? libEn : rawRu
 import { p, type Exercise, type Section } from './exercises'
 
 /** Карточка библиотеки из research/catalog-*.md (собирается scripts/build_library.py) */
