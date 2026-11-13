@@ -1,6 +1,6 @@
 import { lang, tr } from './i18n'
 import { useSyncExternalStore } from 'react'
-import { DEVICE_KEYS, clearSynced, onWrite, read, snapshot, write, type SessionLog } from './store'
+import { DEVICE_KEYS, clearSynced, ensureGoalProfile, normalizeGoals, normalizeSkillProfile, onWrite, read, snapshot, write, type SessionLog } from './store'
 
 /**
  * Аккаунт и синхронизация прогресса. Без входа приложение работает как раньше — всё в браузере.
@@ -40,6 +40,19 @@ export function merge(local: Record<string, unknown>, remote: Record<string, unk
   type P = { day: string; lv: Record<string, number> }
   const lp = local['drill.passed'] as P | undefined, rp = remote['drill.passed'] as P | undefined
   if (lp && rp) out['drill.passed'] = lp.day === rp.day ? { day: lp.day, lv: Object.fromEntries([...new Set([...Object.keys(lp.lv), ...Object.keys(rp.lv)])].map(k => [k, Math.max(lp.lv[k] ?? -1, rp.lv[k] ?? -1)])) } : (Date.parse(lp.day) >= Date.parse(rp.day) ? lp : rp)
+  // обратная совместимость goal <-> goals и валидация skillProfile / planMode
+  if ('goals' in out) {
+    if ((meta.goal ?? 0) > (meta.goals ?? 0) && typeof out.goal === 'string') {
+      out.goals = normalizeGoals(null, out.goal)
+      meta.goals = meta.goal
+    } else if (Array.isArray(out.goals) && out.goals.length) {
+      const g = normalizeGoals(out.goals, out.goal)
+      out.goals = g
+      out.goal = g[0]
+    }
+  }
+  if ('skillProfile' in out) out.skillProfile = normalizeSkillProfile(out.skillProfile)
+  if ('planMode' in out) out.planMode = out.planMode === 'split' ? 'split' : 'mix'
   return out
 }
 
@@ -116,6 +129,7 @@ let started = false
 export async function initAccount() {
   if (started) return
   started = true
+  ensureGoalProfile()
   onWrite(() => { setDirty(true); if (state.user) { clearTimeout(timer); timer = setTimeout(push, 4000) } })
   // свернули — отправляем сразу, пока страница ещё жива
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && isDirty()) void push() })
@@ -125,7 +139,8 @@ export async function initAccount() {
 async function loadMe() {
   try {
     const [me, pr] = await Promise.all([api('/me'), api('/providers')])
-    const providers = pr.ok ? ((await pr.json()) as { providers: string[] }).providers : []
+    const prBody = pr.ok ? await pr.json().catch(() => null) as { providers?: unknown } | null : null
+    const providers = Array.isArray(prBody?.providers) ? prBody.providers.filter((x): x is string => typeof x === 'string') : []
     const user = me.ok ? ((await me.json()) as { user: User }).user : null
     set({ user, providers, ready: true, error: null })
     if (user) await pull(user.id)

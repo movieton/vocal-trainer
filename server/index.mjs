@@ -40,8 +40,12 @@ db.exec('CREATE TABLE IF NOT EXISTS resets (hash TEXT PRIMARY KEY, user_id TEXT 
 db.exec('CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, sub TEXT NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL, tz TEXT NOT NULL, user_id TEXT, last_day TEXT, created INTEGER NOT NULL)')
 if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'fails'").get()) db.exec('ALTER TABLE push_subs ADD COLUMN fails INTEGER NOT NULL DEFAULT 0')
 if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'lang'").get()) db.exec("ALTER TABLE push_subs ADD COLUMN lang TEXT NOT NULL DEFAULT 'ru'")
+if (!db.prepare("SELECT 1 FROM pragma_table_info('push_subs') WHERE name = 'goal'").get()) db.exec("ALTER TABLE push_subs ADD COLUMN goal TEXT NOT NULL DEFAULT 'pitch'")
 /** Язык интерфейса из запроса: только ru или en */
 const langOf = v => (v === 'en' ? 'en' : 'ru')
+const VALID_GOALS = new Set(['pitch', 'range', 'ear', 'breath', 'write'])
+/** Основная цель напоминаний из запроса: одна из 5 известных целей */
+const goalOf = v => (typeof v === 'string' && VALID_GOALS.has(v) ? v : 'pitch')
 const MAX_SUBS = 50000
 const VAPID_FILE = path.join(path.dirname(env.DB_PATH ?? '/data/fasol.db'), 'vapid.json')
 if (!fs.existsSync(VAPID_FILE)) fs.writeFileSync(VAPID_FILE, JSON.stringify(webpush.generateVAPIDKeys()), { mode: 0o600 })
@@ -68,13 +72,77 @@ const REMINDERS = {
   ru: ['Твоя распевка ждёт — 10 минут, и голос скажет спасибо', 'Пора распеться: серия дней сама себя не продлит', 'Пять минут на голос? Программа дня уже готова'],
   en: ['Your warm-up is waiting — 10 minutes and your voice will thank you', 'Time to warm up: your streak won\'t extend itself', 'Five minutes for your voice? Today\'s plan is ready'],
 }
+const REMINDERS_BY_GOAL = {
+  ru: {
+    pitch: [
+      'Пять минут на точность нот — голос включится мягко и уверенно',
+      'Тюнер и чистая опора ждут: короткая распевка продлит серию дня',
+      'Пора попасть в пару нот без напряжения — программа дня готова',
+    ],
+    range: [
+      'Свободные верха начинаются с пары минут распевки — план ждёт',
+      'Проверим комфорт диапазона без зажима: 5–10 минут уже в деле',
+      'Мягкое расширение диапазона на сегодня уже собрано в плане',
+    ],
+    ear: [
+      'Пара минут для слуха: короткие интервалы запоминаются лучше всего',
+      'Уши любят регулярность — загляни в сегодняшнюю тренировку слуха',
+      'Точный слух делает пение легче: удели 5 минут тренажёру',
+    ],
+    breath: [
+      'Ровный выдох и опора без суеты: твоя дыхательная пауза ждёт',
+      'Пять минут спокойного дыхания раскрепостят голос на весь день',
+      'Свеча и опора готовы — мягкое начало дня уже в программе',
+    ],
+    write: [
+      'Новая музыкальная фраза ждёт записи — загляни в конструктор мелодий',
+      'Короткий ритм и пара идей: 5 минут творчества поддержат серию',
+      'Квинтовый круг и мелодии дня уже открыты для твоего эскиза',
+    ],
+  },
+  en: {
+    pitch: [
+      'Five minutes for pitch accuracy — ease into a steady tone today',
+      'Your warm-up and pitch check are ready to keep your streak going',
+      'Hit a few clean notes without tension — today’s plan is waiting',
+    ],
+    range: [
+      'Easy high notes start with a short daily warm-up — your plan is ready',
+      'Explore your range with zero strain: 5–10 minutes is plenty',
+      'Today’s gentle range workout is ready whenever you are',
+    ],
+    ear: [
+      'A couple of minutes for ear training keeps intervals sharp',
+      'Ears love daily sparks — jump into today’s short listening drill',
+      'Sharper listening makes singing easier: take 5 minutes today',
+    ],
+    breath: [
+      'Steady airflow and calm support: your breathing session is ready',
+      'Five minutes of relaxed breathing frees up your voice for the day',
+      'Candle and airflow drills are waiting in today’s plan',
+    ],
+    write: [
+      'A fresh melody idea is waiting — open today’s sketchpad',
+      'Five minutes of rhythm and harmony keeps creative momentum alive',
+      'Circle of fifths and melody tools are ready for a quick sketch',
+    ],
+  },
+}
+/** Персонализированный текст пуша по языку и цели */
+export function reminderText(lang, goal, pickIdx) {
+  const l = langOf(lang)
+  const g = goalOf(goal)
+  const pool = REMINDERS_BY_GOAL[l]?.[g] ?? REMINDERS[l] ?? REMINDERS.ru
+  const idx = typeof pickIdx === 'number' && Number.isFinite(pickIdx) ? Math.abs(Math.floor(pickIdx)) % pool.length : crypto.randomInt(pool.length)
+  return pool[idx]
+}
 let sending = false
 async function sendReminders() {
   if (sending) return // предыдущий прогон ещё идёт
   sending = true
   try {
     const due = []
-    for (const r of db.prepare('SELECT endpoint, sub, hour, minute, tz, user_id, last_day, lang FROM push_subs').all()) {
+    for (const r of db.prepare('SELECT endpoint, sub, hour, minute, tz, user_id, last_day, lang, goal FROM push_subs').all()) {
       const now = localNow(r.tz), t = now.h * 60 + now.m, at = r.hour * 60 + r.minute
       if (r.last_day === now.day || t < at || t > at + 30) continue
       db.prepare('UPDATE push_subs SET last_day = ? WHERE endpoint = ?').run(now.day, r.endpoint)
@@ -82,7 +150,7 @@ async function sendReminders() {
     }
     // пачками по 15, чтобы не ждать каждое уведомление по очереди
     for (let i = 0; i < due.length; i += 15) await Promise.allSettled(due.slice(i, i + 15).map(r =>
-      webpush.sendNotification(JSON.parse(r.sub), JSON.stringify({ title: 'fasol.app', body: (REMINDERS[r.lang] ?? REMINDERS.ru)[Math.floor(Math.random() * 3)], url: '/' }), { TTL: 3600 })
+      webpush.sendNotification(JSON.parse(r.sub), JSON.stringify({ title: 'fasol.app', body: reminderText(r.lang, r.goal), url: '/' }), { TTL: 3600 })
         .then(() => db.prepare('UPDATE push_subs SET fails = 0 WHERE endpoint = ?').run(r.endpoint))
         .catch(e => {
           // мёртвая или мусорная подписка: 404/410/400/403/413 — сразу, прочие ошибки — после трёх подряд
@@ -91,7 +159,7 @@ async function sendReminders() {
         })))
   } finally { sending = false }
 }
-setInterval(() => sendReminders().catch(e => console.error(e)), 60e3).unref()
+if (env.FASOL_NO_LISTEN !== '1') setInterval(() => sendReminders().catch(e => console.error(e)), 60e3).unref()
 
 // письма отправляются через Resend (https://resend.com); без ключа сброс пароля выключен
 const MAIL = env.RESEND_API_KEY && env.MAIL_FROM ? { key: env.RESEND_API_KEY, from: env.MAIL_FROM } : null
@@ -336,7 +404,7 @@ const server = http.createServer(async (req, res) => {
         const ok = await webpush.sendNotification(JSON.parse(sub), JSON.stringify({ title: 'fasol.app', body, url: '/' }), { TTL: 60, timeout: 5000 }).then(() => true, () => false)
         if (!ok) return json(res, 400, { error: 'push_failed' })
       }
-      db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id, lang = excluded.lang').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now(), langOf(b.lang))
+      db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang, goal) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET hour = excluded.hour, minute = excluded.minute, tz = excluded.tz, user_id = excluded.user_id, lang = excluded.lang, goal = excluded.goal').run(b.subscription.endpoint, sub, Math.floor(h), Math.floor(m), tz, me?.id ?? null, Date.now(), langOf(b.lang), goalOf(b.goal))
       return json(res, 200, { ok: true })
     }
     if (path === '/push/unsubscribe' && req.method === 'POST') {
@@ -423,6 +491,8 @@ const server = http.createServer(async (req, res) => {
     json(res, e.message === 'too_large' ? 413 : e.message === 'bad_json' ? 400 : 500, { error: e.message === 'bad_json' ? 'bad_json' : 'server_error' })
   }
 })
-server.listen(PORT, '0.0.0.0', () => console.log(`fasol api :${PORT}, providers: ${enabled().join(', ') || 'нет'}`))
-// чистка просроченных сессий раз в сутки
-setInterval(() => { db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now()); db.prepare('DELETE FROM resets WHERE expires < ?').run(Date.now()) }, 864e5).unref()
+if (env.FASOL_NO_LISTEN !== '1') {
+  server.listen(PORT, '0.0.0.0', () => console.log(`fasol api :${PORT}, providers: ${enabled().join(', ') || 'нет'}`))
+  // чистка просроченных сессий раз в сутки
+  setInterval(() => { db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now()); db.prepare('DELETE FROM resets WHERE expires < ?').run(Date.now()) }, 864e5).unref()
+}

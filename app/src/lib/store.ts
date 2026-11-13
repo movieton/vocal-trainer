@@ -65,6 +65,73 @@ export function useStored<T>(key: string, fallback: T): [T, (v: T) => void] {
   return [value, set]
 }
 
+export type Goal = 'pitch' | 'range' | 'ear' | 'breath' | 'write'
+export const VALID_GOALS: readonly Goal[] = ['pitch', 'range', 'ear', 'breath', 'write']
+export type SkillLevel = 'none' | 'base'
+export type SkillProfile = { ear: SkillLevel; vocal: SkillLevel }
+export type PlanMode = 'mix' | 'split'
+export type PlanFocus = { day: string; goal: Goal } | null
+
+export const DEFAULT_SKILL_PROFILE: SkillProfile = { ear: 'none', vocal: 'none' }
+
+export function normalizeGoals(raw: unknown, legacy?: unknown): Goal[] {
+  const list = Array.isArray(raw)
+    ? raw.filter((g): g is Goal => typeof g === 'string' && (VALID_GOALS as readonly string[]).includes(g))
+    : []
+  const uniq = [...new Set(list)]
+  if (uniq.length) return uniq
+  if (typeof legacy === 'string' && (VALID_GOALS as readonly string[]).includes(legacy)) return [legacy as Goal]
+  return ['pitch']
+}
+
+export function normalizeSkillProfile(raw: unknown): SkillProfile {
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>
+    return {
+      ear: r.ear === 'base' ? 'base' : 'none',
+      vocal: r.vocal === 'base' ? 'base' : 'none',
+    }
+  }
+  return { ...DEFAULT_SKILL_PROFILE }
+}
+
+export function readGoals(): Goal[] {
+  return normalizeGoals(read<unknown>('goals', null), read<unknown>('goal', 'pitch'))
+}
+
+export function writeGoals(next: Goal[]): Goal[] {
+  const normalized = normalizeGoals(next)
+  write('goals', normalized)
+  // Синхронизируем одиночный ключ goal для обратной совместимости со старыми клиентами и merge()
+  write('goal', normalized[0])
+  return normalized
+}
+
+export function useGoals(): [Goal[], (next: Goal[]) => void] {
+  const [raw] = useStored<unknown>('goals', null)
+  const [legacy] = useStored<unknown>('goal', 'pitch')
+  const goals = normalizeGoals(raw, legacy)
+  const set = useCallback((next: Goal[]) => { writeGoals(next) }, [])
+  return [goals, set]
+}
+
+/** Инициализирует новые ключи целей/профиля из старого `goal` при первом запуске без перезаписи меток времени */
+export function ensureGoalProfile() {
+  const rawGoals = read<unknown>('goals', null)
+  const legacyGoal = read<unknown>('goal', null)
+  if (!Array.isArray(rawGoals) || !rawGoals.length) {
+    if (typeof legacyGoal === 'string' || read('onboarded', false)) {
+      write('goals', normalizeGoals(null, legacyGoal), true)
+    }
+  }
+  if (read<unknown>('skillProfile', null) == null && read('onboarded', false)) {
+    write('skillProfile', { ...DEFAULT_SKILL_PROFILE }, true)
+  }
+  if (read<unknown>('planMode', null) == null && read('onboarded', false)) {
+    write('planMode', 'mix', true)
+  }
+}
+
 export type Range = { lo: number; hi: number }
 export const DEFAULT_RANGE: Range = { lo: 48, hi: 67 }
 

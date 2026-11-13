@@ -1183,3 +1183,50 @@ p, li { text-wrap: pretty }
 [data-welcome] .shell { grid-template-columns: 1fr }
 .notfound > p { max-width: 560px }
 @media (min-width: 761px) { .hero-btn { justify-self: start; min-width: 280px; max-width: 420px } }
+
+/* спринт А: мульти-цели, адаптивный план дня, переключатель режимов */
+.choice-chk { width: 22px; height: 22px; flex: none; border-radius: 7px; border: 1.5px solid var(--line); display: grid; place-items: center; margin-left: auto; background: var(--bg); color: var(--on-accent); transition: background .15s, border-color .15s }
+.choice-chk.on { background: var(--accent); border-color: var(--accent) }
+.choice-chk svg { color: currentColor }
+.skill-qs { display: grid; gap: 16px; margin: 20px 0 12px }
+.skill-q { display: grid; gap: 8px }
+.skill-q b { font-size: 14px }
+.format-pick { display: grid; gap: 10px }
+.welcome-format { margin-top: 16px }
+.welcome-format > b { display: block; margin-bottom: 4px }
+.welcome-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px }
+.welcome-nav .textbtn.back { margin-top: 0 }
+
+.home-mode-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line) }
+.plan-setup-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; min-height: 44px; padding-inline: 10px; white-space: nowrap }
+.focus-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 10px 0 4px }
+.focus-pills { display: flex; flex-wrap: wrap; gap: 6px }
+.focus-pill { min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s }
+.focus-pill.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent) }
+@media (hover: hover) { .focus-pill:not(.on):hover { border-color: var(--accent) } }
+@media (max-width: 760px), (pointer: coarse) {
+  .focus-pill { min-height: 44px; padding: 8px 14px }
+}
+
+.plan-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0 }
+.dom-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1.4; letter-spacing: .01em; white-space: nowrap }
+.dom-vocal { background: #E8ECFE; color: #2440CC }
+.dom-breath { background: #E3F6ED; color: #167342 }
+.dom-range { background: #FFF2D6; color: #8F5B00 }
+.dom-ear { background: #F0E8FE; color: #5E2DB8 }
+.dom-write { background: #FCE8EF; color: #A62652 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .dom-vocal { background: #23306A; color: #B9C6FF }
+  :root:not([data-theme='light']) .dom-breath { background: #143A28; color: #7EE0A8 }
+  :root:not([data-theme='light']) .dom-range { background: #3E2D0F; color: #F8D27A }
+  :root:not([data-theme='light']) .dom-ear { background: #2E1F4D; color: #CBB2FF }
+  :root:not([data-theme='light']) .dom-write { background: #461B2B; color: #FFA8C5 }
+}
+@media (max-width: 560px) {
+  .plan li a .plan-title { grid-column: 2 }
+}
+
+.account-plan { display: grid; gap: 8px; margin-top: 16px }
+.account-plan h2 { margin: 0 }
+.account-plan p { margin: 0 }
+.account-plan .btn { justify-self: start; margin-top: 4px; text-decoration: none; display: inline-flex; align-items: center }

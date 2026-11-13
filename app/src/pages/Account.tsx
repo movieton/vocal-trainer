@@ -4,20 +4,35 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Cloud, CloudOff, LogOut } from 'lucide-react'
 import { authEmail, confirmReset, deleteAccount, loginUrl, logout, requestReset, setAvatar, useAccount } from '../lib/account'
 import { AVATARS, avatarName, avatarSrc } from '../lib/avatars'
+import { GOAL_LABEL } from '../lib/dayPlan'
 import { UserAvatar } from '../components/Avatar'
 import { useNavigate } from 'react-router-dom'
 import { ReminderCard } from '../components/Reminder'
+import { useGoals, useStored, type PlanMode } from '../lib/store'
 
 const PROVIDER_NAME: Record<string, string> = { google: 'Google', yandex: tr('Яндекс ID'), email: tr('почту и пароль'), dev: tr('тестовый вход') }
 
 export default function Account() {
   const a = useAccount()
+  const [goals] = useGoals()
+  const [planMode] = useStored<PlanMode>('planMode', 'mix')
+  const [dailyMin] = useStored('dailyMin', 15)
   const [params] = useSearchParams()
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [picking, setPicking] = useState(false)
   const [avErr, setAvErr] = useState(false)
   const failed = params.get('login') === 'error'
+  const planCard = (
+    <div className="card account-plan">
+      <h2>{tr('Цели и план дня')}</h2>
+      <p className="muted small">
+        {goals.map(g => GOAL_LABEL[g]).join(', ')} · {dailyMin} {tr('мин в день')}
+        {goals.length >= 2 && ` · ${planMode === 'split' ? tr('по дням') : tr('в одном дне')}`}
+      </p>
+      <Link to="/plan-setup" className="btn ghost">{tr('Настроить цели и план')}</Link>
+    </div>
+  )
 
   if (!a.ready) return <div className="page"><h1>{tr('Аккаунт')}</h1><p className="muted">{tr('Проверяем вход…')}</p></div>
 
@@ -34,6 +49,8 @@ export default function Account() {
         {a.providers.includes('dev') && <a className="login-btn" href={loginUrl('dev')}>{tr('Тестовый вход')}</a>}
       </div>}
       {a.providers.length > 0 && <p className="muted small consent">{tr('Входя или регистрируясь, ты соглашаешься с')} <Link to="/privacy">{tr('политикой конфиденциальности')}</Link>{tr('. Храним только имя, почту и прогресс занятий.')}</p>}
+      {planCard}
+      <ReminderCard />
     </div>
   )
 
@@ -74,6 +91,7 @@ export default function Account() {
       <button className="btn ghost" onClick={async () => {
         if (!(await logout()) && confirm(tr('Последние изменения не сохранились на сервере. Выйти всё равно? Они останутся только если не выходить.'))) await logout(true)
       }}><LogOut size={16} /> {tr('Выйти')}</button>
+      {planCard}
       <ReminderCard />
       <div className="danger-zone">
         <p className="muted small">{tr('Удаление сотрёт профиль и прогресс — и на сервере, и в этом браузере. Восстановить их будет нельзя.')}</p>

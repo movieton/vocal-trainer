@@ -64,4 +64,22 @@ describe('account.merge', () => {
       lv: { intervals: 2, chords: 1, scales: 3 },
     })
   })
+
+  it('reconciles goals, legacy goal, skillProfile and planMode timestamps cleanly', () => {
+    const newerLegacy = merge(
+      { goal: 'breath', goals: ['pitch'], meta: { goal: 300, goals: 100 } },
+      { goal: 'pitch', goals: ['pitch', 'ear'], skillProfile: { ear: 'base', vocal: 'bad' }, planMode: 'split', meta: { goal: 200, goals: 200 } },
+    )
+    expect(newerLegacy.goals).toEqual(['breath'])
+    expect(newerLegacy.goal).toBe('breath')
+    expect(newerLegacy.skillProfile).toEqual({ ear: 'base', vocal: 'none' })
+    expect(newerLegacy.planMode).toBe('split')
+
+    const newerMulti = merge(
+      { goal: 'pitch', goals: ['ear', 'range'], skillProfile: { ear: 'base', vocal: 'base' }, planMode: 'mix', meta: { goal: 100, goals: 400 } },
+      { goal: 'breath', goals: ['breath'], meta: { goal: 200, goals: 200 } },
+    )
+    expect(newerMulti.goals).toEqual(['ear', 'range'])
+    expect(newerMulti.goal).toBe('ear')
+  })
 })
