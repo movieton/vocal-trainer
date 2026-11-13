@@ -1,7 +1,7 @@
 import { tr } from '../lib/i18n'
 import { useEffect, useReducer, useRef } from 'react'
 import { engine, SIM } from '../lib/audio'
-import { noteName } from '../lib/music'
+import { computePitchDisplay } from '../lib/pitchDisplay'
 
 /** Перерисовка компонента при смене состояния движка, не чаще ~12 раз в секунду */
 export function useEngine(fps = 12) {
@@ -34,15 +34,16 @@ export function MicGate({ children }: { children?: React.ReactNode }) {
   )
 }
 
-export function LiveNote({ big }: { big?: boolean }) {
+export function LiveNote({ big, targetMidi }: { big?: boolean; targetMidi?: number | null | (() => number | null) }) {
   useEngine(15)
   if (engine.mic !== 'on') return null
   const m = engine.current
+  const resolvedTarget = typeof targetMidi === 'function' ? targetMidi() : targetMidi
+  const { note, cents, isTarget } = computePitchDisplay(m, resolvedTarget)
   // место под ноту есть всегда: появление голоса не сдвигает экран
-  const cents = m == null ? null : Math.round((m - Math.round(m)) * 100)
   return (
-    <div className={'livenote' + (big ? ' big' : '') + (m == null ? ' silent' : '')}>
-      <span className="n">{m == null ? '—' : noteName(m)}</span>
+    <div className={'livenote' + (big ? ' big' : '') + (m == null ? ' silent' : '') + (isTarget && m != null ? ' target' : '')}>
+      <span className="n">{note ?? '—'}</span>
       <span className="c">{cents == null ? '' : (cents > 0 ? '+' : cents < 0 ? '−' : '±') + Math.abs(cents) + tr(' ц')}</span>
     </div>
   )

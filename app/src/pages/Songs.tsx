@@ -1,12 +1,13 @@
 import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Mic } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Mic, PenLine, Play, Pencil, Trash2 } from 'lucide-react'
 import DrillPage from '../components/DrillPage'
 import { MicGate, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
+import { ensureCustomSongs, MAX_CUSTOM_SONGS, MAX_TITLE_LEN, useCustomSongs } from '../lib/customSongs'
 import type { Phrase } from '../lib/phrase'
-import { noteName, transcribe } from '../lib/music'
+import { noteName, plural, transcribe } from '../lib/music'
 import { useStored, useWorkRange, type Range } from '../lib/store'
 import { LEVEL_TEXT, SONGS, songSpan, type Song, type SongNote } from '../data/songs'
 
@@ -49,9 +50,15 @@ function buildPhrase(notes: SongNote[], label: string, tonic: number, beat: numb
 }
 
 export function SongList() {
-  const [mine] = useStored<Song | null>('songs.mine', null)
+  const { songs: custom, rename, remove, atLimit } = useCustomSongs()
   const [best] = useStored<Record<string, number>>('songs.best', {})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftTitle, setDraftTitle] = useState('')
+  const [confirmId, setConfirmId] = useState<string | null>(null)
   const r = useWorkRange()
+
+  useEffect(() => { ensureCustomSongs() }, [])
+
   return (
     <div className="page">
       <h1>{tr('Песни')}</h1>
@@ -68,13 +75,88 @@ export function SongList() {
             </Link>
           )
         })}
-        <Link to="/songs/mine" className="tile">
-          <span className="tile-top"><span className="lvl"><Mic size={14} aria-hidden /></span><span className="muted small">{tr('Своя')}</span></span>
-          <strong>{mine ? tr('Моя мелодия') : tr('Напеть свою')}</strong>
-          <span className="muted small">{mine ? tr('{0} фраз · можно перезаписать', mine.phrases.length) : tr('Напой мелодию любой песни — она станет упражнением')}</span>
-          <span className="syl">{mine ? (best.mine != null ? tr('Лучший {0}%', best.mine) : tr('Записана')) : tr('С микрофоном')}</span>
-        </Link>
       </div>
+
+      <section className="custom-songs" aria-labelledby="custom-songs-title">
+        <div className="prog-head">
+          <h2 id="custom-songs-title">{tr('Мои песни')}</h2>
+          <span className="muted small">{custom.length} / {MAX_CUSTOM_SONGS}</span>
+        </div>
+
+        {atLimit && (
+          <p className="note-box small" role="status">{tr('Достигнут лимит: 25 своих песен. Удали лишнюю песню, чтобы добавить новую.')}</p>
+        )}
+
+        {custom.length === 0 ? (
+          <div className="card empty-custom">
+            <p className="muted">{tr('Здесь появятся ваши мелодии из Сочинения и записи голоса')}</p>
+            <div className="row-btns">
+              <Link to="/songs/mine" className="btn"><Mic size={16} /> {tr('Записать с микрофона')}</Link>
+              <Link to="/compose" className="btn ghost"><PenLine size={16} /> {tr('Открыть Сочинение')}</Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="row-btns custom-songs-actions">
+              <Link to="/songs/mine" className="btn ghost small-btn"><Mic size={16} /> {tr('Записать с микрофона')}</Link>
+              <Link to="/compose" className="btn ghost small-btn"><PenLine size={16} /> {tr('Открыть Сочинение')}</Link>
+            </div>
+            <div className="custom-songs-list">
+              {custom.map(s => {
+                const isEditing = editingId === s.id
+                const isConfirming = confirmId === s.id
+                return (
+                  <article key={s.id} className="card custom-song-card">
+                    <div className="custom-song-head">
+                      <strong className="custom-song-title">{s.title}</strong>
+                      <span className="muted small">
+                        {s.bpm} {tr('уд/мин')} · {s.phrases.length} {plural(s.phrases.length, [tr('фраза'), tr('фразы'), tr('фраз')])}
+                        {best[s.id] != null ? tr(' · лучший {0}%', best[s.id]) : ''}
+                      </span>
+                      {s.sub && <span className="muted small">{s.sub}</span>}
+                    </div>
+
+                    {isEditing ? (
+                      <form className="custom-song-rename" onSubmit={e => { e.preventDefault(); if (draftTitle.trim()) { rename(s.id, draftTitle); setEditingId(null) } }}>
+                        <input
+                          type="text"
+                          value={draftTitle}
+                          maxLength={MAX_TITLE_LEN}
+                          aria-label={tr('Название песни')}
+                          autoFocus
+                          onChange={e => setDraftTitle(e.target.value)}
+                        />
+                        <div className="custom-song-btns">
+                          <button type="submit" className="btn" disabled={!draftTitle.trim()}>{tr('Сохранить')}</button>
+                          <button type="button" className="btn ghost" onClick={() => setEditingId(null)}>{tr('Отмена')}</button>
+                        </div>
+                      </form>
+                    ) : isConfirming ? (
+                      <div className="confirm-row" role="alertdialog" aria-label={tr('Подтверждение удаления')}>
+                        <span className="small">{tr('Удалить «{0}»?', s.title)}</span>
+                        <div className="confirm-btns">
+                          <button type="button" className="danger-btn solid" onClick={() => { remove(s.id); setConfirmId(null) }}>{tr('Удалить')}</button>
+                          <button type="button" className="btn ghost" onClick={() => setConfirmId(null)}>{tr('Отмена')}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="custom-song-btns">
+                        <Link to={`/songs/custom/${s.id}`} className="btn"><Play size={16} fill="currentColor" /> {tr('Петь')}</Link>
+                        <button type="button" className="btn ghost" onClick={() => { setConfirmId(null); setEditingId(s.id); setDraftTitle(s.title) }}>
+                          <Pencil size={15} /> {tr('Переименовать')}
+                        </button>
+                        <button type="button" className="danger-btn" onClick={() => { setEditingId(null); setConfirmId(s.id) }}>
+                          <Trash2 size={15} /> {tr('Удалить')}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 }
@@ -126,25 +208,38 @@ function SongRun({ song, extra }: { song: Song; extra?: React.ReactNode }) {
   )
 }
 
-export function SongPage() {
+function SongView({ custom }: { custom?: boolean }) {
   const { id = '' } = useParams()
-  if (id === 'mine') return <MySong />
-  const song = SONGS.find(s => s.id === id)
+  const { songs: customSongs } = useCustomSongs()
+  useEffect(() => { ensureCustomSongs() }, [])
+  if (!custom && id === 'mine') return <MySong />
+  const song = custom ? customSongs.find(s => s.id === id) : SONGS.find(s => s.id === id)
   if (!song) return <div className="page"><p>{tr('Песня не найдена.')} <Link to="/songs">{tr('К списку')}</Link></p></div>
   return <SongRun song={song} />
+}
+
+export function SongPage() {
+  return <SongView />
+}
+
+export function CustomSongPage() {
+  return <SongView custom />
 }
 
 const REC_BPM = 90
 const REC_MAX = 30
 
-/** Записываем напетую мелодию и превращаем в ноты */
+/** Записываем напетую мелодию и сохраняем новой песней в `songs.custom` */
 function MySong() {
   useEngine(4)
-  const [mine, setMine] = useStored<Song | null>('songs.mine', null)
+  const go = useNavigate()
+  const { songs: custom, add, atLimit } = useCustomSongs()
   const [rec, setRec] = useState<null | number>(null)
   const [left, setLeft] = useState(REC_MAX)
   const [err, setErr] = useState('')
   const frames = useRef<{ t: number; midi: number | null }[]>([])
+
+  useEffect(() => { ensureCustomSongs() }, [])
 
   useEffect(() => engine.subscribe(() => {
     if (rec == null) return
@@ -155,7 +250,16 @@ function MySong() {
     if (l === 0) finish()
   }), [rec]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const begin = () => { setErr(''); frames.current = []; setLeft(REC_MAX); setRec(engine.now()) }
+  const begin = () => {
+    if (atLimit) {
+      setErr(tr('Достигнут лимит: 25 своих песен. Удали лишнюю в разделе «Песни», чтобы записать новую.'))
+      return
+    }
+    setErr('')
+    frames.current = []
+    setLeft(REC_MAX)
+    setRec(engine.now())
+  }
   const finish = () => {
     if (rec == null) return
     const t0 = rec, beat = 60 / REC_BPM
@@ -174,24 +278,46 @@ function MySong() {
       end = n.beat + n.d
     }
     if (cur.length) phrases.push({ label: tr('Фраза {0}', phrases.length + 1), notes: cur })
-    setMine({ id: 'mine', title: tr('Моя мелодия'), sub: tr('Напета тобой'), level: 1, bpm: REC_BPM, meter: 4, phrases, base })
+    const title = custom.length ? tr('Моя мелодия {0}', custom.length + 1) : tr('Моя мелодия')
+    const song: Song = {
+      id: `rec-${Date.now().toString(36)}`,
+      title,
+      sub: tr('Записана с микрофона'),
+      level: 1,
+      bpm: REC_BPM,
+      meter: 4,
+      phrases,
+      base,
+    }
+    const res = add(song)
+    if (!res.ok) {
+      setErr(res.reason === 'limit'
+        ? tr('Достигнут лимит: 25 своих песен. Удали лишнюю в разделе «Песни», чтобы записать новую.')
+        : tr('Не удалось сохранить запись. Попробуй ещё раз.'))
+      return
+    }
+    go(`/songs/custom/${res.song.id}`)
   }
 
   const recorder = (
     <div className="card rec-card">
-      <h2>{mine ? tr('Перезаписать мелодию') : tr('Напой мелодию')}</h2>
+      <h2>{tr('Напой мелодию')}</h2>
       <p className="muted small">{tr('Пой на «на» или «да», каждую ноту отдельно, без украшений. До')} {REC_MAX} {tr('секунд. Паузы между фразами — от секунды.')}</p>
+      {atLimit && (
+        <p className="note-box small" role="status">{tr('Достигнут лимит: 25 своих песен. Удали лишнюю в разделе «Песни», чтобы записать новую.')}</p>
+      )}
       {engine.mic === 'on' && (
         <div className="toolbar">
-          <button className={'btn' + (rec != null ? ' stop' : '')} onClick={rec != null ? finish : begin}>{rec != null ? tr('Готово · {0} с', left) : mine ? tr('Записать заново') : tr('Записать')}</button>
-          {mine && rec == null && <button className="btn ghost" onClick={() => setMine(null)}>{tr('Удалить')}</button>}
+          <button className={'btn' + (rec != null ? ' stop' : '')} onClick={rec != null ? finish : begin} disabled={rec == null && atLimit}>
+            {rec != null ? tr('Готово · {0} с', left) : tr('Записать')}
+          </button>
         </div>
       )}
-      {err && <p className="err small">{err}</p>}
+      {err && <p className="err small" role="alert">{err}</p>}
     </div>
   )
 
-  if (!mine || rec != null) return (
+  return (
     <div className="page">
       <div className="crumbs"><Link to="/songs">{tr('Песни')}</Link></div>
       <h1>{tr('Своя мелодия')}</h1>
@@ -200,5 +326,4 @@ function MySong() {
       {recorder}
     </div>
   )
-  return <SongRun song={mine} extra={recorder} />
 }

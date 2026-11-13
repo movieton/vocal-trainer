@@ -57,6 +57,7 @@ const Levels = lazyNamed(() => import('./pages/EarMore'), 'Levels')
 const Melody = lazyNamed(() => import('./pages/EarMore'), 'Melody')
 const SongList = lazyNamed(() => import('./pages/Songs'), 'SongList')
 const SongPage = lazyNamed(() => import('./pages/Songs'), 'SongPage')
+const CustomSongPage = lazyNamed(() => import('./pages/Songs'), 'CustomSongPage')
 const Course = lazy(() => import('./pages/Course'))
 const PlanSetup = lazy(() => import('./pages/PlanSetup'))
 
@@ -125,6 +126,7 @@ export default function App() {
             <Route path="/theory/:id" element={<TheoryArticle />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/songs" element={<SongList />} />
+            <Route path="/songs/custom/:id" element={<CustomSongPage />} />
             <Route path="/songs/:id" element={<SongPage />} />
             <Route path="/course" element={<Course />} />
             <Route path="/plan-setup" element={<PlanSetup />} />

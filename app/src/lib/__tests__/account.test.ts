@@ -82,4 +82,34 @@ describe('account.merge', () => {
     expect(newerMulti.goals).toEqual(['ear', 'range'])
     expect(newerMulti.goal).toBe('ear')
   })
+
+  it('migrates songs.mine to songs.custom and enforces 25-song cap during merge', () => {
+    const legacyMine = {
+      id: 'mine',
+      title: 'VeryLongTitle'.repeat(10),
+      sub: 'Напета',
+      level: 1,
+      bpm: 90,
+      meter: 4,
+      phrases: [{ label: 'F1', notes: [{ s: 0, d: 1 }] }],
+    }
+    const fromLegacy = merge({}, { 'songs.mine': legacyMine, meta: { 'songs.mine': 500 } })
+    expect(Array.isArray(fromLegacy['songs.custom'])).toBe(true)
+    const migrated = fromLegacy['songs.custom'] as Array<{ id: string; title: string }>
+    expect(migrated).toHaveLength(1)
+    expect(migrated[0].id).toBe('mine')
+    expect(migrated[0].title.length).toBeLessThanOrEqual(80)
+
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      id: `c-${i}`,
+      title: `Track ${i}`,
+      sub: '',
+      level: 1,
+      bpm: 95,
+      meter: 4,
+      phrases: [{ label: 'P1', notes: [{ s: 0, d: 1 }] }],
+    }))
+    const capped = merge({ 'songs.custom': many, meta: { 'songs.custom': 900 } }, { 'songs.custom': [], meta: { 'songs.custom': 100 } })
+    expect((capped['songs.custom'] as unknown[]).length).toBe(25)
+  })
 })

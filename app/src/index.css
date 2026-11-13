@@ -1230,3 +1230,23 @@ p, li { text-wrap: pretty }
 .account-plan h2 { margin: 0 }
 .account-plan p { margin: 0 }
 .account-plan .btn { justify-self: start; margin-top: 4px; text-decoration: none; display: inline-flex; align-items: center }
+
+/* спринт Б: свои песни (Compose -> Songs) и целевой LiveNote */
+.livenote.target .n { color: var(--accent) }
+.custom-songs { margin-top: 28px; display: grid; gap: 12px }
+.custom-songs .prog-head h2 { margin: 0 }
+.empty-custom { display: grid; gap: 12px }
+.empty-custom p { margin: 0 }
+.empty-custom .btn, .custom-songs-actions .btn, .custom-song-btns .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; min-height: 44px }
+.custom-songs-actions { margin-bottom: 2px }
+.custom-songs-list { display: grid; gap: 12px }
+.custom-song-card { display: grid; gap: 12px }
+.custom-song-head { display: grid; gap: 4px; min-width: 0 }
+.custom-song-title { font-size: 16px; line-height: 1.3; overflow-wrap: anywhere }
+.custom-song-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.custom-song-rename { display: grid; gap: 10px }
+.custom-song-rename input { min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; width: 100% }
+@media (max-width: 560px) {
+  .empty-custom .row-btns .btn, .custom-songs-actions .btn { flex: 1 1 auto }
+  .custom-song-btns .btn, .custom-song-btns .danger-btn { min-height: 44px }
+}

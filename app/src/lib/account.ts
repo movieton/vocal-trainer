@@ -1,5 +1,6 @@
 import { lang, tr } from './i18n'
 import { useSyncExternalStore } from 'react'
+import { ensureCustomSongs, migrateCustomSongs, normalizeCustomSongs } from './customSongs'
 import { DEVICE_KEYS, clearSynced, ensureGoalProfile, normalizeGoals, normalizeSkillProfile, onWrite, read, snapshot, write, type SessionLog } from './store'
 
 /**
@@ -53,6 +54,19 @@ export function merge(local: Record<string, unknown>, remote: Record<string, unk
   }
   if ('skillProfile' in out) out.skillProfile = normalizeSkillProfile(out.skillProfile)
   if ('planMode' in out) out.planMode = out.planMode === 'split' ? 'split' : 'mix'
+  // миграция и нормализация своей библиотеки песен (songs.mine -> songs.custom, лимит 25, лимит длины полей)
+  if ('songs.custom' in out || 'songs.mine' in out) {
+    if (!('songs.custom' in out) && out['songs.mine'] != null) {
+      out['songs.custom'] = migrateCustomSongs(null, out['songs.mine'])
+      if (meta['songs.mine'] != null) meta['songs.custom'] = meta['songs.mine']
+    } else if ('songs.custom' in out) {
+      let next = normalizeCustomSongs(out['songs.custom'])
+      if (out['songs.mine'] != null && (meta['songs.mine'] ?? 0) > (meta['songs.custom'] ?? 0)) {
+        next = migrateCustomSongs(next, out['songs.mine'])
+      }
+      out['songs.custom'] = next
+    }
+  }
   return out
 }
 
@@ -130,6 +144,7 @@ export async function initAccount() {
   if (started) return
   started = true
   ensureGoalProfile()
+  ensureCustomSongs()
   onWrite(() => { setDirty(true); if (state.user) { clearTimeout(timer); timer = setTimeout(push, 4000) } })
   // свернули — отправляем сразу, пока страница ещё жива
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && isDirty()) void push() })
