@@ -1,12 +1,5 @@
-import { lang, tr } from '../lib/i18n'
-import list from '../data/avatars.json'
+import { avatarSrc } from '../lib/avatars'
 import type { User } from '../lib/account'
-
-/** Набор аватарок fasol: id хранится на сервере, картинка — в статике /avatars/<id>.webp */
-export type AvatarItem = { id: string; name: string; nameEn: string; collection: string }
-export const AVATARS = list as AvatarItem[]
-export const avatarSrc = (id: string) => `/avatars/${id}.webp`
-export const avatarName = (a: AvatarItem) => (lang === 'en' ? a.nameEn : a.name) + (a.collection === 'musical' ? tr(' с нотами') : '')
 
 /** Аватар пользователя: выбранный из набора → фото из Google/Яндекса → первая буква имени */
 export function UserAvatar({ user, size = 56 }: { user: User; size?: number }) {

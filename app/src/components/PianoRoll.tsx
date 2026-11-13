@@ -34,8 +34,8 @@ const LABEL_W = 72
 
 export default function PianoRoll({ follow = false, view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className, lyrics }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
-  const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
-  props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
+  const props = useRef({ follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
+  props.current = { follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
 
   useEffect(() => {
     // новый экран — без следа голоса с прошлого
@@ -43,7 +43,7 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
     const cv = ref.current!
     const g = cv.getContext('2d')!
     const draw = () => {
-      const { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
+      const { follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
       const hist = replay?.history ?? engine.history
       const dpr = devicePixelRatio || 1, W = cv.clientWidth, FH = cv.clientHeight
       if (!W || !FH) return

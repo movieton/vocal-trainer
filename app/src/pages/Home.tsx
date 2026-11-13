@@ -1,7 +1,7 @@
 import { tr } from '../lib/i18n'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { Goal } from './Welcome'
-import { startPlan } from '../components/PlanBar'
+import { startPlan } from '../lib/plan'
 import { ReminderCard } from '../components/Reminder'
 import { CourseCard, idMatch, useCourse } from './Course'
 import { Check, ChevronRight, Flame, Play } from 'lucide-react'

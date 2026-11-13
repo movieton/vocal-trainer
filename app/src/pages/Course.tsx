@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, Lock, Play } from 'lucide-react'
 import { COURSE, WEEKS, type CourseDay } from '../data/course'
-import { startPlan } from '../components/PlanBar'
+import { startPlan } from '../lib/plan'
 import { useStored, type SessionLog } from '../lib/store'
 
 /** Прогресс курса: когда закрыт каждый день и какой день сейчас в работе */
@@ -42,7 +42,7 @@ export function useCourse() {
     if (!a || p.done[a.n]) return
     const day = COURSE[a.n - 1]
     if (steps(day).every((_, i) => stepDone(day, i))) setP({ done: { ...p.done, [a.n]: Date.now() }, active: null })
-  }) // eslint-disable-line react-hooks/exhaustive-deps
+  })
 
   const open = (day: CourseDay, to?: string) => {
     const a = p.active?.n === day.n ? p.active : { n: day.n, since: Date.now(), visited: [] }

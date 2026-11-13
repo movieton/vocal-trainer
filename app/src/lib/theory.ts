@@ -186,3 +186,5 @@ export function syllabify(text: string): { s: string; stress: boolean }[] {
   }
   return out
 }
+
+export const sigText = (s: number) => (s === 0 ? tr('без знаков') : `${Math.abs(s)} ${s > 0 ? tr('диез') : tr('бемол')}${Math.abs(s) === 1 ? '' : Math.abs(s) < 5 ? 'а' : tr('ов')}`)

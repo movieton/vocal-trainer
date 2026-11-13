@@ -1155,16 +1155,19 @@ p, li { text-wrap: pretty }
 [data-welcome] .tabbar { display: none }
 .notfound .btn { display: inline-flex; align-items: center; margin-top: 8px; text-decoration: none }
 
-/* цели касания на телефоне — не меньше 44 px */
+/* цели касания на мобильных и сенсорных экранах — не меньше 44 px */
+@media (max-width: 760px), (pointer: coarse) {
+  .seg button, .anchors button, .topics button, .skills button, .small-btn { min-height: 44px }
+  .stepper button, .mel-tools button { min-width: 44px; min-height: 44px }
+  .mel-tools .mel-del { min-width: 44px; min-height: 44px }
+}
 @media (max-width: 560px) {
-  .seg button, .anchors button { min-height: 44px }
   .textbtn { min-height: 44px; padding: 6px 10px }
   .crumbs a { display: inline-block; padding: 12px 4px; margin: -12px -4px }
   .prog-head .muted a { display: inline-block; padding: 12px 0; margin: -12px 0 }
 }
 @media (max-width: 560px) {
   .crumbs a { display: inline-block; padding: 12px 4px; margin: -12px -4px }
-  .stepper button { min-width: 44px; min-height: 44px }
   .chk { min-height: 44px }
   .chk input { width: 22px; height: 22px }
   select { min-height: 44px }

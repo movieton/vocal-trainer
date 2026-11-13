@@ -14,7 +14,7 @@ type Entry = { key: string; title: string; goal: string; to: string; topic: Topi
 
 /** Навык, который тренирует упражнение: по нотам видно, на что оно работает */
 export type Skill = 'pitch' | 'speed' | 'range' | 'breath'
-export const SKILLS: { id: Skill; title: string }[] = [
+const SKILLS: { id: Skill; title: string }[] = [
   { id: 'pitch', title: tr('Точность') }, { id: 'speed', title: tr('Скорость') }, { id: 'range', title: tr('Диапазон') }, { id: 'breath', title: tr('Дыхание') },
 ]
 function skillsOf(notes: ExNote[] | undefined, bpm = 70, breath = false): Skill[] {
@@ -36,7 +36,7 @@ function skillsOf(notes: ExNote[] | undefined, bpm = 70, breath = false): Skill[
 
 const SECTION_TOPIC: Record<Section, TopicId> = { warmup: 'warmup', calm: 'sound', mix: 'registers', belt: 'registers', modes: 'registers', agility: 'agility' }
 
-export const ENTRIES: Entry[] = [
+const ENTRIES: Entry[] = [
   ...EXERCISES.map(e => ({ key: 'ex:' + e.id, title: e.title, goal: e.goal, to: `/ex/${e.id}`, topic: SECTION_TOPIC[e.section], level: e.level, tag: tr('на доске'), skills: skillsOf(e.notes, e.bpm) })),
   ...BREATH.map(b => ({ key: 'br:' + b.id, title: b.title, goal: b.goal, to: `/breath/${b.id}`, topic: (b.group === 'health' ? 'health' : 'breath') as TopicId, level: b.level, evidence: b.evidence, tag: tr('таймер'), skills: (b.group === 'health' ? [] : ['breath']) as Skill[] })),
   ...LIBRARY.map(i => ({ key: 'lib:' + i.id, title: i.title, goal: i.goal, to: `/lib/${i.id}`, topic: topicOf(i), level: i.level, evidence: i.evidence, tag: i.notes ? tr('на доске') : undefined, skills: skillsOf(i.notes ? p(i.notes) : undefined, i.bpm, i.cat === 'дыхание') })),
