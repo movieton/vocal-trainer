@@ -19,11 +19,13 @@ const MAX_PROGRESS = 512_000 // полный прогресс с журнало�
 const db = new DatabaseSync(env.DB_PATH ?? '/data/fasol.db')
 db.exec(`
   PRAGMA journal_mode = WAL;
+  PRAGMA busy_timeout = 5000;
   CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, provider TEXT NOT NULL, sub TEXT NOT NULL, name TEXT, email TEXT, avatar TEXT, created INTEGER NOT NULL, UNIQUE(provider, sub));
   CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);
-  CREATE TABLE IF NOT EXISTS progress (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, updated INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS progress (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, updated INTEGER NOT NULL, version INTEGER NOT NULL DEFAULT 1);
 `)
 db.exec('PRAGMA foreign_keys = ON')
+if (!db.prepare("SELECT 1 FROM pragma_table_info('progress') WHERE name = 'version'").get()) db.exec('ALTER TABLE progress ADD COLUMN version INTEGER NOT NULL DEFAULT 1')
 // вход по почте и паролю: хэш scrypt с солью
 if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'pass'").get()) db.exec('ALTER TABLE users ADD COLUMN pass TEXT')
 // выбранная аватарка из набора fasol (только id, картинки лежат в статике сайта)
@@ -359,8 +361,8 @@ const server = http.createServer(async (req, res) => {
     if (path === '/progress') {
       if (!u) return json(res, 401, { error: 'unauthorized' })
       if (req.method === 'GET') {
-        const row = db.prepare('SELECT data, updated FROM progress WHERE user_id = ?').get(u.id)
-        return json(res, 200, row ? { data: JSON.parse(row.data), updated: row.updated } : { data: null, updated: 0 })
+        const row = db.prepare('SELECT data, updated, version FROM progress WHERE user_id = ?').get(u.id)
+        return json(res, 200, row ? { data: JSON.parse(row.data), updated: row.updated, version: row.version } : { data: null, updated: 0, version: 0 })
       }
       if (req.method === 'PUT') {
         const body = await readBody(req)
@@ -369,9 +371,24 @@ const server = http.createServer(async (req, res) => {
         if (Object.keys(body.data).length > 300 || Object.keys(body.data).some(k => k.length > 64)) return json(res, 400, { error: 'bad_data' })
         const text = JSON.stringify(body.data)
         if (text.length > MAX_PROGRESS) return json(res, 413, { error: 'too_large' })
+        if (body.version != null && (!Number.isInteger(body.version) || body.version < 0)) return json(res, 400, { error: 'bad_version' })
+        const expected = body.version ?? 0
         const updated = Date.now()
-        db.prepare('INSERT INTO progress VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated = excluded.updated').run(u.id, text, updated)
-        return json(res, 200, { updated })
+        // оптимистичная блокировка: обновляем только при совпадении базовой версии
+        if (expected === 0) {
+          const r = db.prepare('INSERT INTO progress (user_id, data, updated, version) VALUES (?, ?, ?, 1) ON CONFLICT(user_id) DO NOTHING').run(u.id, text, updated)
+          if (r.changes === 0) {
+            const cur = db.prepare('SELECT data, updated, version FROM progress WHERE user_id = ?').get(u.id)
+            return json(res, 409, { error: 'conflict', data: cur ? JSON.parse(cur.data) : null, updated: cur?.updated ?? 0, version: cur?.version ?? 0 })
+          }
+          return json(res, 200, { updated, version: 1 })
+        }
+        const r = db.prepare('UPDATE progress SET data = ?, updated = ?, version = version + 1 WHERE user_id = ? AND version = ?').run(text, updated, u.id, expected)
+        if (r.changes === 0) {
+          const cur = db.prepare('SELECT data, updated, version FROM progress WHERE user_id = ?').get(u.id)
+          return json(res, 409, { error: 'conflict', data: cur ? JSON.parse(cur.data) : null, updated: cur?.updated ?? 0, version: cur?.version ?? 0 })
+        }
+        return json(res, 200, { updated, version: expected + 1 })
       }
     }
     if (path === '/profile/avatar' && req.method === 'PUT') {
@@ -385,8 +402,18 @@ const server = http.createServer(async (req, res) => {
     }
     if (path === '/account' && req.method === 'DELETE') {
       if (!u) return json(res, 401, { error: 'unauthorized' })
-      db.prepare('DELETE FROM push_subs WHERE user_id = ?').run(u.id)
-      db.prepare('DELETE FROM users WHERE id = ?').run(u.id)
+      db.exec('BEGIN IMMEDIATE')
+      try {
+        db.prepare('DELETE FROM resets WHERE user_id = ?').run(u.id)
+        db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id)
+        db.prepare('DELETE FROM progress WHERE user_id = ?').run(u.id)
+        db.prepare('DELETE FROM push_subs WHERE user_id = ?').run(u.id)
+        db.prepare('DELETE FROM users WHERE id = ?').run(u.id)
+        db.exec('COMMIT')
+      } catch (e) {
+        db.exec('ROLLBACK')
+        throw e
+      }
       setCookie(res, SID, '', 0)
       return json(res, 200, { ok: true })
     }

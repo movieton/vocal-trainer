@@ -89,6 +89,7 @@ class Engine {
         this.recSource = dest.stream
         this.simOsc.start()
       } else {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('NO_MEDIA_DEVICES')
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         })
@@ -109,9 +110,11 @@ class Engine {
       this.mic = 'error'
       const err = e as DOMException
       if (err?.name === 'NotAllowedError') write('micOk', false, true)
-      this.micError = err?.name === 'NotAllowedError'
-        ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
-        : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
+      this.micError = err?.message === 'NO_MEDIA_DEVICES'
+        ? tr('Микрофон недоступен в этом браузере. Открой сайт по HTTPS в Safari или Chrome.')
+        : err?.name === 'NotAllowedError'
+          ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
+          : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
     }
     this.emit()
   }

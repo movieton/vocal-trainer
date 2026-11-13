@@ -61,14 +61,27 @@ function push(): Promise<boolean> {
     try {
       const g = await api('/progress')
       if (!g.ok) throw new Error(String(g.status))
-      const { data: remote } = await g.json() as { data: Record<string, unknown> | null }
-      setDirty(false) // правки, сделанные во время отправки, снова поднимут флаг
-      const merged = merge(snapshot(), remote)
-      for (const [k, v] of Object.entries(synced(merged))) write(k, v, true)
-      const r = await api('/progress', { method: 'PUT', body: JSON.stringify({ data: synced(merged) }) })
-      if (!r.ok) throw new Error(String(r.status))
-      set({ syncedAt: Date.now(), syncing: false, error: null })
-      return true
+      let { data: remote, version } = await g.json() as { data: Record<string, unknown> | null; version?: number }
+      for (let attempt = 0; attempt < 3; attempt++) {
+        setDirty(false) // правки, сделанные во время отправки, снова поднимут флаг
+        const merged = merge(snapshot(), remote)
+        for (const [k, v] of Object.entries(synced(merged))) write(k, v, true)
+        const r = await api('/progress', { method: 'PUT', body: JSON.stringify({ data: synced(merged), version: version ?? 0 }) })
+        if (r.ok) {
+          set({ syncedAt: Date.now(), syncing: false, error: null })
+          return true
+        }
+        if (r.status === 409 && attempt < 2) {
+          const conflict = await r.json().catch(() => null) as { data?: Record<string, unknown> | null; version?: number } | null
+          if (conflict && 'version' in conflict) {
+            remote = conflict.data ?? null
+            version = conflict.version ?? 0
+            continue
+          }
+        }
+        throw new Error(String(r.status))
+      }
+      throw new Error('409')
     } catch {
       setDirty(true)
       set({ syncing: false, error: tr('Не удалось сохранить на сервере, повторим позже') })
@@ -140,14 +153,15 @@ const AUTH_ERRORS: Record<string, string> = {
   wrong: tr('Неверная почта или пароль.'),
   too_many: tr('Слишком много попыток. Подожди 15 минут.'),
 }
-/** Вход или регистрация по почте. Возвращает текст ошибки или null */
-export async function authEmail(mode: 'login' | 'register', email: string, password: string, name?: string): Promise<string | null> {
+export type AuthError = { code: string; text: string }
+/** Вход или регистрация по почте. Возвращает ошибку с кодом или null */
+export async function authEmail(mode: 'login' | 'register', email: string, password: string, name?: string): Promise<AuthError | null> {
   try {
     const r = await api('/' + mode, { method: 'POST', body: JSON.stringify({ email, password, name }) })
-    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return AUTH_ERRORS[error] ?? tr('Не получилось. Попробуй ещё раз.') }
+    if (!r.ok) { const { error } = await r.json().catch(() => ({ error: '' })) as { error: string }; return { code: error || 'unknown', text: AUTH_ERRORS[error] ?? tr('Не получилось. Попробуй ещё раз.') } }
     await loadMe()
     return null
-  } catch { return tr('Нет связи с сервером.') }
+  } catch { return { code: 'network', text: tr('Нет связи с сервером.') } }
 }
 
 export const loginUrl = (provider: string) => `/api/auth/${provider}/start`

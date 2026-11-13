@@ -101,6 +101,12 @@ function GoogleMark() {
   )
 }
 
+const ERROR_FIELD: Record<string, 'email' | 'pw'> = {
+  bad_email: 'email',
+  exists: 'email',
+  bad_password: 'pw',
+}
+
 function EmailForm({ canReset }: { canReset: boolean }) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [sent, setSent] = useState(false)
@@ -110,7 +116,6 @@ function EmailForm({ canReset }: { canReset: boolean }) {
   // ошибка привязана к полю, если она про конкретное поле
   const [err, setErr] = useState<{ field?: 'email' | 'pw'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
-  const fieldOf = (t: string) => (/почт/i.test(t) && !/пароль/i.test(t) ? 'email' : /^Пароль/.test(t) ? 'pw' : undefined)
   const errFor = (f: 'email' | 'pw') => (err?.field === f ? err.text : null)
   return (
     <form className="auth-form" noValidate onSubmit={async e => {
@@ -123,8 +128,8 @@ function EmailForm({ canReset }: { canReset: boolean }) {
       }
       if (pw.length < 8) return setErr({ field: 'pw', text: tr('Пароль — от 8 символов.') })
       setBusy(true)
-      const t = await authEmail(mode as 'login' | 'register', email, pw, name)
-      setErr(t ? { field: fieldOf(t), text: t } : null)
+      const res = await authEmail(mode as 'login' | 'register', email, pw, name)
+      setErr(res ? { field: ERROR_FIELD[res.code], text: res.text } : null)
       setBusy(false)
     }}>
       <div className="seg">

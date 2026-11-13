@@ -109,8 +109,8 @@ export default function Home() {
           <span className="muted small">{tr('готово {0} из {1}', doneN, plan.length)} · {courseOn ? <Link to="/course">{tr('весь курс')}</Link> : <Link to="/welcome">{tr('цель и время')}</Link>}</span>
         </div>
         <ol className="plan">
-          {plan.map(p => (
-            <li key={p.title} className={p.done ? 'done' : p === next ? 'cur' : ''}>
+          {plan.map((p, i) => (
+            <li key={`${p.id ?? p.to}-${i}`} className={p.done ? 'done' : p === next ? 'cur' : ''}>
               <Link to={p.to} onClick={() => begin(p.to)}>
                 <span className="min">{p.done ? <Check size={16} /> : p === next ? tr('сейчас') : tr('{0} мин', p.min)}</span>
                 <strong>{p.title}</strong><span className="muted">{p.text}</span>
