@@ -9,7 +9,7 @@ import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
 import { noteName } from '../lib/music'
-import { buildRoots, ExerciseRun, type Key, type Mode, type Phase, type Target } from '../lib/run'
+import { buildRoots, ExerciseRun, fitExercise, type Key, type Mode, type Phase, type Target } from '../lib/run'
 import { logSession, read, useStored, useWorkRange, write, type SessionLog } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
 import { libExercise } from '../data/library'
@@ -27,7 +27,7 @@ type Summary = ReturnType<ExerciseRun['summary']>
 
 export default function Trainer() {
   const { id = '' } = useParams()
-  const ex = exerciseById(id) ?? libExercise(id)
+  const rawEx = exerciseById(id) ?? libExercise(id)
   const [mode, setMode] = useStored<Mode>('mode2', 'together')
   const [tempo, setTempo] = useStored('tempo', 1)
   const [tol, setTol] = useStored('tolerance', 25)
@@ -49,6 +49,7 @@ export default function Trainer() {
   const [result, setResult] = useState<Summary | null>(null)
   const run = useRef<ExerciseRun | null>(null)
   const r = useWorkRange()
+  const ex = rawEx ? fitExercise(rawEx, r) : undefined
   useEngine(4)
 
   const stop = () => {

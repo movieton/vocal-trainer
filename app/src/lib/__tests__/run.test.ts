@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Exercise } from '../../data/exercises'
+import { exerciseById } from '../../data/exercises'
+import { libExercise } from '../../data/library'
 import { engine } from '../audio'
-import { buildRoots, ExerciseRun, targetAt } from '../run'
+import { buildRoots, ExerciseRun, fitExercise, targetAt } from '../run'
 
 const sampleEx: Exercise = {
   id: 'test-triad',
@@ -85,5 +87,41 @@ describe('run helpers & ExerciseRun', () => {
     expect(sum.reps).toBe(1)
     expect(sum.score).toBeCloseTo(1, 5)
     expect(sum.drift).toEqual([])
+    run.stop()
+  })
+
+  it('compresses 2-octave exercises to fit a narrow workRange while preserving contour', () => {
+    const narrow = { lo: 50, hi: 60 }
+    for (const id of ['siren-full', 'vfe-stretch', 'vfe-contract']) {
+      const ex = exerciseById(id) ?? libExercise(id)
+      expect(ex).toBeDefined()
+      const fitted = fitExercise(ex!, narrow)
+      const roots = buildRoots(fitted, narrow, 0, 'auto')
+      expect(roots.length).toBeGreaterThan(0)
+      for (const root of roots) {
+        for (const n of fitted.notes) {
+          expect(root + n.s).toBeGreaterThanOrEqual(narrow.lo)
+          expect(root + n.s).toBeLessThanOrEqual(narrow.hi)
+          if (n.glide != null) {
+            expect(root + n.glide).toBeGreaterThanOrEqual(narrow.lo)
+            expect(root + n.glide).toBeLessThanOrEqual(narrow.hi)
+          }
+        }
+      }
+    }
+    const sirenFitted = fitExercise((exerciseById('siren-full') ?? libExercise('siren-full'))!, narrow)
+    expect(sirenFitted.notes[1].glide!).toBeGreaterThan(sirenFitted.notes[1].s)
+    expect(sirenFitted.notes[2].glide!).toBeLessThan(sirenFitted.notes[2].s)
+  })
+
+  it('caps zero/narrow-span ladder reps to <= 10 on wide ranges', () => {
+    const wide = { lo: 45, hi: 70 }
+    for (const id of ['messa', 'twang', 'five-vowels']) {
+      const ex = exerciseById(id)!
+      expect(ex).toBeDefined()
+      const roots = buildRoots(ex, wide, 0, 'auto')
+      expect(roots.length).toBeLessThanOrEqual(10)
+      expect(roots.length).toBeGreaterThanOrEqual(3)
+    }
   })
 })

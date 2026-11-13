@@ -26,7 +26,7 @@ export function MicGate({ children }: { children?: React.ReactNode }) {
     <div className="micgate">
       <div>
         <strong>{engine.mic === 'starting' ? tr('Включаю микрофон…') : tr('Нужен микрофон')}</strong>
-        <p>{tr('Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.')}{SIM && import.meta.env.DEV && tr(' Режим проверки: вместо голоса синтетический тон.')}</p>
+        <p>{engine.audioSuspended ? tr('Нажми, чтобы включить звук и микрофон') : tr('Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.')}{SIM && import.meta.env.DEV && tr(' Режим проверки: вместо голоса синтетический тон.')}</p>
         {engine.mic === 'error' && <p className="err">{engine.micError}</p>}
       </div>
       <button className="btn" onClick={() => engine.startMic()} disabled={engine.mic === 'starting'}>{tr('Включить микрофон')}</button>

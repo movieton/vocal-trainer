@@ -34,17 +34,53 @@ export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: n
 export const targetAt = (g: Target, t: number) =>
   g.midiEnd == null ? g.midi : g.midi + (g.midiEnd - g.midi) * Math.min(1, Math.max(0, (t - g.t0) / (g.t1 - g.t0)))
 
-export function buildRoots(ex: Exercise, range: Range, shift = 0, key: Key = 'auto') {
+/**
+ * Подгоняет размах упражнения под рабочий диапазон: если фраза шире доступного окна,
+ * пропорционально сжимает относительные ступени до ближайших полутонов, сохраняя направление контура.
+ */
+export function fitExercise(ex: Exercise, range: Range): Exercise {
   const { min, max } = span(ex)
+  const exSpan = max - min
+  const room = Math.max(0, range.hi - range.lo)
+  const maxSpan = room >= 2 ? room - 2 : room
+  if (exSpan <= maxSpan || exSpan === 0) return ex
+  const mapNote = (s: number) => min + Math.round(((s - min) / exSpan) * maxSpan)
+  return {
+    ...ex,
+    notes: ex.notes.map(n => (n.rest ? n : {
+      ...n,
+      s: mapNote(n.s),
+      glide: n.glide != null ? mapNote(n.glide) : undefined,
+    })),
+  }
+}
+
+export function buildRoots(ex: Exercise, range: Range, shift = 0, key: Key = 'auto') {
+  const fitted = fitExercise(ex, range)
+  const { min, max } = span(fitted)
   if (key !== 'auto') {
     // фиксированная тональность: самая удобная октава в диапазоне, 6 повторов
     const mid = (range.lo + range.hi) / 2 - (min + max) / 2
-    const root = key + 12 * Math.round((mid - key) / 12) + shift
-    return Array(6).fill(root)
+    let root = key + 12 * Math.round((mid - key) / 12)
+    if (shift === 0) {
+      if (root + min < range.lo && root + 12 + max <= range.hi) root += 12
+      else if (root + max > range.hi && root - 12 + min >= range.lo) root -= 12
+    }
+    return Array(6).fill(root + shift)
   }
+  const loRoot = range.lo + 1 - min
+  const hiRoot = range.hi - 1 - max
   const up: number[] = []
-  for (let root = range.lo + 1 - min; root + max <= range.hi - 1; root++) up.push(root + shift)
-  if (!up.length) up.push(range.lo - min + shift)
+  if (loRoot <= hiRoot) {
+    if (max - min <= 2 && hiRoot - loRoot > 4) {
+      // узкие/однонотные упражнения (messa, twang): ограничиваем лесенку до ≤ 9 кругов равномерным шагом
+      for (let i = 0; i < 5; i++) up.push(loRoot + Math.round((i * (hiRoot - loRoot)) / 4) + shift)
+    } else {
+      for (let root = loRoot; root <= hiRoot; root++) up.push(root + shift)
+    }
+  } else {
+    up.push(Math.round(((range.lo - min) + (range.hi - max)) / 2) + shift)
+  }
   return up.concat(up.slice(0, -1).reverse())
 }
 
@@ -66,11 +102,12 @@ export class ExerciseRun {
   private listenEnd = 0
   private singStart = 0
   private singEnd = 0
+  private loopHeld = false
 
   constructor(ex: Exercise, opts: RunOptions) {
-    this.ex = ex
+    this.ex = fitExercise(ex, opts.range)
     this.opts = opts
-    this.roots = buildRoots(ex, opts.range, opts.shift, opts.key)
+    this.roots = buildRoots(this.ex, opts.range, opts.shift, opts.key)
   }
 
   get beat() { return 60 / (this.ex.bpm * this.opts.tempo) }
@@ -78,6 +115,7 @@ export class ExerciseRun {
 
   start() {
     const ctx = engine.ensureCtx()
+    if (!this.loopHeld) { engine.retainLoop(); this.loopHeld = true }
     this.schedule(ctx.currentTime + 0.4)
     engine.simTarget = t => this.simPitch(t)
   }
@@ -87,6 +125,7 @@ export class ExerciseRun {
     this.phase = 'done'
     engine.stopAll()
     engine.simTarget = null
+    if (this.loopHeld) { engine.releaseLoop(); this.loopHeld = false }
   }
 
   private schedule(t: number) {

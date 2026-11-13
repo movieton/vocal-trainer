@@ -191,7 +191,7 @@
   ]
  },
  {
-  "id": "yawn-sigh",
+  "id": "yawn-sigh-breath",
   "title": "Yawn-sigh",
   "kind": "breath",
   "cat": "расслабление",
@@ -2201,10 +2201,15 @@
   "cat": "скороговорка",
   "goal": "B/T for English repertoire.",
   "how": [
-   "Like tw-01."
+   "Speak clearly and without tension syllable by syllable: “Bet-ty Bot-ter bought a bit of but-ter”.",
+   "Start on a gentle exhale, articulating crisp plosive “b” and “t” with the lips and tongue tip while keeping the jaw loose.",
+   "Repeat the line 3 times on one steady breath, gradually speeding up from slow to conversational tempo."
   ],
-  "mistakes": [],
-  "dose": "",
+  "mistakes": [
+   "Slurred or dropped “t” in the middle of “Botter” / “butter” and over-aspirated “b”.",
+   "Clenching the jaw or stiffening the tongue root as tempo increases."
+  ],
+  "dose": "3–5 reps for 2–3 rounds daily across 3 tempos.",
   "evidence": "Т",
   "level": 1,
   "source": "(19th-century verse, public domain)",
