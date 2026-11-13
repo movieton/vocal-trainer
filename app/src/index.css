@@ -1250,3 +1250,15 @@ p, li { text-wrap: pretty }
   .empty-custom .row-btns .btn, .custom-songs-actions .btn { flex: 1 1 auto }
   .custom-song-btns .btn, .custom-song-btns .danger-btn { min-height: 44px }
 }
+
+/* спринт В: интерактивные аудио-примеры в теории */
+.theory-audio { margin: 16px 0; padding: 14px 16px; border-radius: var(--radius-ctl); background: var(--surface); border: 1px solid var(--line); display: grid; gap: 10px; max-width: 70ch }
+.theory-audio-hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; line-height: 1.45 }
+.theory-audio-hint svg { flex: none; margin-top: 2px; color: var(--accent) }
+.theory-audio-btns { display: flex; flex-wrap: wrap; gap: 8px }
+.theory-audio-btn { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, color .15s }
+.theory-audio-btn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent) }
+@media (hover: hover) { .theory-audio-btn:not(.on):hover { border-color: var(--accent) } }
+@media (max-width: 560px) {
+  .theory-audio-btn { flex: 1 1 calc(50% - 4px); text-align: center }
+}

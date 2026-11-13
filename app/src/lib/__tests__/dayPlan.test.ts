@@ -112,4 +112,22 @@ describe('buildDayPlan', () => {
     })
     expect(staleOverride.focusGoal).toBe('pitch')
   })
+
+  it('rotates concrete mini-challenges for the write goal across days', () => {
+    const seen = new Set<string>()
+    for (let dayNumber = 0; dayNumber < 6; dayNumber++) {
+      const plan = buildDayPlan({
+        log: [],
+        goals: ['write'],
+        minutes: 10,
+        dayNumber,
+        todayStr: '2026-11-14',
+      })
+      const step = plan.steps.find(s => s.to === '/compose')
+      expect(step, `day ${dayNumber} compose step`).toBeDefined()
+      expect(step!.text.trim().length).toBeGreaterThan(15)
+      seen.add(step!.text)
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(5)
+  })
 })

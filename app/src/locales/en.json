@@ -1991,5 +1991,20 @@
   "Достигнут лимит: 25 своих песен. Удали лишнюю в разделе «Песни», чтобы записать новую.": "Limit of 25 custom songs reached. Delete an older song in Songs to record a new one.",
   "Моя мелодия {0}": "My melody {0}",
   "Записана с микрофона": "Recorded with microphone",
-  "Не удалось сохранить запись. Попробуй ещё раз.": "Couldn't save the recording. Please try again."
+  "Не удалось сохранить запись. Попробуй ещё раз.": "Couldn't save the recording. Please try again.",
+  "Послушать эталон 0¢": "Listen to reference 0¢",
+  "Послушать +12¢": "Listen +12¢",
+  "Послушать +25¢": "Listen +25¢",
+  "Послушать +50¢": "Listen +50¢",
+  "Сравни чистую ноту Ля4 (0¢) и завышение на 12, 25 или 50 центов (сначала звучит эталон, потом отклонение):": "Compare a pure A4 reference (0¢) with sharp deviations of 12, 25, or 50 cents (reference first, then offset):",
+  "Послушать терцию": "Listen to a third",
+  "Послушать квинту": "Listen to a fifth",
+  "Послушать октаву": "Listen to an octave",
+  "Послушай разницу между узким шагом и широким скачком на октаву:": "Hear the difference between a narrow step and a wide octave leap:",
+  "Сочини 4 такта мелодии в миноре над гармонией": "Write 4 bars of a minor melody over the chords",
+  "Построй фразу со скачком на чистую квинту вверх": "Build a phrase with an upward leap of a fifth",
+  "Придумай контраст: спокойный куплет и яркий припев": "Create contrast: a calm verse and a bright chorus",
+  "Напой мелодию слогами и подставь 2 строки текста": "Hum a melody on syllables and add 2 lines of lyrics",
+  "Обыграй мажорное трезвучие с задержкой на 2-й ступени": "Embellish a major triad with a suspension on scale degree 2",
+  "Сделай ритмичный мотив с акцентами на слабые доли": "Create a rhythmic motif with off-beat accents"
 }

@@ -108,6 +108,15 @@ const RANGE_BASE: [string, string][] = [
   ['trill-siren', tr('Трель-сирена')],
   ['octave-jump', tr('Октавный скачок')],
 ]
+const writeChallenges = (): string[] => [
+  tr('Сочини 4 такта мелодии в миноре над гармонией'),
+  tr('Построй фразу со скачком на чистую квинту вверх'),
+  tr('Придумай контраст: спокойный куплет и яркий припев'),
+  tr('Напой мелодию слогами и подставь 2 строки текста'),
+  tr('Обыграй мажорное трезвучие с задержкой на 2-й ступени'),
+  tr('Сделай ритмичный мотив с акцентами на слабые доли'),
+]
+
 const EAR_GENTLE: [string, string, string][] = [
   ['/ear/match', 'pitch-match', tr('Попади в одну ноту')],
   ['/ear/keys?g=find', 'keys-find', tr('Найди ноту на клавиатуре')],
@@ -191,7 +200,7 @@ function makePools(log: SessionLog[], skill: SkillProfile, d: number, w: number)
   const ear1: DayPlanStep = { min: earWeak ? 4 : 3, title: earWeak ? tr('Слух — слабое место') : tr('Слух'), text: e1T, to: e1To, id: e1Id, domain: 'ear' }
   const ear2: DayPlanStep = { min: 3, title: tr('Тренировка слуха'), text: e2T, to: e2To, id: e2Id, domain: 'ear' }
   const ear3: DayPlanStep = { min: 3, title: tr('Слух и память'), text: e3T, to: e3To, id: e3Id, domain: 'ear' }
-  const compose: DayPlanStep = { min: 4, title: tr('Сочинение'), text: tr('Набросай 4 такта мелодии над гармонией'), to: '/compose', id: 'compose', domain: 'write' }
+  const compose: DayPlanStep = { min: 4, title: tr('Сочинение'), text: pick(writeChallenges(), d), to: '/compose', id: 'compose', domain: 'write' }
   const writeEar: DayPlanStep = { min: 3, title: tr('Гармония и слух'), text: tr('Квинтовый круг и модуляции'), to: '/ear/circle', id: 'circle', domain: 'ear' }
 
   return { breath1, breath2, longNote, warmup, calmOrWeak, vocalBlock, range1, range2, ear1, ear2, ear3, compose, writeEar }
