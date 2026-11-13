@@ -1,5 +1,6 @@
 import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
+import { setFocus } from '../lib/focus'
 import { Link } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
 import KeySelect from '../components/KeySelect'
@@ -48,9 +49,8 @@ export default function Drone() {
   }
   useEffect(() => () => engine.drone(null), [])
   useEffect(() => {
-    if (on) document.documentElement.dataset.focus = '1'
-    else delete document.documentElement.dataset.focus
-    return () => { delete document.documentElement.dataset.focus }
+    setFocus(on)
+    return () => setFocus(false)
   }, [on])
 
   // засчитываем ступень, если она удержана HOLD секунд в пределах ±TOL центов

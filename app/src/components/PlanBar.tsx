@@ -2,21 +2,10 @@ import { tr } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, X } from 'lucide-react'
-import { read, useStored, write, type SessionLog } from '../lib/store'
+import { markPlanDone, planToday, type ActivePlan, type PlanItem } from '../lib/plan'
+import { read, useStored, type SessionLog } from '../lib/store'
 
-/** Программа дня, которую человек начал с главной: какой шаг сейчас и что уже сделано */
-export type PlanItem = { to: string; title: string; text: string }
-type Active = { day: string; items: PlanItem[] }
-const today = () => new Date().toDateString()
 const pathOf = (to: string) => to.split('?')[0]
-
-/** Отметить шаг программы выполненным (сегодня) */
-export function markPlanDone(to: string) {
-  const d = read<{ day: string; tos: string[] }>('plan.done', { day: '', tos: [] })
-  const tos = d.day === today() ? d.tos : []
-  if (!tos.includes(to)) write('plan.done', { day: today(), tos: [...tos, to] })
-}
-export const startPlan = (items: PlanItem[]) => write('plan.active', { day: today(), items })
 
 /**
  * Плашка «Засчитано — дальше». Появляется, когда закончено упражнение из программы дня,
@@ -24,7 +13,7 @@ export const startPlan = (items: PlanItem[]) => write('plan.active', { day: toda
  */
 export function PlanBar() {
   const [log] = useStored<SessionLog[]>('log', [])
-  const [active] = useStored<Active | null>('plan.active', null)
+  const [active] = useStored<ActivePlan | null>('plan.active', null)
   const loc = useLocation()
   const go = useNavigate()
   const seen = useRef(log[0]?.date ?? 0)
@@ -34,7 +23,7 @@ export function PlanBar() {
     const latest = log[0]?.date ?? 0
     if (latest <= seen.current) return
     seen.current = latest
-    if (!active || active.day !== today()) return
+    if (!active || active.day !== planToday()) return
     const i = active.items.findIndex(it => pathOf(it.to) === loc.pathname)
     if (i < 0) return
     markPlanDone(active.items[i].to)

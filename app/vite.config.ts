@@ -31,6 +31,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,jpg,woff2}'],
+        // картинки анатомии и превью для соцсетей — не при установке, а по мере открытия
+        globIgnores: ['img/**', 'og.png', 'avatars/**'],
         navigateFallback: 'index.html',
         // обработчик напоминаний (push) подключается к сервис-воркеру
         importScripts: ['push-sw.js'],
@@ -38,6 +40,10 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         // сэмплы рояля с CDN — в кэш при первом проигрывании, дальше работают без сети
         runtimeCaching: [{
+          urlPattern: /\/(img|avatars)\/.*\.(png|webp|jpg|svg)$/,
+          handler: 'CacheFirst',
+          options: { cacheName: 'images', expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 90 }, cacheableResponse: { statuses: [200] } },
+        }, {
           urlPattern: /^https:\/\/(?!lalo-app\.com).*\.(ogg|mp3|m4a|json)(\?.*)?$/,
           handler: 'CacheFirst',
           options: { cacheName: 'piano-samples', expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 180 }, cacheableResponse: { statuses: [0, 200] } },

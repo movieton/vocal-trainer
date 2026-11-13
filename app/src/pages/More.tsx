@@ -5,7 +5,7 @@ import LangSwitch from '../components/LangSwitch'
 
 export function More() {
   const links = [
-    ['/songs', tr('Песни')], ['/compose', tr('Сочинение')], ['/range', tr('Голос и диапазон')], ['/breath', tr('Дыхание')], ['/theory', tr('Теория')], ['/progress', tr('Прогресс')], ['/account', tr('Аккаунт')],
+    ['/course', tr('Курс «Первые 30 дней»')], ['/songs', tr('Песни')], ['/compose', tr('Сочинение')], ['/range', tr('Голос и диапазон')], ['/breath', tr('Дыхание')], ['/theory', tr('Теория')], ['/progress', tr('Прогресс')], ['/account', tr('Аккаунт')],
   ]
   return (
     <div className="page">

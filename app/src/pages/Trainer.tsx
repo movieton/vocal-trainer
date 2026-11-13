@@ -1,12 +1,16 @@
+import Delta from '../components/Delta'
+import LatencySelect from '../components/Latency'
+import { setFocus } from '../lib/focus'
 import { tr } from '../lib/i18n'
+import NotFound from '../components/NotFound'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
 import { noteName } from '../lib/music'
-import { buildRoots, ExerciseRun, type Key, type Mode, type Phase, type Target } from '../lib/run'
-import { logSession, useStored, useWorkRange } from '../lib/store'
+import { buildRoots, ExerciseRun, fitExercise, type Key, type Mode, type Phase, type Target } from '../lib/run'
+import { logSession, read, useStored, useWorkRange, write, type SessionLog } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
 import { libExercise } from '../data/library'
 import { TakeBar, useTake } from '../components/Take'
@@ -23,7 +27,7 @@ type Summary = ReturnType<ExerciseRun['summary']>
 
 export default function Trainer() {
   const { id = '' } = useParams()
-  const ex = exerciseById(id) ?? libExercise(id)
+  const rawEx = exerciseById(id) ?? libExercise(id)
   const [mode, setMode] = useStored<Mode>('mode2', 'together')
   const [tempo, setTempo] = useStored('tempo', 1)
   const [tol, setTol] = useStored('tolerance', 25)
@@ -32,12 +36,20 @@ export default function Trainer() {
   const [repeat, setRepeat] = useState(false)
   const [inner, setInner] = useStored('exInner', false)
   const [fade, setFade] = useStored('exFade', false)
+  const [ladder, setLadder] = useStored('exLadder', false)
+  const [best] = useStored<Record<string, number>>('ladder.best', {})
+  const [peak, setPeak] = useState<number | null>(null)
+  const [prev, setPrev] = useState<number | null>(null)
+  // впервые на этом упражнении — инструкция раскрыта; на компьютере настройки видны сразу
+  const [firstTime] = useState(() => !read<SessionLog[]>('log', []).some(l => l.id === id))
+  const wide = typeof matchMedia !== 'undefined' && matchMedia('(min-width: 761px)').matches
   const tk = useTake()
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState({ phase: 'idle' as Phase, rep: 0, total: 0, last: null as number | null })
   const [result, setResult] = useState<Summary | null>(null)
   const run = useRef<ExerciseRun | null>(null)
   const r = useWorkRange()
+  const ex = rawEx ? fitExercise(rawEx, r) : undefined
   useEngine(4)
 
   const stop = () => {
@@ -50,15 +62,20 @@ export default function Trainer() {
     setStatus(s => ({ ...s, phase: 'idle' }))
     if (cur.results.length && ex) {
       const sum = cur.summary()
+      const before = read<SessionLog[]>('log', []).find(l => l.id === ex.id)
+      setPrev(before ? before.score : null)
       setResult(sum)
-      logSession({ date: Date.now(), kind: 'exercise', id: ex.id, title: ex.title, score: Math.round(sum.score * 100), reps: sum.reps, drift: sum.drift })
+      const hits = cur.results.flatMap(r => r.notes).filter(n => n.score >= 0.5).length
+      logSession({ date: Date.now(), kind: 'exercise', id: ex.id, title: ex.title, score: Math.round(sum.score * 100), reps: sum.reps, drift: sum.drift, hits })
+      setPeak(cur.opts.ladder ? cur.peak : null)
+      if (cur.peak > (read<Record<string, number>>('ladder.best', {})[ex.id] ?? 0)) write('ladder.best', { ...read<Record<string, number>>('ladder.best', {}), [ex.id]: cur.peak })
     }
   }
 
   const start = () => {
     if (!ex) return
     setResult(null)
-    const x = new ExerciseRun(ex, { range: r, mode, tempo, tolerance: tol, shift, key, inner, fade })
+    const x = new ExerciseRun(ex, { range: r, mode, tempo, tolerance: tol, shift, key, inner, fade, ladder })
     x.repeat = repeat
     tk.stop(); tk.begin()
     run.current = x; x.start(); setRunning(true)
@@ -77,9 +94,8 @@ export default function Trainer() {
   useEffect(() => { if (run.current) run.current.repeat = repeat }, [repeat])
   // режим фокуса: на телефоне во время пения прячем всё, кроме доски
   useEffect(() => {
-    if (running) document.documentElement.dataset.focus = '1'
-    else delete document.documentElement.dataset.focus
-    return () => { delete document.documentElement.dataset.focus }
+    setFocus(running)
+    return () => setFocus(false)
   }, [running])
   useEffect(() => { engine.history = []; return () => { run.current?.stop() } }, [])
   useEffect(() => {
@@ -92,7 +108,7 @@ export default function Trainer() {
     return () => removeEventListener('keydown', onKey)
   })
 
-  if (!ex) return <div className="page"><p>{tr('Упражнение не найдено.')} <Link to="/library">{tr('К списку')}</Link></p></div>
+  if (!ex) return <NotFound what="exercise" back="/library" backLabel={tr('В библиотеку')} />
   const texts = TEXTS[ex.id] ?? (ex.how ? { how: ex.how, mistakes: ex.mistakes ?? [] } : null)
 
   // окно доски по длине фразы: целиком видно «слушай» и «пой» одного круга
@@ -142,6 +158,7 @@ export default function Trainer() {
           </button>
         ))}
       </div>
+      {texts && <details className="howto-mini" open={firstTime}><summary>{tr('Как делать')}</summary><ol>{texts.how.map(t => <li key={t}>{t}</li>)}</ol></details>}
       <MicGate />
       {engine.mic === 'on' && (
         <div className="toolbar">
@@ -150,18 +167,38 @@ export default function Trainer() {
           <label className="chk"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} /> {tr('Повторять фразу')}</label>
           <span className="status">
             {running && <span>{tr('Круг')} {status.rep} / {status.total}</span>}
-            {status.last != null && <span>{tr('Прошлый круг')} <b>{Math.round(status.last * 100)}%</b></span>}
+            {running && ladder && run.current && <span>{tr('Темп')} <b>{Math.round(run.current.tempo * 100)}%</b></span>}
+            {status.last != null && <span>{tr('Последний круг')} <b>{Math.round(status.last * 100)}%</b></span>}
           </span>
         </div>
       )}
       <PianoRoll view={view} targets={() => (tk.replay ? tk.take!.targets : run.current?.targets ?? preview())} replay={tk.replay} tolerance={tol} windowSec={windowSec} playhead={0.2}
         overlay={() => (tk.replay ? tr('Запись') : run.current ? PHASE[run.current.phase] : '')} className="tall" />
       {!running && <TakeBar t={tk} />}
+      {result && (
+        <div className="card result">
+          <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
+          {prev != null && <Delta now={Math.round(result.score * 100)} prev={prev} />}
+          <p className="muted">{tr('Кругов:')} {result.reps}{peak == null ? '' : peak ? tr(' · чисто до темпа {0}%', Math.round(peak * 100)) : tr(' · темп не поднялся — начни медленнее')}</p>
+          {result.drift.length ? (
+            <>
+              <strong>{tr('Где уходишь от ноты')}</strong>
+              <ul>{result.drift.map(d => (
+                <li key={d.m}>{noteName(d.m)}: {d.c > 0 ? '+' : '−'}{Math.round(Math.abs(d.c))} {tr('ц,')} {d.c > 0 ? tr('завышаешь') : tr('занижаешь')}</li>
+              ))}</ul>
+            </>
+          ) : <p>{tr('Устойчивых ошибок нет, интонация ровная.')}</p>}
+        </div>
+      )}
 
+      <details className="settings-wrap" open={wide}>
+      <summary>{tr('Настройки: темп, строгость, тональность')}</summary>
       <div className="settings">
         <label className="chk"><input type="checkbox" checked={inner} disabled={running} onChange={e => setInner(e.target.checked)} /> {tr('Пауза «услышь про себя»')}</label>
         <label className="chk"><input type="checkbox" checked={fade} disabled={running} onChange={e => setFade(e.target.checked)} /> {tr('Подсказка через круг')}</label>
-        <label>{tr('Темп')} {Math.round(tempo * 100)}%
+        <label className="chk"><input type="checkbox" checked={ladder} disabled={running} onChange={e => setLadder(e.target.checked)} /> {tr('Лестница темпа')}{best[id] ? tr(' · рекорд {0}%', Math.round(best[id] * 100)) : ''}</label>
+        {ladder && <p className="muted small ladder-note">{tr('Чистый круг — следующий на 5% быстрее, сбился — медленнее.')}</p>}
+        <label>{ladder ? tr('Стартовый темп') : tr('Темп')} {Math.round(tempo * 100)}%
           <input type="range" min={0.6} max={1.4} step={0.05} value={tempo} onChange={e => setTempo(+e.target.value)} disabled={running} />
         </label>
         <label>{tr('Строгость')}
@@ -171,6 +208,7 @@ export default function Trainer() {
             <option value={12}>{tr('Строго, ±12 ц')}</option>
           </select>
         </label>
+        <LatencySelect disabled={running} />
         <label>{tr('Тональность')}
           <KeySelect value={key} onChange={setKey} disabled={running} />
         </label>
@@ -184,29 +222,15 @@ export default function Trainer() {
           </span>
         </label>
       </div>
-      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">{tr('изменить')}</Link> {tr('· Пробел — старт и стоп')}</p>
+      <p className="muted small">{tr('Рабочий диапазон:')} {noteName(r.lo)}–{noteName(r.hi)} ({r.source}) · <Link to="/range">{tr('изменить')}</Link>{wide ? ' ' + tr('· Пробел — старт и стоп') : ''}</p>
+      </details>
 
-      {texts && (
+      {texts && texts.mistakes.length > 0 && (
         <div className="howto">
-          <div><h2>{tr('Как делать')}</h2><ol>{texts.how.map(t => <li key={t}>{t}</li>)}</ol></div>
           {texts.mistakes.length > 0 && <div><h2>{tr('Частые ошибки')}</h2><ul>{texts.mistakes.map(t => <li key={t}>{t}</li>)}</ul></div>}
         </div>
       )}
 
-      {result && (
-        <div className="card result">
-          <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
-          <p className="muted">{tr('Кругов:')} {result.reps}</p>
-          {result.drift.length ? (
-            <>
-              <strong>{tr('Где уходишь от ноты')}</strong>
-              <ul>{result.drift.map(d => (
-                <li key={d.m}>{noteName(d.m)}: {d.c > 0 ? '+' : '−'}{Math.round(Math.abs(d.c))} {tr('ц,')} {d.c > 0 ? tr('завышаешь') : tr('занижаешь')}</li>
-              ))}</ul>
-            </>
-          ) : <p>{tr('Устойчивых ошибок нет, интонация ровная.')}</p>}
-        </div>
-      )}
     </div>
   )
 }

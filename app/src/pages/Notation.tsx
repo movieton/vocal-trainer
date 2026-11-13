@@ -14,7 +14,7 @@ type Lesson = { id: string; title: string; lead: string; body: () => ReactNode; 
 
 const C_SCALE = [60, 62, 64, 65, 67, 69, 71, 72].map((m, i) => ({ m, label: [tr('до'), tr('ре'), tr('ми'), tr('фа'), tr('соль'), tr('ля'), tr('си'), tr('до')][i] }))
 
-export const LESSONS: Lesson[] = [
+const LESSONS: Lesson[] = [
   {
     id: 'staff', title: tr('Нотоносец и скрипичный ключ'), lead: tr('Где на пяти линиях живёт каждая нота.'),
     body: () => <>

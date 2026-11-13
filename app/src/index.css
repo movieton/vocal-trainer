@@ -473,7 +473,8 @@ th { color: var(--muted); font-weight: 500 }
   .cmp-top { grid-template-columns: 1fr }
   .two-col { grid-template-columns: 1fr }
   .diagram { min-width: 0 }
-  .plan li a { grid-template-columns: 56px 1fr 20px }
+  .plan li a { grid-template-columns: 56px 1fr 20px; gap: 2px 12px; align-items: start }
+  .plan li a .min { grid-row: 1 / span 2; align-self: center }
   .plan li a .muted { grid-column: 2 }
   .plan li a .chev { grid-row: 1 / span 2; grid-column: 3; align-self: center }
   .kpis { gap: 8px }
@@ -1013,3 +1014,172 @@ p, li { text-wrap: pretty }
 .tile .muted, .tile span { text-wrap: pretty }
 .card.cta span { text-wrap: pretty }
 .lib-item .meta .ev { margin-right: 8px }
+
+/* курс «Первые 30 дней» */
+.course-card { display: flex; flex-direction: column; gap: 10px; text-decoration: none }
+.course-card .cc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; text-decoration: none; color: var(--text) }
+.course-card .cc-top .small { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; font-variant-numeric: tabular-nums }
+.course-card .cc-day { margin: 0; display: flex; flex-direction: column; gap: 2px; text-wrap: pretty }
+.course-card .cc-top b { text-wrap: balance }
+.course-card .btn { align-self: flex-start }
+.cc-bar { height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden }
+.cc-bar.big { height: 8px; margin: 16px 0 6px }
+.cc-bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; min-width: 6px }
+.cc-rest { margin: 0 }
+.course-days { list-style: none; padding: 0; margin: 12px 0 0 }
+.course-days > li { padding: 12px 0; border-top: 1px solid var(--line) }
+.course-days > li:first-child { border-top: 0 }
+.cd-head { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start }
+.cd-head > span:last-child { display: flex; flex-direction: column; gap: 2px }
+.cd-n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--muted); background: var(--accent-soft); font-variant-numeric: tabular-nums; flex-shrink: 0 }
+.course-days li.cur .cd-n { background: var(--accent); color: var(--on-accent) }
+.course-days li.done .cd-n { background: none; color: var(--good) }
+.course-days li.done strong, .course-days li:not(.cur):not(.done) strong { opacity: .7 }
+.cd-steps { list-style: none; padding: 0; margin: 8px 0 0 44px }
+.cd-steps button { width: 100%; display: grid; grid-template-columns: 56px minmax(0, 1fr) 16px; gap: 10px; align-items: baseline; padding: 10px 0; background: none; border: 0; border-top: 1px solid var(--line); font: inherit; color: var(--text); text-align: left; cursor: pointer; min-height: 44px }
+.cd-steps li:first-child button { border-top: 0 }
+.cd-steps button:disabled { cursor: default; opacity: .5 }
+.cd-steps .min { color: var(--accent); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums }
+.cd-steps li.ok .min { color: var(--good) }
+.cd-steps li.ok b, .cd-steps li.ok .muted { opacity: .55 }
+.cd-steps .chev { color: var(--muted) }
+.course .cc-rest { margin: 8px 0 0 44px }
+@media (max-width: 480px) { .cd-steps { margin-left: 0 } .course .cc-rest { margin-left: 0 } }
+.cd-lbl { display: flex; flex-direction: column; gap: 2px }
+.week summary { list-style: none; cursor: pointer }
+.week summary::-webkit-details-marker { display: none }
+.week:not([open]) summary p { margin-bottom: 0 }
+@media (max-width: 480px) { .cd-steps button { grid-template-columns: 44px minmax(0, 1fr) 16px; gap: 0 } }
+
+/* режимы подсказки */
+.hint-modes { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 16px 0 12px }
+@media (max-width: 560px) { .hint-modes { align-items: stretch } }
+.hint-modes .seg button:disabled:not([aria-pressed=true]) { opacity: .6 }
+.hint-modes .seg button { display: inline-flex; align-items: center; gap: 4px }
+.hint-modes .hint-note { flex: none; margin-top: 2px; text-wrap: pretty }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap }
+@media (min-width: 761px) { .settings select { width: 240px } }
+
+/* цель дня в нотах */
+.notes-goal { display: flex; flex-direction: column; gap: 10px }
+.notes-goal .ng-head .done { color: var(--accent) }
+.ladder-note { margin: 0; flex-basis: 100% }
+@media (min-width: 761px) { .settings > label.chk { align-self: flex-end; min-height: 44px } }
+.notes-goal .ng-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px }
+.notes-goal .ng-head .small { white-space: nowrap; font-variant-numeric: tabular-nums }
+
+/* навыки в библиотеке */
+.skills { margin: 14px 0 16px; align-items: center; flex-wrap: wrap; overflow: visible }
+@media (max-width: 560px) { .library .skills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px } .skills > span { flex: none } }
+@media (pointer: coarse) { .skills button, .topics button { min-height: 44px } }
+.ev-wrap summary { cursor: pointer; margin-bottom: 8px }
+@media (min-width: 761px) { .ev-wrap summary { display: none } }
+.skills button { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 34px }
+.skills button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--text) }
+.tile .skill-line { color: var(--muted); margin-top: auto; padding-top: 4px }
+.tile .skill-line .on { color: var(--accent); font-weight: 600 }
+
+/* аватарки из набора */
+.avatar.pack { background: none; object-fit: contain }
+.who { flex-wrap: wrap }
+.who .av-toggle { align-self: flex-start; margin-top: 4px; font-size: 13px; color: var(--muted); text-underline-offset: 3px }
+@media (pointer: coarse) { .who .av-toggle { min-height: 44px } }
+.av-picker { flex-basis: 100%; border: 0; border-top: 1px solid var(--line); margin: 0; padding: 16px 0 0; min-width: 0 }
+.av-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px }
+.av-grid label { padding: 4px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; aspect-ratio: 1; display: grid; place-items: center }
+.av-grid label img { width: 100%; height: 100%; object-fit: contain }
+.av-grid label:has(input:checked) { border-color: var(--accent) }
+.av-grid label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px }
+@media (hover: hover) { .av-grid label:not(:has(input:checked)):hover { border-color: var(--line) } }
+.side .nav-av { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; box-shadow: 0 0 0 1.5px var(--surface) }
+.side a.active .nav-av { box-shadow: 0 0 0 1.5px var(--on-accent) }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0 }
+
+/* итог «было → стало», свёрнутые настройки и инструкция */
+.delta { margin: 4px 0 8px; color: var(--muted) }
+.delta b { font-variant-numeric: tabular-nums }
+.delta.up b { color: var(--good) }
+.delta.down b { color: var(--near) }
+.settings-wrap { margin: 16px 0 }
+.settings-wrap > summary, .howto-mini > summary { cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: 6px }
+.settings-wrap[open] > summary { margin-bottom: 4px }
+.howto-mini { margin: 4px 0 12px; max-width: 640px }
+.howto-mini ol { margin: 0; padding-left: 20px; display: grid; gap: 4px }
+.settings-wrap > summary::before, .howto-mini > summary::before { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); margin-right: 4px; transition: transform .15s ease-out }
+.settings-wrap[open] > summary::before, .howto-mini[open] > summary::before { transform: rotate(45deg) }
+.settings-wrap > summary, .howto-mini > summary { color: var(--text) }
+@media (hover: hover) { .settings-wrap > summary:hover, .howto-mini > summary:hover { text-decoration: underline; text-underline-offset: 3px } }
+.settings-wrap > .settings { margin-top: 4px }
+@media (min-width: 761px) { .settings > label:has(input[type=range]) { align-self: flex-end } }
+@media (max-width: 560px) { .trainer-head p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden } }
+.settings-wrap > summary::-webkit-details-marker, .howto-mini > summary::-webkit-details-marker { display: none }
+.settings-wrap > summary, .howto-mini > summary { list-style: none }
+@media (prefers-reduced-motion: reduce) { .settings-wrap > summary::before, .howto-mini > summary::before { transition: none } }
+
+/* мелочи интерфейса: пустой прогресс, крупные цели касания в «Сочинении» */
+.card.empty .btn { margin-top: 14px; display: inline-flex; align-items: center; text-decoration: none }
+.kb-caption { display: flex; align-items: center; gap: 8px; margin-top: 12px }
+.kb-shift { width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); display: grid; place-items: center; cursor: pointer; touch-action: manipulation }
+.kb-shift:disabled { opacity: .35; cursor: default }
+.kb-caption > span { flex: 1; text-align: center }
+@media (max-width: 560px) {
+  .compose .small-btn { min-height: 44px }
+  .compose .chk { min-height: 44px }
+  .compose .chk input { width: 22px; height: 22px }
+  .compose .keyboard { height: 170px }
+  .compose .pk.black::before { left: -15px; width: 30px; height: 104px }
+}
+.cmp-legend i { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--muted) 55%, transparent) }
+.page > .card.empty { max-width: 600px }
+.compose .toolbar { align-items: flex-end }
+.compose .toolbar .small-btn, .compose .toolbar select { min-height: 44px }
+@media (max-width: 560px) {
+  .compose .tempo { width: 100% }
+  .compose .tempo input[type=range] { width: 100%; height: 28px }
+}
+
+/* пауза посреди упражнения */
+.pause-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 70%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px) }
+.pause-card { width: min(100%, 360px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 24px; display: grid; text-align: center; box-shadow: 0 12px 32px rgba(24,32,68,.18) }
+.pause-card h2 { margin: 0; font-size: 22px; font-weight: 800 }
+.pause-card p { margin: 8px auto 0; max-width: 30ch; text-wrap: balance }
+.pause-card .btn { margin-top: 20px }
+@media (prefers-color-scheme: dark) { .pause-card { box-shadow: 0 12px 32px rgba(0,0,0,.35) } }
+@media (prefers-reduced-motion: no-preference) { .pause-card { animation: pause-in .18s ease-out } }
+@keyframes pause-in { from { opacity: 0; transform: scale(.96) } }
+
+/* библиотека на телефоне: в обзоре по 3 упражнения на тему, остальные — по «Все N →» */
+@media (max-width: 560px) { .lib-sec.overview .grid > :nth-child(n+4) { display: none } }
+
+/* приветствие без нижнего меню; страница «не найдено» */
+[data-welcome] .tabbar { display: none }
+.notfound .btn { display: inline-flex; align-items: center; margin-top: 8px; text-decoration: none }
+
+/* цели касания на мобильных и сенсорных экранах — не меньше 44 px */
+@media (max-width: 760px), (pointer: coarse) {
+  .seg button, .anchors button, .topics button, .skills button, .small-btn { min-height: 44px }
+  .stepper button, .mel-tools button { min-width: 44px; min-height: 44px }
+  .mel-tools .mel-del { min-width: 44px; min-height: 44px }
+}
+@media (max-width: 560px) {
+  .textbtn { min-height: 44px; padding: 6px 10px }
+  .crumbs a { display: inline-block; padding: 12px 4px; margin: -12px -4px }
+  .prog-head .muted a { display: inline-block; padding: 12px 0; margin: -12px 0 }
+}
+@media (max-width: 560px) {
+  .crumbs a { display: inline-block; padding: 12px 4px; margin: -12px -4px }
+  .chk { min-height: 44px }
+  .chk input { width: 22px; height: 22px }
+  select { min-height: 44px }
+  .muted a, .small a { display: inline-block; padding-block: 12px; margin-block: -12px }
+}
+
+/* пакет 4: текущий шаг дня, вторичные кнопки, выравнивания */
+.plan li.cur .min { font-weight: 800 }
+.plan li.cur strong { color: var(--accent) }
+.lib-sec .prog-head h2 { flex: 1; min-width: 0 }
+.lib-sec .prog-head .textbtn { margin-inline: -10px; white-space: nowrap }
+[data-welcome] .side { display: none }
+[data-welcome] .shell { grid-template-columns: 1fr }
+.notfound > p { max-width: 560px }
+@media (min-width: 761px) { .hero-btn { justify-self: start; min-width: 280px; max-width: 420px } }

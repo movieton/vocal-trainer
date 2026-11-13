@@ -1,10 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
+import { loadLang } from './lib/i18n'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// сначала язык (английский словарь — отдельным файлом), потом приложение: его тексты собираются при загрузке модулей
+loadLang().catch(() => {}).then(() => import('./App.tsx')).then(({ default: App }) => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

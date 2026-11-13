@@ -23,7 +23,7 @@ function callResponse(key: number, degs: number[], beat: number, hidden = false,
 const mid = (r: Range) => Math.round((r.lo + r.hi) / 2)
 const keyFor = (r: Range) => nearest(randInt(0, 11), mid(r) - 4)
 
-export const LEVELS: Level[] = [
+const LEVELS: Level[] = [
   { title: tr('Одна нота'), tol: 50, text: tr('Повтори одну ноту, допуск ±50 центов'), gen: r => callResponse(randInt(r.lo + 2, r.hi - 4), [0], 1.4) },
   { title: tr('Одна нота точно'), tol: 25, text: tr('То же, но допуск ±25'), gen: r => callResponse(randInt(r.lo + 2, r.hi - 4), [0], 1.4) },
   { title: tr('Секунда'), tol: 25, text: tr('Две соседние ноты'), gen: r => callResponse(keyFor(r), rand([[0, 1], [1, 0], [2, 3], [4, 3]]), 0.9) },

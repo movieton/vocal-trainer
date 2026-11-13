@@ -1,0 +1,122 @@
+[
+ {
+  "id": "01-cat",
+  "name": "Кот",
+  "nameEn": "Cat",
+  "collection": "animals"
+ },
+ {
+  "id": "02-dog",
+  "name": "Пёс",
+  "nameEn": "Dog",
+  "collection": "animals"
+ },
+ {
+  "id": "03-fox",
+  "name": "Лиса",
+  "nameEn": "Fox",
+  "collection": "animals"
+ },
+ {
+  "id": "04-raccoon",
+  "name": "Енот",
+  "nameEn": "Raccoon",
+  "collection": "animals"
+ },
+ {
+  "id": "05-panda",
+  "name": "Панда",
+  "nameEn": "Panda",
+  "collection": "animals"
+ },
+ {
+  "id": "06-rabbit",
+  "name": "Кролик",
+  "nameEn": "Rabbit",
+  "collection": "animals"
+ },
+ {
+  "id": "07-owl",
+  "name": "Сова",
+  "nameEn": "Owl",
+  "collection": "animals"
+ },
+ {
+  "id": "08-bear",
+  "name": "Медведь",
+  "nameEn": "Bear",
+  "collection": "animals"
+ },
+ {
+  "id": "09-axolotl",
+  "name": "Аксолотль",
+  "nameEn": "Axolotl",
+  "collection": "animals"
+ },
+ {
+  "id": "10-capybara",
+  "name": "Капибара",
+  "nameEn": "Capybara",
+  "collection": "animals"
+ },
+ {
+  "id": "11-penguin",
+  "name": "Пингвин",
+  "nameEn": "Penguin",
+  "collection": "musical"
+ },
+ {
+  "id": "12-koala",
+  "name": "Коала",
+  "nameEn": "Koala",
+  "collection": "musical"
+ },
+ {
+  "id": "13-tiger",
+  "name": "Тигр",
+  "nameEn": "Tiger",
+  "collection": "musical"
+ },
+ {
+  "id": "14-frog",
+  "name": "Лягушка",
+  "nameEn": "Frog",
+  "collection": "musical"
+ },
+ {
+  "id": "15-lion",
+  "name": "Лев",
+  "nameEn": "Lion",
+  "collection": "musical"
+ },
+ {
+  "id": "16-red-panda",
+  "name": "Красная панда",
+  "nameEn": "Red panda",
+  "collection": "musical"
+ },
+ {
+  "id": "17-elephant",
+  "name": "Слон",
+  "nameEn": "Elephant",
+  "collection": "musical"
+ },
+ {
+  "id": "18-hamster",
+  "name": "Хомяк",
+  "nameEn": "Hamster",
+  "collection": "musical"
+ },
+ {
+  "id": "19-otter",
+  "name": "Выдра",
+  "nameEn": "Otter",
+  "collection": "musical"
+ },
+ {
+  "id": "20-hedgehog",
+  "name": "Ёж",
+  "nameEn": "Hedgehog",
+  "collection": "musical"
+ }
+]

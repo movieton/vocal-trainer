@@ -15,7 +15,11 @@ export function useTake() {
   const [take, setTake] = useState<TakeWithTargets | null>(null)
   const [playing, setPlaying] = useState(false)
   const audio = useRef<HTMLAudioElement | null>(null)
+  const loopHeld = useRef(false)
   const [on] = useStored('recordTakes', true)
+
+  const retain = () => { if (!loopHeld.current) { loopHeld.current = true; engine.retainLoop() } }
+  const release = () => { if (loopHeld.current) { loopHeld.current = false; engine.releaseLoop() } }
 
   const begin = () => { if (on) engine.startRecording() }
   const end = async (targets: Target[]) => {
@@ -26,12 +30,14 @@ export function useTake() {
     if (!take) return
     audio.current?.pause()
     const a = new Audio(take.url)
-    a.onended = () => setPlaying(false)
+    a.onended = () => { release(); setPlaying(false) }
     audio.current = a
-    void a.play(); setPlaying(true)
+    retain()
+    setPlaying(true)
+    void a.play().catch(() => { release(); setPlaying(false) })
   }
-  const stop = () => { audio.current?.pause(); setPlaying(false) }
-  useEffect(() => () => { audio.current?.pause() }, [])
+  const stop = () => { audio.current?.pause(); release(); setPlaying(false) }
+  useEffect(() => () => { audio.current?.pause(); release() }, [])
 
   const replay = playing && take ? { clock: () => take.t0 + (audio.current?.currentTime ?? 0), history: take.history } : null
   return { take, playing, begin, end, play, stop, replay, clear: () => setTake(null) }

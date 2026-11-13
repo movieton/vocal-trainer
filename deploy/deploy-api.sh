@@ -8,7 +8,7 @@ HOST=root@169.58.16.244
 SSH="ssh -i $KEY $HOST"
 
 $SSH 'mkdir -p /opt/fasol-api/data && chown 1000:1000 /opt/fasol-api/data && touch /opt/fasol-api/.env && chmod 600 /opt/fasol-api/.env'
-rsync -a -e "ssh -i $KEY" server/index.mjs server/Dockerfile "$HOST:/opt/fasol-api/"
+rsync -a -e "ssh -i $KEY" server/index.mjs server/Dockerfile server/package.json server/package-lock.json server/.dockerignore "$HOST:/opt/fasol-api/"
 $SSH 'cd /opt/fasol-api && docker build -q -t fasol-api . >/dev/null && (docker rm -f fasol-api >/dev/null 2>&1 || true) && docker run -d --name fasol-api --restart unless-stopped -p 127.0.0.1:8787:8787 -v /opt/fasol-api/data:/data --env-file /opt/fasol-api/.env -e BASE_URL=https://fasol.app fasol-api >/dev/null'
 
 # nginx: лимит частоты (5 запросов в секунду с адреса) и блок /api — пересобираются при каждой выкладке

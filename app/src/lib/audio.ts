@@ -1,16 +1,86 @@
 import { tr } from './i18n'
 import { PitchDetector } from 'pitchy'
-import { SplendidGrandPiano } from 'smplr'
+import { CacheStorage, SplendidGrandPiano } from 'smplr'
 import { ftom, median, mtof } from './music'
+import { read, write } from './store'
 
-// ?sim — синтетический «голос» вместо микрофона, для проверки без певца
-export const SIM = new URLSearchParams(location.search).has('sim')
+// ?sim — синтетический «голос» вместо микрофона, для проверки без певца (в search или hash)
+export function hasSimParam(
+  search = typeof location !== 'undefined' ? location.search : '',
+  hash = typeof location !== 'undefined' ? location.hash : '',
+) {
+  if (new URLSearchParams(search).has('sim')) return true
+  const q = hash.indexOf('?')
+  return q >= 0 && new URLSearchParams(hash.slice(q + 1)).has('sim')
+}
+export const SIM = hasSimParam()
+
+export function pickFftSize(sampleRate: number) {
+  return sampleRate > 50000 ? 4096 : 2048
+}
+
+/**
+ * Подавляет кратковременные октавные выбросы (1–3 кадра на ±12/±24 полутона),
+ * но пропускает устойчивую смену октавы (4+ подтверждённых кадра подряд).
+ */
+export class OctaveFilter {
+  private anchor: number | null = null
+  private silentFrames = 0
+  private cand: number | null = null
+  private candFrames = 0
+
+  reset() {
+    this.anchor = null
+    this.silentFrames = 0
+    this.cand = null
+    this.candFrames = 0
+  }
+
+  push(m: number | null): number | null {
+    if (m == null) {
+      this.silentFrames++
+      if (this.silentFrames > 4) { this.cand = null; this.candFrames = 0 }
+      if (this.silentFrames > 20) this.reset()
+      return null
+    }
+    this.silentFrames = 0
+    if (this.anchor == null) {
+      this.anchor = m
+      this.cand = null
+      this.candFrames = 0
+      return m
+    }
+    const diff = Math.abs(m - this.anchor)
+    const isOctaveJump = Math.abs(diff - 12) <= 2.2 || Math.abs(diff - 24) <= 2.2
+    if (!isOctaveJump) {
+      this.anchor = m
+      this.cand = null
+      this.candFrames = 0
+      return m
+    }
+    if (this.cand != null && Math.abs(m - this.cand) <= 2.5) {
+      this.candFrames++
+    } else {
+      this.cand = m
+      this.candFrames = 1
+    }
+    if (this.candFrames >= 4) {
+      this.anchor = m
+      this.cand = null
+      this.candFrames = 0
+      return m
+    }
+    return this.anchor
+  }
+}
 
 export type PitchSample = { t: number; midi: number | null }
 export type MicState = 'off' | 'starting' | 'on' | 'error'
 export type Take = { url: string; t0: number; t1: number; history: PitchSample[] }
 
 const HISTORY_SEC = 180
+/** Свой кэш сэмплов рояля: офлайн работает с первого визита, без ожидания сервис-воркера */
+const pianoCache = () => { try { return 'caches' in self ? new CacheStorage('fasol-piano') : undefined } catch { return undefined } }
 
 class Engine {
   ctx: AudioContext | null = null
@@ -20,6 +90,8 @@ class Engine {
   mic: MicState = 'off'
   micError = ''
   history: PitchSample[] = []
+  /** Задержка звука в наушниках (Bluetooth), с: голос сдвигается назад, чтобы точно совпасть с нотами */
+  latency = SIM ? 0 : read('latencyMs', 0) / 1000
   current: number | null = null
   /** Громкость сигнала с микрофона (RMS) — для поиска начала звука в ритме голосом */
   level = 0
@@ -34,11 +106,23 @@ class Engine {
   private recent: number[] = []
   private listeners = new Set<() => void>()
   private running = false
+  private loopUsers = 0
+  private stream: MediaStream | null = null
+  private source: MediaStreamAudioSourceNode | null = null
+  /** Сколько экранов сейчас пользуются микрофоном */
+  private users = 0
+  private idleTimer: ReturnType<typeof setTimeout> | undefined
+  /** Звук остановлен извне (свернули, звонок) посреди упражнения — ждём «Продолжить» */
+  interrupted = false
+  /** На iOS автозапуск без жеста оставил AudioContext suspended — ждём нажатия */
+  audioSuspended = false
+  private pitchFilter = new OctaveFilter()
   private recSource: MediaStream | null = null
   private recorder: MediaRecorder | null = null
   private recChunks: Blob[] = []
   private recT0 = 0
   private droneNodes: AudioScheduledSourceNode[] = []
+  private dronePitches: number[] = []
 
   now() { return this.ctx?.currentTime ?? 0 }
 
@@ -48,21 +132,33 @@ class Engine {
       this.master = this.ctx.createGain()
       this.master.gain.value = 0.9
       this.master.connect(this.ctx.destination)
-      this.piano = new SplendidGrandPiano(this.ctx, { destination: this.master, volume: 90 })
+      this.piano = new SplendidGrandPiano(this.ctx, { destination: this.master, volume: 90, storage: pianoCache() })
       this.piano.load.then(() => { this.pianoReady = true }).catch(() => { this.pianoReady = false })
-      this.startLoop()
+      // звонок или другое приложение остановили звук посреди упражнения
+      this.ctx.onstatechange = () => {
+        if (this.ctx && this.ctx.state !== 'running' && document.documentElement.dataset.focus) { this.interrupted = true; this.emit() }
+      }
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume()
     return this.ctx
   }
 
-  async startMic() {
+  retainLoop() {
+    this.loopUsers++
+    this.startLoop()
+  }
+
+  releaseLoop() {
+    if (this.loopUsers > 0) this.loopUsers--
+  }
+
+  async startMic(auto = false) {
     if (this.mic === 'on' || this.mic === 'starting') return
     const ctx = this.ensureCtx()
-    this.mic = 'starting'; this.emit()
+    this.mic = 'starting'; this.audioSuspended = false; this.emit()
     try {
       this.analyser = ctx.createAnalyser()
-      this.analyser.fftSize = 2048
+      this.analyser.fftSize = pickFftSize(ctx.sampleRate)
       if (SIM) {
         this.simOsc = ctx.createOscillator()
         this.simGain = ctx.createGain()
@@ -73,30 +169,110 @@ class Engine {
         this.recSource = dest.stream
         this.simOsc.start()
       } else {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('NO_MEDIA_DEVICES')
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         })
-        ctx.createMediaStreamSource(stream).connect(this.analyser)
+        this.source = ctx.createMediaStreamSource(stream)
+        this.source.connect(this.analyser)
         this.recSource = stream
+        this.stream = stream
+        write('micOk', true, true)
+        // включили сами (без нажатия) — пробуем запустить звук; Safari на iOS без жеста может оставить suspended
+        if (ctx.state !== 'running') {
+          await Promise.race([
+            ctx.resume().catch(() => {}),
+            new Promise<void>(r => setTimeout(r, 80)),
+          ])
+        }
+        if (auto && ctx.state === 'suspended') {
+          stream.getTracks().forEach(t => t.stop())
+          this.source?.disconnect()
+          this.stream = this.source = this.recSource = null
+          this.analyser = null
+          this.mic = 'off'
+          this.audioSuspended = true
+          this.emit()
+          return
+        }
       }
       this.buf = new Float32Array(this.analyser.fftSize)
       this.detector = PitchDetector.forFloat32Array(this.buf.length)
+      this.pitchFilter.reset()
+      this.audioSuspended = false
       this.mic = 'on'
+      this.startLoop()
+      // пока ждали разрешения, человек ушёл с экрана — сразу отпускаем
+      if (!this.users && !document.documentElement.dataset.focus) { this.emit(); this.stopMic(); return }
     } catch (e) {
       this.mic = 'error'
       const err = e as DOMException
-      this.micError = err?.name === 'NotAllowedError'
-        ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
-        : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
+      if (err?.name === 'NotAllowedError') write('micOk', false, true)
+      this.micError = err?.message === 'NO_MEDIA_DEVICES'
+        ? tr('Микрофон недоступен в этом браузере. Открой сайт по HTTPS в Safari или Chrome.')
+        : err?.name === 'NotAllowedError'
+          ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
+          : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
     }
+    this.emit()
+  }
+
+  /** Отпустить микрофон: гаснет индикатор, iOS возвращает обычный звук */
+  stopMic() {
+    if (this.mic === 'off' || this.mic === 'starting') return
+    this.stream?.getTracks().forEach(t => t.stop())
+    this.source?.disconnect()
+    try { this.simOsc?.stop() } catch { /* уже остановлен */ }
+    this.simOsc?.disconnect(); this.simGain?.disconnect()
+    this.stream = this.source = this.simOsc = this.simGain = this.recSource = null
+    this.analyser = null
+    this.mic = 'off'; this.current = null; this.recent = []; this.audioSuspended = false
+    this.pitchFilter.reset()
+    this.emit()
+  }
+
+  /** Экран с микрофоном открылся: включаем сами, если разрешение уже давали */
+  acquireMic(autoStart = true) {
+    this.users++
+    clearTimeout(this.idleTimer)
+    if (autoStart && this.mic === 'off' && (SIM || read('micOk', false)) && document.visibilityState === 'visible') void this.startMic(true)
+  }
+  /** Экран закрылся: микрофон отпускаем с небольшой задержкой — вдруг следующий экран тоже с ним */
+  releaseMic() {
+    this.users = Math.max(0, this.users - 1)
+    this.scheduleIdleStop()
+  }
+  scheduleIdleStop() {
+    clearTimeout(this.idleTimer)
+    this.idleTimer = setTimeout(() => { if (!this.users && !document.documentElement.dataset.focus) this.stopMic() }, 1500)
+  }
+
+  /** Свернули приложение: посреди упражнения ставим звук на паузу, иначе отпускаем микрофон */
+  onHidden() {
+    if (document.documentElement.dataset.focus) {
+      if (this.ctx?.state === 'running') void this.ctx.suspend()
+      this.interrupted = true
+      this.emit()
+    } else this.stopMic()
+  }
+  onVisible() {
+    if (!this.interrupted && this.users && this.mic === 'off' && (SIM || read('micOk', false))) void this.startMic(true)
+  }
+  /** «Продолжить» после паузы — по нажатию, иначе iOS не включит звук */
+  async resume() {
+    // iOS мог закрыть микрофон, пока приложение было свёрнуто
+    if (this.mic === 'on' && this.stream?.getAudioTracks()[0]?.readyState === 'ended') this.stopMic()
+    if (this.mic === 'off' && (this.users || document.documentElement.dataset.focus)) await this.startMic()
+    if (this.ctx && this.ctx.state !== 'running') await this.ctx.resume().catch(() => {})
+    // звонок ещё идёт — звук не вернулся, плашку не снимаем
+    this.interrupted = !!this.ctx && this.ctx.state !== 'running' && !!document.documentElement.dataset.focus
     this.emit()
   }
 
   /** Нота пианино; при незагруженных сэмплах — простой синтез */
   play(midi: number, time: number, dur: number, velocity = 70) {
     const ctx = this.ensureCtx()
-    this.sounding.push({ m: Math.round(midi), t0: time, t1: time + dur + 0.6 })
-    if (this.sounding.length > 64) this.sounding = this.sounding.filter(n => n.t1 > ctx.currentTime)
+    this.trackSound(midi, time, dur)
     if (this.pianoReady && this.piano) {
       this.piano.start({ note: Math.round(midi), time, duration: dur, velocity })
       return
@@ -120,15 +296,25 @@ class Engine {
     this.play(midi, time, dur, velocity)
   }
 
-  /** Ноты пианино, которые сейчас звучат (с хвостом затухания) — чтобы не принять их за голос */
+  /** Ноты эталона/дрона, которые сейчас звучат (с хвостом затухания) — чтобы не принять их за голос */
   private sounding: { m: number; t0: number; t1: number }[] = []
   /** true, когда петь не нужно (фаза «Слушай»): звук пианино из динамика тогда точно не голос */
   listenOnly = false
-  /** Тихий звук на высоте звучащей ноты пианино (или её октавы) — это динамик, а не голос */
+
+  private trackSound(midi: number, time: number, dur: number) {
+    const now = this.ctx?.currentTime ?? 0
+    this.sounding.push({ m: Math.round(midi), t0: time, t1: time + dur + 0.6 })
+    if (this.sounding.length > 64) this.sounding = this.sounding.filter(n => n.t1 > now)
+  }
+
+  /** Тихий звук на высоте звучащего эталона или дрона (или их октавы) — это динамик, а не голос */
   private isBleed(m: number) {
     const now = this.ctx!.currentTime
-    const hit = this.sounding.some(n => now >= n.t0 && now <= n.t1 && [0, 12, -12, 19].some(k => Math.abs(m - (n.m + k)) < 0.6))
-    return hit && (this.listenOnly || this.level < 0.03)
+    const matches = (targetMidi: number) =>
+      [0, 12, -12, 19].some(k => Math.abs(m - (targetMidi + k)) < 0.6)
+    const hitSounding = this.sounding.some(n => now >= n.t0 && now <= n.t1 && matches(n.m))
+    const hitDrone = this.dronePitches.some(matches)
+    return (hitSounding || hitDrone) && (this.listenOnly || this.level < 0.008)
   }
 
   /**
@@ -137,6 +323,7 @@ class Engine {
    */
   playVoice(midi: number, time: number, dur: number, velocity = 70) {
     const ctx = this.ensureCtx()
+    this.trackSound(midi, time, dur)
     const o = ctx.createOscillator(), vib = ctx.createOscillator(), vibG = ctx.createGain(), out = ctx.createGain()
     o.type = 'sawtooth'; o.frequency.value = mtof(midi)
     vib.frequency.value = 5.5; vibG.gain.value = mtof(midi) * 0.008
@@ -160,7 +347,9 @@ class Engine {
     const ctx = this.ensureCtx()
     this.droneNodes.forEach(n => { try { n.stop() } catch { /* уже остановлен */ } })
     this.droneNodes = []
+    this.dronePitches = []
     if (midi == null) return
+    this.dronePitches = [midi, midi + 7, midi - 12]
     const g = ctx.createGain()
     g.gain.setValueAtTime(0, ctx.currentTime); g.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.5)
     g.connect(this.master!)
@@ -257,23 +446,32 @@ class Engine {
     if (this.running) return
     this.running = true
     const step = () => {
-      if (this.ctx && this.mic === 'on') {
-        const m = this.readPitch()
+      const micActive = !!(this.ctx && this.mic === 'on')
+      if (!micActive && this.loopUsers === 0) {
+        this.running = false
+        return
+      }
+      if (micActive) {
+        const raw = this.readPitch()
+        const m = SIM ? raw : this.pitchFilter.push(raw)
         // медиана трёх кадров гасит одиночные выбросы
         if (m == null) this.recent = []
         else { this.recent.push(m); if (this.recent.length > 3) this.recent.shift() }
         const smooth = m == null ? null : median(this.recent)
         this.current = smooth
-        const t = this.ctx.currentTime
+        const t = this.ctx!.currentTime - this.latency
         this.history.push({ t, midi: smooth })
         while (this.history.length && this.history[0].t < t - HISTORY_SEC) this.history.shift()
       }
       this.emit()
-      // в фоновой вкладке rAF спит, поэтому в режиме проверки идём по таймеру
-      if (SIM) setTimeout(step, 16); else requestAnimationFrame(step)
+      // в фоновой вкладке rAF спит, поэтому в режиме проверки (и Node-тестах) идём по таймеру
+      if (SIM || typeof requestAnimationFrame !== 'function') setTimeout(step, 16); else requestAnimationFrame(step)
     }
     step()
   }
 }
 
 export const engine = new Engine()
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') engine.onHidden(); else engine.onVisible()
+})

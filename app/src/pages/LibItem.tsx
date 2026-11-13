@@ -1,4 +1,5 @@
 import { tr } from '../lib/i18n'
+import NotFound from '../components/NotFound'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ExternalLink, Play, RotateCcw } from 'lucide-react'
@@ -15,7 +16,7 @@ const LEVEL = ['', tr('новичок'), tr('средний'), tr('продви�
 export default function LibItem() {
   const { id = '' } = useParams()
   const it = libItem(id)
-  if (!it) return <div className="page"><p>{tr('Упражнение не найдено.')} <Link to="/library">{tr('В библиотеку')}</Link></p></div>
+  if (!it) return <NotFound what="exercise" back="/library" backLabel={tr('В библиотеку')} />
   const topic = TOPICS.find(t => t.id === topicOf(it))!
   return (
     <div className="page lib-item">

@@ -1,9 +1,9 @@
 import { tr } from '../lib/i18n'
 import { useState } from 'react'
-import CircleSvg, { sigText } from '../components/CircleSvg'
+import CircleSvg from '../components/CircleSvg'
 import { Link } from 'react-router-dom'
 import { engine } from '../lib/audio'
-import { chordLabel, CHORDS, CIRCLE, degree, pcName, rand, SCALES, type ChordQ } from '../lib/theory'
+import { chordLabel, CHORDS, CIRCLE, degree, pcName, rand, SCALES, sigText, type ChordQ } from '../lib/theory'
 import { useStored } from '../lib/store'
 
 const DIATONIC: { deg: number; roman: string; q: ChordQ }[] = [

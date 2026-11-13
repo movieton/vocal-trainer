@@ -34,7 +34,12 @@ export function ReminderCard({ compact }: { compact?: boolean }) {
       const sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) })
       const [h, m] = time.split(':').map(Number)
       const r = await api('/push/subscribe', { subscription: sub.toJSON(), hour: h, minute: m, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, lang })
-      if (!r.ok) throw new Error(tr('Сервер не принял подписку. Попробуй позже.'))
+      if (!r.ok) {
+        const code = ((await r.json().catch(() => ({}))) as { error?: string }).error
+        throw new Error(code === 'too_many' ? tr('Слишком много попыток. Попробуй через 15 минут.')
+          : code === 'push_failed' ? tr('Не получилось отправить пробное уведомление. Проверь, что уведомления для сайта разрешены, и попробуй ещё раз.')
+          : tr('Сервер не принял подписку. Попробуй позже.'))
+      }
       setRem({ on: true, time, endpoint: sub.endpoint })
     } catch (e) { setErr(e instanceof Error ? e.message : tr('Не получилось включить напоминание.')) }
     setBusy(false)
@@ -63,7 +68,7 @@ export function ReminderCard({ compact }: { compact?: boolean }) {
         <label>{tr('Время')}<input type="time" value={time} onChange={e => setTime(e.target.value)} disabled={busy} /></label>
         {rem.on
           ? <>{time !== rem.time && <button className="btn" disabled={busy} onClick={enable}>{tr('Сохранить')}</button>}<button className="btn ghost" disabled={busy} onClick={disable}><BellOff size={16} /> {tr('Выключить')}</button></>
-          : <button className="btn" disabled={busy} onClick={enable}><Bell size={16} /> {tr('Включить')}</button>}
+          : <button className={'btn' + (compact ? ' ghost' : '')} disabled={busy} onClick={enable}><Bell size={16} /> {tr('Включить')}</button>}
         {compact && !rem.on && <button className="textbtn" onClick={() => setLater(true)}>{tr('Не сейчас')}</button>}
       </div>
       {err && <p className="form-err" role="alert">{err}</p>}

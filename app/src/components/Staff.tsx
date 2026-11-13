@@ -17,7 +17,7 @@ export type Clef = 'treble' | 'bass'
 const LETTER_OF_PC = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6] // до,до#,ре,ре#,ми,фа,фа#,соль,соль#,ля,ля#,си
 const LETTER_OF_PC_FLAT = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6]
 /** Номер ступени на нотоносце (до первой октавы = 28) */
-export const diatonic = (m: number, flat = false) => (Math.floor(m / 12) - 1) * 7 + (flat ? LETTER_OF_PC_FLAT : LETTER_OF_PC)[m % 12]
+const diatonic = (m: number, flat = false) => (Math.floor(m / 12) - 1) * 7 + (flat ? LETTER_OF_PC_FLAT : LETTER_OF_PC)[m % 12]
 const BOTTOM = { treble: 30, bass: 18 } // ми1 и соль большой — нижние линии
 const SHARPS = [38, 35, 39, 36, 33, 37, 34], FLATS = [34, 37, 33, 36, 32, 35, 31]
 const BEAT_SEC: Record<Dur, number> = { 1: 2, 2: 1, 4: 0.5, 8: 0.25 }

@@ -28,23 +28,59 @@ export type Key = 'auto' | number
  * inner — пауза «услышь про себя» между показом и пением (внутренний слух, Pfordresher & Halpern 2013);
  * fade — затухающая подсказка: звук эталона во время пения только через круг
  */
-export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key; inner?: boolean; fade?: boolean }
+export type RunOptions = { range: Range; mode: Mode; tempo: number; tolerance: number; shift: number; key?: Key; inner?: boolean; fade?: boolean; ladder?: boolean }
 
 /** Высота цели в момент t (с учётом глиссандо) */
 export const targetAt = (g: Target, t: number) =>
   g.midiEnd == null ? g.midi : g.midi + (g.midiEnd - g.midi) * Math.min(1, Math.max(0, (t - g.t0) / (g.t1 - g.t0)))
 
-export function buildRoots(ex: Exercise, range: Range, shift = 0, key: Key = 'auto') {
+/**
+ * Подгоняет размах упражнения под рабочий диапазон: если фраза шире доступного окна,
+ * пропорционально сжимает относительные ступени до ближайших полутонов, сохраняя направление контура.
+ */
+export function fitExercise(ex: Exercise, range: Range): Exercise {
   const { min, max } = span(ex)
+  const exSpan = max - min
+  const room = Math.max(0, range.hi - range.lo)
+  const maxSpan = room >= 2 ? room - 2 : room
+  if (exSpan <= maxSpan || exSpan === 0) return ex
+  const mapNote = (s: number) => min + Math.round(((s - min) / exSpan) * maxSpan)
+  return {
+    ...ex,
+    notes: ex.notes.map(n => (n.rest ? n : {
+      ...n,
+      s: mapNote(n.s),
+      glide: n.glide != null ? mapNote(n.glide) : undefined,
+    })),
+  }
+}
+
+export function buildRoots(ex: Exercise, range: Range, shift = 0, key: Key = 'auto') {
+  const fitted = fitExercise(ex, range)
+  const { min, max } = span(fitted)
   if (key !== 'auto') {
     // фиксированная тональность: самая удобная октава в диапазоне, 6 повторов
     const mid = (range.lo + range.hi) / 2 - (min + max) / 2
-    const root = key + 12 * Math.round((mid - key) / 12) + shift
-    return Array(6).fill(root)
+    let root = key + 12 * Math.round((mid - key) / 12)
+    if (shift === 0) {
+      if (root + min < range.lo && root + 12 + max <= range.hi) root += 12
+      else if (root + max > range.hi && root - 12 + min >= range.lo) root -= 12
+    }
+    return Array(6).fill(root + shift)
   }
+  const loRoot = range.lo + 1 - min
+  const hiRoot = range.hi - 1 - max
   const up: number[] = []
-  for (let root = range.lo + 1 - min; root + max <= range.hi - 1; root++) up.push(root + shift)
-  if (!up.length) up.push(range.lo - min + shift)
+  if (loRoot <= hiRoot) {
+    if (max - min <= 2 && hiRoot - loRoot > 4) {
+      // узкие/однонотные упражнения (messa, twang): ограничиваем лесенку до ≤ 9 кругов равномерным шагом
+      for (let i = 0; i < 5; i++) up.push(loRoot + Math.round((i * (hiRoot - loRoot)) / 4) + shift)
+    } else {
+      for (let root = loRoot; root <= hiRoot; root++) up.push(root + shift)
+    }
+  } else {
+    up.push(Math.round(((range.lo - min) + (range.hi - max)) / 2) + shift)
+  }
   return up.concat(up.slice(0, -1).reverse())
 }
 
@@ -53,6 +89,8 @@ export class ExerciseRun {
   opts: RunOptions
   roots: number[]
   rep = 0
+  /** Сквозной номер прохода (растёт и в режиме повтора) */
+  seq = 0
   repeat = false
   targets: Target[] = []
   /** Все цели прогона — для прослушивания записи */
@@ -64,11 +102,12 @@ export class ExerciseRun {
   private listenEnd = 0
   private singStart = 0
   private singEnd = 0
+  private loopHeld = false
 
   constructor(ex: Exercise, opts: RunOptions) {
-    this.ex = ex
+    this.ex = fitExercise(ex, opts.range)
     this.opts = opts
-    this.roots = buildRoots(ex, opts.range, opts.shift, opts.key)
+    this.roots = buildRoots(this.ex, opts.range, opts.shift, opts.key)
   }
 
   get beat() { return 60 / (this.ex.bpm * this.opts.tempo) }
@@ -76,6 +115,7 @@ export class ExerciseRun {
 
   start() {
     const ctx = engine.ensureCtx()
+    if (!this.loopHeld) { engine.retainLoop(); this.loopHeld = true }
     this.schedule(ctx.currentTime + 0.4)
     engine.simTarget = t => this.simPitch(t)
   }
@@ -85,6 +125,7 @@ export class ExerciseRun {
     this.phase = 'done'
     engine.stopAll()
     engine.simTarget = null
+    if (this.loopHeld) { engine.releaseLoop(); this.loopHeld = false }
   }
 
   private schedule(t: number) {
@@ -98,7 +139,7 @@ export class ExerciseRun {
         const len = n.d * b
         if (!n.rest) {
           const t1 = cur + (n.stacc ? len * 0.5 : len)
-          const tg = { midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.rep }
+          const tg = { midi: root + n.s, midiEnd: n.glide != null ? root + n.glide : undefined, t0: cur, t1, syl: n.syl, sing, rep: this.seq }
           this.targets.push(tg); this.all.push(tg)
           if (playPiano) {
             engine.ref(root + n.s, cur, t1 - cur, vel)
@@ -126,7 +167,7 @@ export class ExerciseRun {
     }
     this.singEnd = cur
     // держим в памяти только текущий и прошлый круг
-    this.targets = this.targets.filter(g => g.rep >= this.rep - 1)
+    this.targets = this.targets.filter(g => g.rep >= this.seq - 1)
   }
 
   /** Вызывается каждый кадр; возвращает true, если поменялось состояние для интерфейса */
@@ -138,8 +179,10 @@ export class ExerciseRun {
     else if (now < this.singStart) this.phase = now < this.singStart - this.beat ? 'inner' : 'breath'
     else this.phase = 'sing'
     engine.listenOnly = this.phase !== 'sing'
-    if (now > this.singEnd + 0.3) {
+    if (now > this.singEnd + 0.3 + engine.latency) {
       this.scoreRep()
+      this.climb()
+      this.seq++
       if (!this.repeat) this.rep++
       if (this.rep >= this.roots.length) { this.stop(); return true }
       this.schedule(now + 0.3)
@@ -148,9 +191,23 @@ export class ExerciseRun {
     return prev !== this.phase
   }
 
+  /** Самый быстрый темп, на котором круг спет чисто */
+  peak = 0
+  /**
+   * Лестница темпа: круг спет чисто (от 80%) — следующий на 5% быстрее, не вышло (ниже 60%) — на 5% медленнее.
+   * Так учат рифы и быстрые пассажи: точность раньше скорости.
+   */
+  private climb() {
+    if (!this.opts.ladder) return
+    const s = this.results.at(-1)?.score ?? 0
+    if (s >= 0.8) { this.peak = Math.max(this.peak, this.opts.tempo); this.opts.tempo = Math.min(1.6, +(this.opts.tempo + 0.05).toFixed(2)) }
+    else if (s < 0.6) this.opts.tempo = Math.max(0.5, +(this.opts.tempo - 0.05).toFixed(2))
+  }
+  get tempo() { return this.opts.tempo }
+
   private scoreRep() {
     const tol = this.opts.tolerance
-    const sung = this.targets.filter(g => g.rep === this.rep && g.sing)
+    const sung = this.targets.filter(g => g.rep === this.seq && g.sing)
     const notes = sung.map(g => {
       const from = g.t0 + 0.2 * (g.t1 - g.t0)
       const frames = engine.history.filter(s => s.t >= from && s.t < g.t1)

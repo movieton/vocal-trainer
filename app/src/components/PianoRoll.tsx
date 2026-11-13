@@ -32,18 +32,53 @@ type Props = {
 
 const LABEL_W = 72
 
+function lowerBoundTime(hist: PitchSample[], minT: number): number {
+  let lo = 0, hi = hist.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (hist[mid].t < minT) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
 export default function PianoRoll({ follow = false, view, targets, windowSec = 8, playhead = 0.35, tolerance = 25, overlay, band, neutral, colorFor, replay, rowLabel, className, lyrics }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
-  const props = useRef({ view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
-  props.current = { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
+  const props = useRef({ follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel })
+  props.current = { follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel }
 
   useEffect(() => {
     // новый экран — без следа голоса с прошлого
     engine.history = []
     const cv = ref.current!
     const g = cv.getContext('2d')!
+    let st = getComputedStyle(cv)
+    const varCache = new Map<string, string>()
+    const cssVar = (n: string) => {
+      let v = varCache.get(n)
+      if (v === undefined) {
+        v = st.getPropertyValue(n).trim()
+        varCache.set(n, v)
+      }
+      return v
+    }
+    let C = {
+      bg: '', black: '', line: '', cline: '', label: '',
+      target: '', listen: '', onTarget: '', accent: '',
+      good: '', near: '', bad: '', text: '', voice: '',
+    }
+    const refreshPalette = () => {
+      st = getComputedStyle(cv)
+      varCache.clear()
+      C = {
+        bg: cssVar('--roll-bg'), black: cssVar('--roll-black'), line: cssVar('--roll-line'), cline: cssVar('--roll-cline'), label: cssVar('--muted'),
+        target: cssVar('--roll-target'), listen: cssVar('--roll-listen'), onTarget: cssVar('--roll-on-target'), accent: cssVar('--accent'),
+        good: cssVar('--good'), near: cssVar('--near'), bad: cssVar('--bad'), text: cssVar('--text'), voice: cssVar('--roll-voice'),
+      }
+    }
+    refreshPalette()
     const draw = () => {
-      const { view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
+      const { follow, lyrics, view, targets, windowSec, playhead, tolerance, overlay, band, neutral, colorFor, replay, rowLabel } = props.current
       const hist = replay?.history ?? engine.history
       const dpr = devicePixelRatio || 1, W = cv.clientWidth, FH = cv.clientHeight
       if (!W || !FH) return
@@ -51,11 +86,6 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
       // режим песни: внизу дорожка текста, доска над ней
       const LANE = lyrics ? 30 : 0, H = FH - LANE
       g.setTransform(dpr, 0, 0, dpr, 0, 0)
-      const st = getComputedStyle(cv)
-      const c = (n: string) => st.getPropertyValue(n).trim()
-      const C = { bg: c('--roll-bg'), black: c('--roll-black'), line: c('--roll-line'), cline: c('--roll-cline'), label: c('--muted'),
-        target: c('--roll-target'), listen: c('--roll-listen'), onTarget: c('--roll-on-target'), accent: c('--accent'),
-        good: c('--good'), near: c('--near'), bad: c('--bad'), text: c('--text'), voice: c('--roll-voice') }
 
       let { lo, hi } = view()
       // в тюнере и замере диапазона доска следует за голосом; в упражнениях — стоит на месте
@@ -137,9 +167,9 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
       g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round'
       let prev: [number, number] | null = null
       const sing = list.filter(t => t.sing)
-      for (const s of hist) {
+      for (let i = lowerBoundTime(hist, t0 - 0.1); i < hist.length; i++) {
+        const s = hist[i]
         if (s.t > now) break
-        if (s.t < t0 - 0.1) continue
         if (s.midi == null) { prev = null; continue }
         const pt: [number, number] = [x(s.t), y(s.midi)]
         // скачок больше полутона — новая линия, без вертикальных перемычек
@@ -147,7 +177,7 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
         if (prev) {
           let col = C.voice
           const own = colorFor?.(s.midi, s.t)
-          if (own) col = c(own)
+          if (own) col = cssVar(own)
           else if (neutral) { g.strokeStyle = col; g.beginPath(); g.moveTo(...prev); g.lineTo(...pt); g.stroke(); prev = pt; continue }
           const tg = own ? undefined : sing.find(t => s.t >= t.t0 && s.t < t.t1)
           if (tg) {
@@ -210,8 +240,10 @@ export default function PianoRoll({ follow = false, view, targets, windowSec = 8
     }
     draw()
     const off = engine.subscribe(draw)
-    const ro = new ResizeObserver(draw); ro.observe(cv)
-    return () => { off(); ro.disconnect() }
+    const ro = new ResizeObserver(() => { refreshPalette(); draw() }); ro.observe(cv)
+    const mo = new MutationObserver(() => { refreshPalette(); draw() })
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-focus'] })
+    return () => { off(); ro.disconnect(); mo.disconnect() }
   }, [])
 
   return <canvas ref={ref} className={'roll ' + (className ?? '')} />

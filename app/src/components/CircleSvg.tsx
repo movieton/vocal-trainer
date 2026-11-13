@@ -1,8 +1,6 @@
 import { lang } from '../lib/i18n'
 import { tr } from '../lib/i18n'
-import { CIRCLE } from '../lib/theory'
-
-export const sigText = (s: number) => (s === 0 ? tr('без знаков') : `${Math.abs(s)} ${s > 0 ? tr('диез') : tr('бемол')}${Math.abs(s) === 1 ? '' : Math.abs(s) < 5 ? 'а' : tr('ов')}`)
+import { CIRCLE, sigText } from '../lib/theory'
 
 /**
  * Квинтовый круг: снаружи мажорные тональности, внутри параллельные миноры.

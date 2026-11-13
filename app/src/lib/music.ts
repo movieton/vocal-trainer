@@ -62,13 +62,28 @@ export function analyzeTone(samples: { t: number; midi: number | null }[], targe
   const slow = cents.map((_, i) => avg(cents.slice(Math.max(0, i - win), i + win + 1)))
   const fast = cents.map((c, i) => c - slow[i])
   let crossings = 0
-  for (let i = 1; i < fast.length; i++) if ((fast[i - 1] < 0) !== (fast[i] < 0)) crossings++
+  // для ровности — только настоящие колебания: размах полуволны больше 3 ц и без пауз в звуке
+  const at: number[] = []
+  let peak = 0
+  for (let i = 1; i < fast.length; i++) {
+    peak = Math.max(peak, Math.abs(fast[i]))
+    if ((fast[i - 1] < 0) !== (fast[i] < 0)) {
+      crossings++
+      if (peak > 3) at.push(pts[i].t)
+      peak = 0
+    }
+  }
+  // ровность вибрато: насколько одинаковы полупериоды колебаний (1 — как метроном)
+  const halves = at.slice(1).map((t, i) => t - at[i]).filter(h => h < 0.4)
+  const hm = avg(halves), hsd = halves.length > 3 ? Math.sqrt(avg(halves.map(h => (h - hm) ** 2))) : hm
+  const regularity = halves.length > 3 && hm > 0 ? Math.max(0, 1 - hsd / hm) : 0
   const rms = Math.sqrt(avg(fast.map(x => x * x)))
   const rate = crossings / 2 / dur
   const sd = Math.sqrt(avg(slow.map(x => x * x)))
   // попадание по центру вибрато, а не по каждому колебанию
   const inTune = target == null ? null : slow.filter(x => Math.abs(x + (center - target) * 100) <= tol).length / slow.length
-  return { sd, rate, extent: rms * Math.SQRT2, vibrato: rms * Math.SQRT2 > 12 && rate > 3.5 && rate < 8, center, inTune }
+  const vibrato = rms * Math.SQRT2 > 12 && rate > 3.5 && rate < 8
+  return { sd, rate, extent: rms * Math.SQRT2, vibrato, center, inTune, regularity: vibrato ? regularity : 0 }
 }
 
 /** Русское склонение по числу: plural(21, ['день', 'дня', 'дней']) → «день» */

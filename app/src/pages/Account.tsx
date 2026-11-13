@@ -1,8 +1,10 @@
-import { tr } from '../lib/i18n'
+import { locale, tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Cloud, CloudOff, LogOut } from 'lucide-react'
-import { authEmail, confirmReset, deleteAccount, loginUrl, logout, requestReset, useAccount } from '../lib/account'
+import { authEmail, confirmReset, deleteAccount, loginUrl, logout, requestReset, setAvatar, useAccount } from '../lib/account'
+import { AVATARS, avatarName, avatarSrc } from '../lib/avatars'
+import { UserAvatar } from '../components/Avatar'
 import { useNavigate } from 'react-router-dom'
 import { ReminderCard } from '../components/Reminder'
 
@@ -13,6 +15,8 @@ export default function Account() {
   const [params] = useSearchParams()
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const [avErr, setAvErr] = useState(false)
   const failed = params.get('login') === 'error'
 
   if (!a.ready) return <div className="page"><h1>{tr('Аккаунт')}</h1><p className="muted">{tr('Проверяем вход…')}</p></div>
@@ -38,16 +42,33 @@ export default function Account() {
     <div className="page account">
       <h1>{tr('Аккаунт')}</h1>
       <div className="card who">
-        {u.avatar ? <img src={u.avatar} alt="" className="avatar" referrerPolicy="no-referrer" /> : <span className="avatar">{(u.name ?? u.email ?? '?').slice(0, 1).toUpperCase()}</span>}
+        <UserAvatar user={u} size={96} />
         <div className="who-text">
           <strong>{u.name ?? u.email ?? tr('Без имени')}</strong>
           {u.email && u.name && <span className="muted small">{u.email}</span>}
           <span className="muted small">{tr('Вход через')} {PROVIDER_NAME[u.provider] ?? u.provider}</span>
+          <button className="linkbtn av-toggle" aria-expanded={picking} aria-controls="av-picker" onClick={() => setPicking(!picking)}>{picking ? tr('Свернуть') : tr('Сменить аватарку')}</button>
         </div>
+        {picking && (
+          <fieldset className="av-picker" id="av-picker">
+            <legend className="sr-only">{tr('Аватарка')}</legend>
+            <div className="av-grid">
+              {AVATARS.map(av => (
+                <label key={av.id} title={avatarName(av)}>
+                  <input type="radio" name="avatar" className="sr-only" checked={u.avatarId === av.id} aria-label={avatarName(av)}
+                    onChange={async () => { setAvErr(!(await setAvatar(av.id))) }} />
+                  <img src={avatarSrc(av.id)} alt="" width={64} height={64} loading="lazy" />
+                </label>
+              ))}
+            </div>
+            {u.avatar && u.avatarId && <button className="linkbtn av-toggle" onClick={async () => { setAvErr(!(await setAvatar(null))) }}>{tr('Вернуть фото из аккаунта')}</button>}
+            {avErr && <p className="muted small bad" role="alert">{tr('Не удалось сохранить, попробуй ещё раз.')}</p>}
+          </fieldset>
+        )}
       </div>
       <p className={'sync-line' + (a.error ? ' bad' : '')}>
         {a.error ? <CloudOff size={18} /> : <Cloud size={18} />}
-        {a.error ?? (a.syncing ? tr('Сохраняем прогресс…') : a.syncedAt ? tr('Прогресс сохранён в {0}', new Date(a.syncedAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })) : tr('Прогресс синхронизируется'))}
+        {a.error ?? (a.syncing ? tr('Сохраняем прогресс…') : a.syncedAt ? tr('Прогресс сохранён в {0}', new Date(a.syncedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })) : tr('Прогресс синхронизируется'))}
       </p>
       <p className="muted small lead-narrow">{tr('Занятия, диапазон, настройки и мелодии из «Сочинения» сохраняются автоматически. Войди с тем же аккаунтом на другом устройстве — всё подтянется.')}</p>
       <button className="btn ghost" onClick={async () => {
@@ -81,6 +102,12 @@ function GoogleMark() {
   )
 }
 
+const ERROR_FIELD: Record<string, 'email' | 'pw'> = {
+  bad_email: 'email',
+  exists: 'email',
+  bad_password: 'pw',
+}
+
 function EmailForm({ canReset }: { canReset: boolean }) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [sent, setSent] = useState(false)
@@ -90,7 +117,6 @@ function EmailForm({ canReset }: { canReset: boolean }) {
   // ошибка привязана к полю, если она про конкретное поле
   const [err, setErr] = useState<{ field?: 'email' | 'pw'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
-  const fieldOf = (t: string) => (/почт/i.test(t) && !/пароль/i.test(t) ? 'email' : /^Пароль/.test(t) ? 'pw' : undefined)
   const errFor = (f: 'email' | 'pw') => (err?.field === f ? err.text : null)
   return (
     <form className="auth-form" noValidate onSubmit={async e => {
@@ -103,8 +129,8 @@ function EmailForm({ canReset }: { canReset: boolean }) {
       }
       if (pw.length < 8) return setErr({ field: 'pw', text: tr('Пароль — от 8 символов.') })
       setBusy(true)
-      const t = await authEmail(mode as 'login' | 'register', email, pw, name)
-      setErr(t ? { field: fieldOf(t), text: t } : null)
+      const res = await authEmail(mode as 'login' | 'register', email, pw, name)
+      setErr(res ? { field: ERROR_FIELD[res.code], text: res.text } : null)
       setBusy(false)
     }}>
       <div className="seg">
