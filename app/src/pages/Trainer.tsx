@@ -9,6 +9,7 @@ import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine } from '../lib/audio'
 import { noteName } from '../lib/music'
+import { activeTargetMidi, trainerViewWindow } from '../lib/pitchDisplay'
 import { buildRoots, ExerciseRun, fitExercise, type Key, type Mode, type Phase, type Target } from '../lib/run'
 import { logSession, read, useStored, useWorkRange, write, type SessionLog } from '../lib/store'
 import { exerciseById, SECTIONS } from '../data/exercises'
@@ -133,11 +134,9 @@ export default function Trainer() {
       const ms = tk.take.targets.flatMap(t => [t.midi, t.midiEnd ?? t.midi])
       return { lo: Math.min(...ms) - 2, hi: Math.max(Math.max(...ms) + 2, Math.min(...ms) + 9) }
     }
-    // доска неподвижна на всё упражнение: охватывает все круги сразу, не прыгает между ними
     const roots = run.current?.roots ?? buildRoots(ex, r, shift, key)
     const notes = ex.notes.filter(n => !n.rest).flatMap(n => [n.s, n.glide ?? n.s])
-    const lo = Math.min(...roots) + Math.min(...notes) - 2, hi = Math.max(...roots) + Math.max(...notes) + 2
-    return { lo, hi: Math.max(hi, lo + 9) }
+    return trainerViewWindow(roots, notes, run.current?.rep ?? 0, running && !engine.interrupted)
   }
 
   return (
@@ -148,7 +147,7 @@ export default function Trainer() {
           <h1>{ex.title}</h1>
           <p className="muted">{ex.goal} {tr("· слог «")}{ex.syllable}{tr("» · уровень")}&nbsp;{ex.level}</p>
         </div>
-        <LiveNote />
+        <LiveNote targetMidi={() => activeTargetMidi(run.current?.targets ?? [], engine.now(), !running || engine.interrupted)} />
       </div>
 
       <div className="modes seg" role="radiogroup" aria-label={tr('Режим')}>

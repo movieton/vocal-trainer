@@ -13,6 +13,7 @@ import { AchievementToast } from './components/Achievements'
 import Home from './pages/Home'
 import Welcome from './pages/Welcome'
 import { initAccount, useAccount } from './lib/account'
+import { syncReminderTimezone } from './lib/reminder'
 import { avatarSrc } from './lib/avatars'
 
 const lazyNamed = <T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, key: K) =>
@@ -56,7 +57,9 @@ const Levels = lazyNamed(() => import('./pages/EarMore'), 'Levels')
 const Melody = lazyNamed(() => import('./pages/EarMore'), 'Melody')
 const SongList = lazyNamed(() => import('./pages/Songs'), 'SongList')
 const SongPage = lazyNamed(() => import('./pages/Songs'), 'SongPage')
+const CustomSongPage = lazyNamed(() => import('./pages/Songs'), 'CustomSongPage')
 const Course = lazy(() => import('./pages/Course'))
+const PlanSetup = lazy(() => import('./pages/PlanSetup'))
 
 const NAV = [
   { to: '/', label: tr('Сегодня'), icon: Sun, main: true },
@@ -73,7 +76,7 @@ const NAV = [
 ]
 
 export default function App() {
-  useEffect(() => { initAccount() }, [])
+  useEffect(() => { initAccount(); void syncReminderTimezone() }, [])
   const me = useAccount().user
   return (
     <HashRouter>
@@ -123,8 +126,10 @@ export default function App() {
             <Route path="/theory/:id" element={<TheoryArticle />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/songs" element={<SongList />} />
+            <Route path="/songs/custom/:id" element={<CustomSongPage />} />
             <Route path="/songs/:id" element={<SongPage />} />
             <Route path="/course" element={<Course />} />
+            <Route path="/plan-setup" element={<PlanSetup />} />
             <Route path="/compose" element={<Compose />} />
             <Route path="/more" element={<More />} />
             <Route path="/account" element={<Account />} />

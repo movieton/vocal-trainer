@@ -1,6 +1,7 @@
 import { tr } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Dices, Download, Pause, Play, Plus, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Dices, Download, Music, Pause, Play, Plus, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import CircleSvg from '../components/CircleSvg'
 import MelodyEditor, { type MelNote } from '../components/MelodyEditor'
 import MelodyAnalysis from '../components/MelodyAnalysis'
@@ -8,13 +9,16 @@ import CheckList from '../components/CheckList'
 import PianoRoll from '../components/PianoRoll'
 import { MicGate, LiveNote, useEngine, useMicUser } from '../components/Mic'
 import { engine } from '../lib/audio'
+import { composeToSong } from '../lib/composeSong'
+import { addCustomSong } from '../lib/customSongs'
 import { isBlack, noteName, plural, transcribe } from '../lib/music'
 import type { Target } from '../lib/run'
 import { useStored, useWorkRange } from '../lib/store'
 import { borrowed, chordLabel, CHORDS, CIRCLE, diatonic, diceProgression, GROOVES, NEXT, noteRole, SCALES, syllabify, TEMPLATES, type KeyChord } from '../lib/theory'
 import { downloadBytes, toMidi, type MidiNote } from '../lib/midi'
 
-type Sketch = { id: number; name: string; sel: number; minor: boolean; prog: KeyChord[]; melody: MelNote[]; bpm: number }
+type ComposePart = { name: string; prog: KeyChord[]; melody: MelNote[]; lyrics?: string }
+type Sketch = { id: number; name: string; sel: number; minor: boolean; prog: KeyChord[]; melody: MelNote[]; bpm: number; parts?: ComposePart[]; lyrics?: string }
 
 const ROLE_COLOR = { chord: '--good', scale: '--near', out: '--bad' } as const
 
@@ -39,6 +43,7 @@ function ContrastCheck({ parts }: { parts: { name: string; prog: KeyChord[]; mel
 export default function Compose() {
   useMicUser(false)
   useEngine(10)
+  const go = useNavigate()
   const work = useWorkRange()
   const [sel, setSel] = useStored('cmp.sel', 0)
   const [minor, setMinor] = useStored('cmp.minor', false)
@@ -48,8 +53,9 @@ export default function Compose() {
   const [sketches, setSketches] = useStored<Sketch[]>('cmp.sketches', [])
   const [playing, setPlaying] = useState(false)
   const [rec, setRec] = useState(false)
+  const [songErr, setSongErr] = useState('')
   // части песни: у каждой своя гармония и мелодия; активная часть редактируется через prog/melody
-  const [parts, setParts] = useStored<{ name: string; prog: KeyChord[]; melody: MelNote[]; lyrics?: string }[]>('cmp.parts', [{ name: tr('Куплет'), prog: [], melody: [] }, { name: tr('Припев'), prog: [], melody: [] }])
+  const [parts, setParts] = useStored<ComposePart[]>('cmp.parts', [{ name: tr('Куплет'), prog: [], melody: [] }, { name: tr('Припев'), prog: [], melody: [] }])
   const [part, setPart] = useStored('cmp.part', 0)
   const switchPart = (i: number) => {
     if (i === part) return
@@ -214,7 +220,32 @@ export default function Compose() {
   const pick = (i: number, m: boolean) => { stop(); setSel(i); setMinor(m); setProg([]); setMelody([]) }
   const save = () => {
     const name = `${minor ? CIRCLE[sel].minor + tr(' минор') : CIRCLE[sel].major + tr(' мажор')} · ${prog.map(c => c.roman).join('–')}`
-    setSketches([{ id: Date.now(), name, sel, minor, prog, melody, bpm }, ...sketches].slice(0, 30))
+    setSketches([{ id: Date.now(), name, sel, minor, prog, melody, bpm, parts: allParts, lyrics }, ...sketches].slice(0, 30))
+  }
+  const learnInSongs = () => {
+    setSongErr('')
+    const keyTitle = minor ? CIRCLE[sel].minor + tr(' минор') : CIRCLE[sel].major + tr(' мажор')
+    const chords = prog.map(c => c.roman).join('–')
+    const song = composeToSong({
+      title: chords ? `${keyTitle} · ${chords}` : keyTitle,
+      bpm,
+      tonic,
+      parts: allParts,
+      workRange: work,
+    })
+    if (!song) {
+      setSongErr(tr('Добавь хотя бы одну ноту в мелодию, чтобы разучить песню в «Песнях».'))
+      return
+    }
+    const res = addCustomSong(song)
+    if (!res.ok) {
+      setSongErr(res.reason === 'limit'
+        ? tr('Достигнут лимит в 25 своих песен. Удали лишнюю в разделе «Песни», чтобы добавить новую.')
+        : tr('Не удалось подготовить песню. Проверь ноты мелодии.'))
+      return
+    }
+    stop()
+    go(`/songs/custom/${res.song.id}`)
   }
   // экспорт всех частей подряд в MIDI: мелодия, аккорды, бас, барабаны
   const exportMidi = () => {
@@ -244,7 +275,24 @@ export default function Compose() {
       { name: tr('Барабаны'), channel: 9, notes: dr },
     ], bpm), `raspevka-${keyName}-${bpm}bpm.mid`)
   }
-  const load = (s: Sketch) => { stop(); setSel(s.sel); setMinor(s.minor); setProg(s.prog); setMelody(s.melody); setBpm(s.bpm) }
+  const load = (s: Sketch) => {
+    stop()
+    setSongErr('')
+    setSel(s.sel)
+    setMinor(s.minor)
+    setBpm(s.bpm)
+    if (s.parts?.length) {
+      setParts(s.parts)
+      setPart(0)
+      setProg(s.parts[0].prog ?? [])
+      setMelody(s.parts[0].melody ?? [])
+      setLyrics(s.parts[0].lyrics ?? '')
+    } else {
+      setProg(s.prog ?? [])
+      setMelody(s.melody ?? [])
+      setLyrics(s.lyrics ?? '')
+    }
+  }
 
   return (
     <div className="page compose">
@@ -379,9 +427,11 @@ export default function Compose() {
         <h2 style={{ marginTop: 20 }}>{tr('Разбор мелодии')}</h2>
         <MelodyAnalysis melody={melody} work={work} keyPc={keyPc} steps={steps} prog={prog} onTranspose={n => setMelody(melody.map(x => ({ ...x, m: x.m + n })))} />
         <div className="row-btns" style={{ marginTop: 14 }}>
-          <button className="btn" onClick={save} disabled={!prog.length && !melody.length}>{tr('Сохранить набросок')}</button>
+          <button className="btn" onClick={learnInSongs}><Music size={16} /> {tr('Разучить в Песнях')}</button>
+          <button className="btn ghost" onClick={save} disabled={!prog.length && !melody.length}>{tr('Сохранить набросок')}</button>
           <button className="btn ghost" onClick={exportMidi} disabled={!allParts.some(p => p.prog.length || p.melody.length)}><Download size={16} /> {tr('Скачать MIDI')}</button>
         </div>
+        {songErr && <p className="err small" role="alert">{songErr}</p>}
         <p className="muted small">{tr('MIDI: все части подряд — мелодия, аккорды, бас и барабаны отдельными дорожками. Открывается в GarageBand, Logic, Ableton, FL Studio.')}</p>
         <h2 style={{ marginTop: 24 }}>{tr('Сохранённые')}</h2>
         {sketches.length ? (

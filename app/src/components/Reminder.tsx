@@ -1,14 +1,13 @@
 import { lang, tr } from '../lib/i18n'
 import { useState } from 'react'
 import { Bell, BellOff } from 'lucide-react'
-import { useStored } from '../lib/store'
+import { localTimeZone, pushApi, type Rem } from '../lib/reminder'
+import { readGoals, useStored } from '../lib/store'
 
 /**
  * Ежедневное напоминание. Работает через пуш-уведомления: приходит, даже когда приложение закрыто.
  * На iPhone — только если fasol.app установлен на экран «Домой».
  */
-type Rem = { on: boolean; time: string; endpoint?: string }
-const api = (p: string, body: unknown) => fetch('/api' + p, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const ios = /iPhone|iPad|iPod/.test(navigator.userAgent)
 const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
 const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
@@ -33,14 +32,15 @@ export function ReminderCard({ compact }: { compact?: boolean }) {
       const { key } = await (await fetch('/api/push/key')).json() as { key: string }
       const sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) })
       const [h, m] = time.split(':').map(Number)
-      const r = await api('/push/subscribe', { subscription: sub.toJSON(), hour: h, minute: m, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, lang })
+      const tz = localTimeZone()
+      const r = await pushApi('/push/subscribe', { subscription: sub.toJSON(), hour: h, minute: m, tz, lang, goal: readGoals()[0] })
       if (!r.ok) {
         const code = ((await r.json().catch(() => ({}))) as { error?: string }).error
         throw new Error(code === 'too_many' ? tr('Слишком много попыток. Попробуй через 15 минут.')
           : code === 'push_failed' ? tr('Не получилось отправить пробное уведомление. Проверь, что уведомления для сайта разрешены, и попробуй ещё раз.')
           : tr('Сервер не принял подписку. Попробуй позже.'))
       }
-      setRem({ on: true, time, endpoint: sub.endpoint })
+      setRem({ on: true, time, endpoint: sub.endpoint, tz })
     } catch (e) { setErr(e instanceof Error ? e.message : tr('Не получилось включить напоминание.')) }
     setBusy(false)
   }
@@ -48,7 +48,7 @@ export function ReminderCard({ compact }: { compact?: boolean }) {
     setBusy(true)
     try {
       const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription()
-      if (sub) { await api('/push/unsubscribe', { endpoint: sub.endpoint, auth: sub.toJSON().keys?.auth }); await sub.unsubscribe() }
+      if (sub) { await pushApi('/push/unsubscribe', { endpoint: sub.endpoint, auth: sub.toJSON().keys?.auth }); await sub.unsubscribe() }
     } catch { /* уже отписаны */ }
     setRem({ ...rem, on: false }); setBusy(false)
   }

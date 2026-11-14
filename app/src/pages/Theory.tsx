@@ -1,9 +1,11 @@
+import { useEffect, type ReactNode } from 'react'
 import { tr } from '../lib/i18n'
-import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { engine } from '../lib/audio'
 import { noteName, VOICE_TYPES } from '../lib/music'
 import { useWorkRange } from '../lib/store'
 import { Credit, DiaphragmDiagram, FoldsDiagram, HeadProfile } from '../components/Anatomy'
+import { CentsDemo, IntervalDemo } from '../components/TheoryAudio'
 export { DiaphragmDiagram }
 
 type Article = { id: string; title: string; lead: string; body: () => ReactNode }
@@ -82,6 +84,7 @@ export const ARTICLES: Article[] = [
     <p className="muted small">{tr('Переходные ноты на схеме примерные, для твоего рабочего диапазона. У каждого голоса они свои.')}</p>
     <p><b>{tr('Грудной регистр')}</b> {tr('— плотный, разговорный звук внизу.')} <b>{tr('Головной')}</b> {tr('— лёгкий, полётный звук наверху. Между ними — переходные ноты (пассаджо), где голос любит «переключаться» с щелчком.')}</p>
     <p><b>{tr('Микст')}</b> {tr('— смешанный механизм: плотность грудного с лёгкостью головного. Его тренируют узкими гласными и полузакрытыми звуками: «нэй», «гуг», «нг»-сирены, губная трель через весь диапазон. Раздел «Распевки → Микст».')}</p>
+    <IntervalDemo />
   </> },
   { id: 'types', title: tr('Типы голоса'), lead: tr('Бас, баритон, тенор, контральто, меццо, сопрано.'), body: () => <>
     <VoiceTypesDiagram />
@@ -92,6 +95,7 @@ export const ARTICLES: Article[] = [
     <RollDiagram />
     <p>{tr('По вертикали — ноты (полутон на строку), по горизонтали — время.')} <b>{tr('Плашка')}</b> {tr('— нота, которую нужно спеть: контурная — слушать, сплошная — петь.')} <b>{tr('Линия')}</b> {tr('— твой голос в реальном времени: зелёная — попал, жёлтая — рядом, красная — мимо.')}</p>
     <p><b>{tr('Цент')}</b> {tr('— сотая часть полутона. Ухо слушателя замечает фальшь примерно от 15–25 центов, поэтому «Обычная» строгость — ±25 центов, а «Строгая» — ±12.')}</p>
+    <CentsDemo />
   </> },
   { id: 'hygiene', title: tr('Гигиена голоса'), lead: tr('Как заниматься и не навредить.'), body: () => <>
     <ul className="facts">
@@ -150,6 +154,7 @@ export function TheoryArticle() {
   const { id = '' } = useParams()
   const i = ARTICLES.findIndex(a => a.id === id)
   const a = ARTICLES[i]
+  useEffect(() => () => engine.stopTones(), [id])
   if (!a) return <div className="page"><p>{tr('Статья не найдена.')} <Link to="/theory">{tr('К теории')}</Link></p></div>
   const next = ARTICLES[i + 1]
   return (
@@ -157,7 +162,7 @@ export function TheoryArticle() {
       <div className="crumbs"><Link to="/theory">{tr('Теория')}</Link></div>
       <h1>{a.title}</h1>
       <p className="muted lead">{a.lead}</p>
-      <div className="article-body">{a.body()}</div>
+      <div className="article-body" key={id}>{a.body()}</div>
       {next && <Link to={`/theory/${next.id}`} className="card next-art"><span className="muted small">{tr('Дальше')}</span><strong>{next.title} →</strong></Link>}
     </div>
   )

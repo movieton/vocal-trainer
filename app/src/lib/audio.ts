@@ -123,6 +123,7 @@ class Engine {
   private recT0 = 0
   private droneNodes: AudioScheduledSourceNode[] = []
   private dronePitches: number[] = []
+  private toneNodes = new Set<{ g: GainNode; oscs: OscillatorNode[] }>()
 
   now() { return this.ctx?.currentTime ?? 0 }
 
@@ -269,27 +270,53 @@ class Engine {
     this.emit()
   }
 
-  /** Нота пианино; при незагруженных сэмплах — простой синтез */
-  play(midi: number, time: number, dur: number, velocity = 70) {
+  /** Точный микротоновый синтез без сэмплов (нужен, например, для сравнения центов в теории) */
+  playTone(midi: number, time: number, dur: number, velocity = 70) {
     const ctx = this.ensureCtx()
     this.trackSound(midi, time, dur)
-    if (this.pianoReady && this.piano) {
-      this.piano.start({ note: Math.round(midi), time, duration: dur, velocity })
-      return
-    }
     const g = ctx.createGain()
     g.connect(this.master!)
     g.gain.setValueAtTime(0, time)
-    g.gain.linearRampToValueAtTime(0.18 * (velocity / 70), time + 0.01)
+    g.gain.linearRampToValueAtTime(0.18 * (velocity / 70), time + 0.015)
     g.gain.exponentialRampToValueAtTime(0.001, time + Math.max(0.15, dur))
+    const oscs: OscillatorNode[] = []
+    const entry = { g, oscs }
+    this.toneNodes.add(entry)
     for (const [h, type, a] of [[1, 'triangle', 1], [2, 'sine', 0.3], [3, 'sine', 0.1]] as const) {
       const o = ctx.createOscillator(), og = ctx.createGain()
       o.type = type; o.frequency.value = mtof(midi) * h; og.gain.value = a
       o.connect(og).connect(g); o.start(time); o.stop(time + dur + 0.1)
+      oscs.push(o)
+    }
+    oscs[0].onended = () => {
+      try { g.disconnect() } catch { /* ignore */ }
+      this.toneNodes.delete(entry)
     }
   }
 
-  stopAll() { this.piano?.stop() }
+  /** Остановить только синтезированные тона (напр. при уходе со страницы теории) */
+  stopTones() {
+    for (const entry of this.toneNodes) {
+      for (const o of entry.oscs) {
+        try { o.stop() } catch { /* ignore */ }
+      }
+      try { entry.g.disconnect() } catch { /* ignore */ }
+    }
+    this.toneNodes.clear()
+  }
+
+  /** Нота пианино; при незагруженных сэмплах — простой синтез */
+  play(midi: number, time: number, dur: number, velocity = 70) {
+    this.ensureCtx()
+    if (this.pianoReady && this.piano) {
+      this.trackSound(midi, time, dur)
+      this.piano.start({ note: Math.round(midi), time, duration: dur, velocity })
+      return
+    }
+    this.playTone(midi, time, dur, velocity)
+  }
+
+  stopAll() { this.piano?.stop(); this.stopTones() }
 
   /** Эталонная нота — всегда пианино (синтезированный «голос» звучал неестественно и пугал) */
   ref(midi: number, time: number, dur: number, velocity = 70) {

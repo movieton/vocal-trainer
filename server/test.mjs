@@ -118,12 +118,25 @@ test('SQLite WAL/busy_timeout, PUT /api/progress optimistic locking (409), and G
     assert.equal(p2Retry.status, 200)
     assert.equal(p2Retry.data.version, 2)
 
-    // 4. Populate resets and push_subs for this user to verify full GDPR deletion across all 5 tables
+    // 4. Populate resets and push_subs for this user, test tz/goal update via /api/push/subscribe, and verify full GDPR deletion across all 5 tables
     const me = await req('/api/me', { cookie: c1 })
     const userId = me.data.user.id
+    const endpoint = 'https://fcm.googleapis.com/fcm/send/test-ep'
+    const p256dh = 'A'.repeat(87)
+    const auth = 'B'.repeat(22)
     db.prepare('INSERT INTO resets (hash, user_id, expires) VALUES (?, ?, ?)').run('testhash', userId, Date.now() + 60000)
-    db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang) VALUES (?, ?, 19, 0, ?, ?, NULL, ?, ?)')
-      .run('https://fcm.googleapis.com/fcm/send/test-ep', '{"endpoint":"https://fcm.googleapis.com/fcm/send/test-ep","keys":{"p256dh":"a","auth":"b"}}', 'UTC', userId, Date.now(), 'ru')
+    db.prepare('INSERT INTO push_subs (endpoint, sub, hour, minute, tz, user_id, last_day, created, lang, goal) VALUES (?, ?, 19, 0, ?, ?, NULL, ?, ?, ?)')
+      .run(endpoint, JSON.stringify({ endpoint, keys: { p256dh, auth } }), 'UTC', userId, Date.now(), 'ru', 'pitch')
+
+    const tzSync = await req('/api/push/subscribe', {
+      method: 'POST',
+      cookie: c1,
+      body: { subscription: { endpoint, keys: { p256dh, auth } }, hour: 20, minute: 15, tz: 'Europe/Berlin', lang: 'en', goal: 'ear' },
+    })
+    assert.equal(tzSync.status, 200)
+    assert.equal(tzSync.data.ok, true)
+    const subRow = db.prepare('SELECT hour, minute, tz, lang, goal FROM push_subs WHERE endpoint = ?').get(endpoint)
+    assert.deepEqual(Object.assign({}, subRow), { hour: 20, minute: 15, tz: 'Europe/Berlin', lang: 'en', goal: 'ear' })
 
     for (const [tbl, col] of [['users', 'id'], ['sessions', 'user_id'], ['progress', 'user_id'], ['resets', 'user_id'], ['push_subs', 'user_id']]) {
       const cnt = db.prepare(`SELECT COUNT(*) AS n FROM ${tbl} WHERE ${col} = ?`).get(userId).n
@@ -143,6 +156,33 @@ test('SQLite WAL/busy_timeout, PUT /api/progress optimistic locking (409), and G
     db.close()
   } finally {
     proc.kill('SIGTERM')
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  }
+})
+
+test('reminderText returns localized goal-specific notifications', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fasol-rem-'))
+  process.env.DB_PATH = path.join(tmpDir, 'rem.db')
+  process.env.FASOL_NO_LISTEN = '1'
+  try {
+    const { reminderText } = await import('./index.mjs')
+    const ruTexts = new Set()
+    const enTexts = new Set()
+    for (const g of ['pitch', 'range', 'ear', 'breath', 'write']) {
+      const ru = reminderText('ru', g, 0)
+      const en = reminderText('en', g, 0)
+      assert.ok(typeof ru === 'string' && ru.length > 10)
+      assert.ok(typeof en === 'string' && en.length > 10)
+      assert.notEqual(ru, en)
+      ruTexts.add(ru)
+      enTexts.add(en)
+    }
+    assert.equal(ruTexts.size, 5)
+    assert.equal(enTexts.size, 5)
+    assert.equal(reminderText('en', 'unknown-goal', 0), reminderText('en', 'pitch', 0))
+  } finally {
+    delete process.env.FASOL_NO_LISTEN
+    delete process.env.DB_PATH
     fs.rmSync(tmpDir, { recursive: true, force: true })
   }
 })
