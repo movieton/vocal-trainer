@@ -38,6 +38,28 @@ describe('exercise & library data integrity', () => {
     }
   })
 
+  it('keeps IMSLP links that contain commas and parentheses, and uses https', () => {
+    const full = {
+      'vaccai-thirds': 'https://imslp.org/wiki/Metodo_pratico_de_canto_(Vaccai,_Nicola)',
+      'concone-legato': 'https://imslp.org/wiki/50_Le%C3%A7ons_de_chant,_Op.9_(Concone,_Giuseppe)',
+      'marchesi-sustained': 'https://imslp.org/wiki/Exercices_%C3%A9l%C3%A9mentaires_et_gradu%C3%A9s_pour_le_d%C3%A9veloppement_de_la_voix%2C_Op.1_(Marchesi%2C_Mathilde)',
+    }
+    for (const list of [rawRu, libEn]) {
+      for (const [id, url] of Object.entries(full)) {
+        expect(list.find(i => i.id === id)!.urls, id).toContain(url)
+      }
+      for (const item of list) {
+        for (const url of item.urls) {
+          expect(url, item.id).toMatch(/^https:\/\//)
+          expect(url.endsWith('('), `${item.id} ${url}`).toBe(false)
+          const open = (url.match(/\(/g) ?? []).length
+          const close = (url.match(/\)/g) ?? []).length
+          expect(open, item.id).toBe(close)
+        }
+      }
+    }
+  })
+
   it('has complete 1-to-1 RU/EN fields across all 98 library items', () => {
     expect(rawRu).toHaveLength(98)
     expect(libEn).toHaveLength(98)

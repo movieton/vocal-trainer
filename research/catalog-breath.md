@@ -317,7 +317,7 @@
 - Ошибки: грязный увлажнитель; дыхание ртом во сне.
 - Длительность/повторы: постоянно в отопительный сезон.
 - Доказательность: Ш
-- Источник: https://www.nhs.uk/conditions/laryngitis/ (миски с водой против сухого воздуха); http://torontospeechtherapy.com/blog/2020/vocal-hygiene/ (увлажнитель, дыхание носом); Temple Health (увлажнитель у кровати).
+- Источник: https://www.nhs.uk/conditions/laryngitis/ (миски с водой против сухого воздуха); https://torontospeechtherapy.com/blog/2020/vocal-hygiene/ (увлажнитель, дыхание носом); Temple Health (увлажнитель у кровати).
 - Иллюстрация: комната с увлажнителем, пар, нос со стрелкой вдоха.
 
 ### no-throat-clear — Вместо откашливания: глоток / беззвучный «кашель»
@@ -327,7 +327,7 @@
 - Ошибки: резкое громкое «кхм» по привычке.
 - Длительность/повторы: всякий раз при позыве.
 - Доказательность: Ш
-- Источник: https://templehealth.org/about/blog/five-ways-to-maintain-healthy-voice ; http://torontospeechtherapy.com/blog/2020/vocal-hygiene/ (silent cough, глоток).
+- Источник: https://templehealth.org/about/blog/five-ways-to-maintain-healthy-voice ; https://torontospeechtherapy.com/blog/2020/vocal-hygiene/ (silent cough, глоток).
 - Иллюстрация: перечёркнутое «кхм!», рядом стакан и стрелка «глоток».
 
 ### voice-rest-no-whisper — Голосовой отдых без шёпота
@@ -347,7 +347,7 @@
 - Ошибки: запивать распевку кофе; «согревающий» алкоголь перед выступлением.
 - Длительность/повторы: привычка; в приложении — чек-лист.
 - Доказательность: Ш
-- Источник: https://templehealth.org/about/blog/five-ways-to-maintain-healthy-voice ; http://torontospeechtherapy.com/blog/2020/vocal-hygiene/
+- Источник: https://templehealth.org/about/blog/five-ways-to-maintain-healthy-voice ; https://torontospeechtherapy.com/blog/2020/vocal-hygiene/
 - Иллюстрация: четыре иконки (сигарета, кофе, бокал, тарелка с часами) с мягкой пометкой «реже».
 
 ---

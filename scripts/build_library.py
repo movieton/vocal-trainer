@@ -13,6 +13,23 @@ def steps(s):
 def items(s):
     return [x.strip().rstrip('.') + '.' for x in re.split(r';\s*', s) if x.strip()]
 
+def clean_url(raw):
+    """Полный URL, включая запятые и скобки в пути IMSLP; хвостовая пунктуация фразы отрезается."""
+    u = raw
+    while u and u[-1] in '.,;:»«"\'':
+        u = u[:-1]
+    while u.endswith(')') and u.count('(') < u.count(')'):
+        u = u[:-1]
+    return u
+
+def extract_urls(src):
+    out = []
+    for raw in re.findall(r'https?://\S+', src):
+        u = clean_url(raw)
+        if u:
+            out.append(u)
+    return out
+
 def notes(src):
     # "~X:d" — глиссандо от предыдущей высоты до X
     out, last = [], 0
@@ -48,7 +65,7 @@ for kind, fn in FILES.items():
         if UNVERIFIED.search(src) or UNVERIFIED.search(block):
             dropped.append(mm.group(1)); continue
         src = re.sub(r'\bS\d+\b', lambda x: SOURCES.get(x.group(0), x.group(0)), src)
-        urls = [u.rstrip('.') for u in re.findall(r'https?://[^\s;,)]+', src)]
+        urls = extract_urls(src)
         lvl_ev = f.get('Уровень 1 · Доказательность') or ''
         ev_line = next((ln for ln in lines if 'Доказательность' in ln), '')
         ev = re.search(r'Доказательность: ([ИШПТ])', ev_line)

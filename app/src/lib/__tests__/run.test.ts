@@ -87,6 +87,29 @@ describe('run helpers & ExerciseRun', () => {
     expect(sum.reps).toBe(1)
     expect(sum.score).toBeCloseTo(1, 5)
     expect(sum.drift).toEqual([])
+    expect(sum.voiced).toBeGreaterThanOrEqual(4)
+    run.stop()
+  })
+
+  it('counts a silent rep as zero voiced frames', () => {
+    vi.spyOn(engine, 'ensureCtx').mockReturnValue({ currentTime: 0 } as unknown as AudioContext)
+    vi.spyOn(engine, 'play').mockImplementation(() => {})
+    vi.spyOn(engine, 'ref').mockImplementation(() => {})
+    vi.spyOn(engine, 'stopAll').mockImplementation(() => {})
+
+    const run = new ExerciseRun(sampleEx, {
+      range: { lo: 50, hi: 64 },
+      mode: 'together',
+      tempo: 1,
+      tolerance: 25,
+      shift: 0,
+      key: 0,
+    })
+    run.start()
+    expect(run.update(3.8)).toBe(true)
+    expect(run.results[0].score).toBe(0)
+    expect(run.results[0].notes.every(n => n.cents == null && n.voiced === 0)).toBe(true)
+    expect(run.summary().voiced).toBe(0)
     run.stop()
   })
 

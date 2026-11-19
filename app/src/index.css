@@ -84,6 +84,8 @@ input[type=range] { accent-color: var(--accent); width: 100% }
 .roll.tall { height: clamp(320px, 58vh, 640px) }
 .micgate { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-ctl); padding: 24px; margin: 16px 0 }
 .micgate p { margin: 4px 0 0; color: var(--muted); max-width: 60ch; font-size: 14px }
+.micgate p.err { color: var(--bad) }
+.lib-sec > .small-btn { margin: 4px 0 12px }
 
 .livenote { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums }
 .livenote .n { font-size: 28px; font-weight: 700; min-width: 4ch }

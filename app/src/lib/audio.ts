@@ -76,6 +76,41 @@ export class OctaveFilter {
 
 export type PitchSample = { t: number; midi: number | null }
 export type MicState = 'off' | 'starting' | 'on' | 'error'
+export type MicErrorKind = '' | 'denied' | 'missing' | 'other'
+
+/** Почему getUserMedia не включился: от этого зависит текст и кнопка «Повторить» */
+export function classifyMicError(e: unknown): { kind: Exclude<MicErrorKind, ''>; message: string } {
+  const err = (e ?? {}) as { name?: string; message?: string }
+  const name = err.name ?? ''
+  const message = err.message ?? (e == null ? '' : String(e))
+  // AbortError — запрос закрыли, не ответив; это тот же тупик, что и явный запрет
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError' || name === 'AbortError') {
+    return {
+      kind: 'denied',
+      message: tr('Браузер запретил микрофон. Открой настройки сайта — значок замка в адресной строке — поставь микрофон на «Разрешить» и нажми «Повторить».'),
+    }
+  }
+  if (message === 'NO_MEDIA_DEVICES') {
+    return { kind: 'missing', message: tr('Микрофон недоступен в этом браузере. Открой сайт по HTTPS в Safari или Chrome.') }
+  }
+  if (name === 'NotFoundError') {
+    return { kind: 'missing', message: tr('Микрофон не найден. Подключи его и нажми «Повторить».') }
+  }
+  if (name === 'NotReadableError' || name === 'OverconstrainedError') {
+    return { kind: 'missing', message: tr('Не удалось включить микрофон: ') + message }
+  }
+  return { kind: 'other', message: tr('Не удалось включить микрофон: ') + message }
+}
+
+/** Почему кнопка «Начать» заблокирована. null — микрофон уже работает */
+export function micBlockText(mic: MicState, kind: MicErrorKind, audioSuspended: boolean, micError = ''): string | null {
+  if (mic === 'on') return null
+  if (mic === 'starting') return tr('Сначала нажми «Разрешить» в запросе браузера.')
+  if (mic === 'error' && kind === 'denied') return tr('Микрофон запрещён — разреши его в настройках сайта.')
+  if (mic === 'error') return micError || tr('Микрофон не включился. Нажми «Повторить».')
+  if (audioSuspended) return tr('Нажми, чтобы включить звук и микрофон')
+  return tr('Сначала включи микрофон.')
+}
 export type Take = { url: string; t0: number; t1: number; history: PitchSample[] }
 
 const HISTORY_SEC = 180
@@ -89,6 +124,7 @@ class Engine {
   pianoReady = false
   mic: MicState = 'off'
   micError = ''
+  micErrorKind: MicErrorKind = ''
   history: PitchSample[] = []
   /** Задержка звука в наушниках (Bluetooth), с: голос сдвигается назад, чтобы точно совпасть с нотами */
   latency = SIM ? 0 : read('latencyMs', 0) / 1000
@@ -156,7 +192,7 @@ class Engine {
   async startMic(auto = false) {
     if (this.mic === 'on' || this.mic === 'starting') return
     const ctx = this.ensureCtx()
-    this.mic = 'starting'; this.audioSuspended = false; this.emit()
+    this.mic = 'starting'; this.micError = ''; this.micErrorKind = ''; this.audioSuspended = false; this.emit()
     try {
       this.analyser = ctx.createAnalyser()
       this.analyser.fftSize = pickFftSize(ctx.sampleRate)
@@ -202,18 +238,17 @@ class Engine {
       this.pitchFilter.reset()
       this.audioSuspended = false
       this.mic = 'on'
+      this.micError = ''
+      this.micErrorKind = ''
       this.startLoop()
       // пока ждали разрешения, человек ушёл с экрана — сразу отпускаем
       if (!this.users && !document.documentElement.dataset.focus) { this.emit(); this.stopMic(); return }
     } catch (e) {
+      const fail = classifyMicError(e)
       this.mic = 'error'
-      const err = e as DOMException
-      if (err?.name === 'NotAllowedError') write('micOk', false, true)
-      this.micError = err?.message === 'NO_MEDIA_DEVICES'
-        ? tr('Микрофон недоступен в этом браузере. Открой сайт по HTTPS в Safari или Chrome.')
-        : err?.name === 'NotAllowedError'
-          ? tr('Нет доступа к микрофону. Разреши его в настройках браузера и попробуй снова.')
-          : tr('Не удалось включить микрофон: ') + (err?.message ?? String(e))
+      this.micErrorKind = fail.kind
+      this.micError = fail.message
+      if (fail.kind === 'denied') write('micOk', false, true)
     }
     this.emit()
   }
@@ -228,6 +263,7 @@ class Engine {
     this.stream = this.source = this.simOsc = this.simGain = this.recSource = null
     this.analyser = null
     this.mic = 'off'; this.current = null; this.recent = []; this.audioSuspended = false
+    this.micError = ''; this.micErrorKind = ''
     this.pitchFilter.reset()
     this.emit()
   }

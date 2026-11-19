@@ -59,6 +59,7 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
   const hintNow = (open(hint) ? hint : Math.max(0, Math.min(2, passedLv + 1))) as 0 | 1 | 2
   const [status, setStatus] = useState<{ n: number; last: number | null }>({ n: 0, last: null })
   const [result, setResult] = useState<{ score: number; reps: number; lines: string[]; hit: number; total: number; out: boolean; hint: number; opened?: boolean; prev?: number | null } | null>(null)
+  const [saved, setSaved] = useState(true)
   const run = useRef<PhraseRun | null>(null)
   const tk = useTake()
   const finishRef = useRef(onFinish)
@@ -84,20 +85,25 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
       const notes = x.results.flatMap(r => r.notes)
       const before = read<{ id: string; score: number }[]>('log', []).find(l => l.id === id)
       const out = x.hint > 0 && x.misses >= PhraseRun.MAX_MISSES
+      const ok = logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round(s.score * 100), reps: s.reps, hits: notes.filter(n => n.score >= 0.5).length }, { voicedFrames: s.voiced })
+      setSaved(ok)
       setResult({ ...s, hit: notes.filter(n => n.score >= 0.5).length, total: notes.length, out, hint: x.hint, prev: before ? before.score : null, lines: x.results.map(r => `${r.label || tr('Фраза')}: ${Math.round(r.score * 100)}%`) })
       // режим сдан на 70% — сегодня открывается следующий
       // (stop вызывается и из подписки на движок — читаем свежие данные, а не замыкание)
-      const d = new Date().toDateString(), cur = read<{ day: string; lv: Record<string, number> }>('drill.passed', { day: '', lv: {} })
-      const lv = cur.day === d ? cur.lv : {}
-      const opened = s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1) && x.hint < 2
-      if (s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1)) write('drill.passed', { day: d, lv: { ...lv, [id]: x.hint } })
-      setResult(r => (r ? { ...r, opened } : r))
-      logSession({ date: Date.now(), kind: 'ear', id, title, score: Math.round(s.score * 100), reps: s.reps, hits: notes.filter(n => n.score >= 0.5).length })
-      finishRef.current?.(s.score)
+      // тишина не открывает следующий режим и не обновляет рекорд
+      if (ok) {
+        const d = new Date().toDateString(), cur = read<{ day: string; lv: Record<string, number> }>('drill.passed', { day: '', lv: {} })
+        const lv = cur.day === d ? cur.lv : {}
+        const opened = s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1) && x.hint < 2
+        if (s.score >= 0.7 && !out && x.hint > (lv[id] ?? -1)) write('drill.passed', { day: d, lv: { ...lv, [id]: x.hint } })
+        setResult(r => (r ? { ...r, opened } : r))
+        finishRef.current?.(s.score)
+      }
     }
   }
   const start = () => {
     setResult(null)
+    setSaved(true)
     const x = new PhraseRun(make(), tol)
     x.repeat = repeat
     x.shift = shift
@@ -217,6 +223,7 @@ export default function DrillPage({ back = { to: "/ear", label: tr('Слух') }
         {result && (
           <div className="result">
             <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
+            {!saved && <p className="muted">{tr('Без голоса занятие не считается и не попадает в историю.')}</p>}
             {result.prev != null && <Delta now={Math.round(result.score * 100)} prev={result.prev} />}
             <p className="muted">{tr('Попал нот: {0} из {1}', result.hit, result.total)}{result.hint ? ' · ' + [tr('пианино'), tr('метроном'), tr('тишина')][result.hint] : ''}</p>
             {result.out && <p className="muted small">{tr('Три промаха — заход окончен. Вернись к подсказке ступенью ниже или сбавь строгость.')}</p>}

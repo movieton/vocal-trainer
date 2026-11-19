@@ -48,6 +48,7 @@ export default function Trainer() {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState({ phase: 'idle' as Phase, rep: 0, total: 0, last: null as number | null })
   const [result, setResult] = useState<Summary | null>(null)
+  const [kept, setKept] = useState(true)
   const run = useRef<ExerciseRun | null>(null)
   const r = useWorkRange()
   const ex = rawEx ? fitExercise(rawEx, r) : undefined
@@ -67,15 +68,17 @@ export default function Trainer() {
       setPrev(before ? before.score : null)
       setResult(sum)
       const hits = cur.results.flatMap(r => r.notes).filter(n => n.score >= 0.5).length
-      logSession({ date: Date.now(), kind: 'exercise', id: ex.id, title: ex.title, score: Math.round(sum.score * 100), reps: sum.reps, drift: sum.drift, hits })
-      setPeak(cur.opts.ladder ? cur.peak : null)
-      if (cur.peak > (read<Record<string, number>>('ladder.best', {})[ex.id] ?? 0)) write('ladder.best', { ...read<Record<string, number>>('ladder.best', {}), [ex.id]: cur.peak })
+      const saved = logSession({ date: Date.now(), kind: 'exercise', id: ex.id, title: ex.title, score: Math.round(sum.score * 100), reps: sum.reps, drift: sum.drift, hits }, { voicedFrames: sum.voiced })
+      setKept(saved)
+      setPeak(saved && cur.opts.ladder ? cur.peak : null)
+      if (saved && cur.peak > (read<Record<string, number>>('ladder.best', {})[ex.id] ?? 0)) write('ladder.best', { ...read<Record<string, number>>('ladder.best', {}), [ex.id]: cur.peak })
     }
   }
 
   const start = () => {
     if (!ex) return
     setResult(null)
+    setKept(true)
     const x = new ExerciseRun(ex, { range: r, mode, tempo, tolerance: tol, shift, key, inner, fade, ladder })
     x.repeat = repeat
     tk.stop(); tk.begin()
@@ -177,6 +180,7 @@ export default function Trainer() {
       {result && (
         <div className="card result">
           <h2>{tr('Итог:')} {Math.round(result.score * 100)}%</h2>
+          {!kept && <p className="muted">{tr('Без голоса занятие не считается и не попадает в историю.')}</p>}
           {prev != null && <Delta now={Math.round(result.score * 100)} prev={prev} />}
           <p className="muted">{tr('Кругов:')} {result.reps}{peak == null ? '' : peak ? tr(' · чисто до темпа {0}%', Math.round(peak * 100)) : tr(' · темп не поднялся — начни медленнее')}</p>
           {result.drift.length ? (

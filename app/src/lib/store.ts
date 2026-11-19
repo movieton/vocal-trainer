@@ -170,9 +170,28 @@ export type SessionLog = {
   drift?: { m: number; c: number }[]
 }
 
-export function logSession(entry: SessionLog) {
+/**
+ * Кадров с распознанной высотой, без которых занятие не считается.
+ * Детектор пишет около одного кадра на отрисовку; 1–3 кадра — случайный всплеск
+ * (тот же порог, что у фильтра октавных выбросов). Тишина и одиночный шум
+ * не попадают в историю, серию, минуты практики и фасолины.
+ */
+export const MIN_VOICED_FRAMES = 4
+
+export function countsAsPractice(voicedFrames: number): boolean {
+  return voicedFrames >= MIN_VOICED_FRAMES
+}
+
+/**
+ * Запись занятия. Для упражнений с микрофоном передай `voicedFrames`:
+ * если голоса почти не было, запись не создаётся (серия и достижения читают тот же журнал).
+ * Квизы и дыхательные таймеры кадры не передают — они считаются и без высоты.
+ */
+export function logSession(entry: SessionLog, gate?: { voicedFrames: number }): boolean {
+  if (gate && !countsAsPractice(gate.voicedFrames)) return false
   const all = read<SessionLog[]>('log', [])
   write('log', [entry, ...all].slice(0, 1000))
+  return true
 }
 
 const dayKey = (t: number) => new Date(t).toDateString()

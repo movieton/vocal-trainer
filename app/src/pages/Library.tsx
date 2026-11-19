@@ -78,6 +78,7 @@ export default function Library() {
       {q || topic || skill ? (
         <section className="lib-sec">
           <p className="muted small">{found.length ? tr('Найдено {0} {1}', found.length, plural(found.length, [tr('упражнение'), tr('упражнения'), tr('упражнений')])) : tr('Ничего не нашлось. Попробуй другое слово или тему.')}</p>
+          {!found.length && <button type="button" className="btn ghost small-btn" onClick={() => { setQ(''); setParams({}, { replace: true }) }}>{tr('Сбросить фильтры')}</button>}
           <Tiles list={found} skill={skill} />
         </section>
       ) : TOPICS.map(t => {

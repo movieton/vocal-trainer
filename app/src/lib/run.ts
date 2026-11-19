@@ -19,7 +19,7 @@ export type Target = {
 /** together — сразу вместе с пианино; call — пианино, потом ты один; echo — пианино, потом снова пианино и ты сверху */
 export type Mode = 'together' | 'call' | 'echo'
 export type Phase = 'idle' | 'cue' | 'listen' | 'inner' | 'breath' | 'sing' | 'done'
-export type NoteResult = { m: number; score: number; cents: number | null }
+export type NoteResult = { m: number; score: number; cents: number | null; /** Кадры, в которых высота распознана */ voiced: number }
 export type RepResult = { root: number; score: number; notes: NoteResult[] }
 
 /** key: 'auto' — тональность идёт по диапазону вверх и вниз; число — фиксированная тональность (0 = до) */
@@ -211,10 +211,10 @@ export class ExerciseRun {
     const notes = sung.map(g => {
       const from = g.t0 + 0.2 * (g.t1 - g.t0)
       const frames = engine.history.filter(s => s.t >= from && s.t < g.t1)
-      const cents = frames.filter(s => s.midi != null).map(s => (s.midi! - targetAt(g, s.t)) * 100)
-      const hits = cents.filter(c => Math.abs(c) <= tol).length
+      const deltas = frames.filter(s => s.midi != null).map(s => (s.midi! - targetAt(g, s.t)) * 100)
+      const hits = deltas.filter(c => Math.abs(c) <= tol).length
       g.score = frames.length ? hits / frames.length : 0
-      return { m: g.midi, score: g.score, cents: cents.length ? median(cents) : null }
+      return { m: g.midi, score: g.score, cents: deltas.length ? median(deltas) : null, voiced: deltas.length }
     })
     const score = notes.length ? notes.reduce((a, n) => a + n.score, 0) / notes.length : 0
     this.results.push({ root: this.root, score, notes })
@@ -235,6 +235,6 @@ export class ExerciseRun {
     for (const n of all) if (n.cents != null) by.set(n.m, [...(by.get(n.m) ?? []), n.cents])
     const drift = [...by].map(([m, c]) => ({ m, c: c.reduce((a, x) => a + x, 0) / c.length }))
       .filter(x => Math.abs(x.c) > 15).sort((a, b) => Math.abs(b.c) - Math.abs(a.c)).slice(0, 6)
-    return { score, drift, reps: this.results.length }
+    return { score, drift, reps: this.results.length, voiced: all.reduce((a, n) => a + n.voiced, 0) }
   }
 }

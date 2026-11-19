@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasSimParam, OctaveFilter, pickFftSize } from '../audio'
+import { classifyMicError, hasSimParam, micBlockText, OctaveFilter, pickFftSize } from '../audio'
 
 describe('audio DSP helpers', () => {
   it('picks adaptive fftSize based on sampleRate', () => {
@@ -23,6 +23,30 @@ describe('audio DSP helpers', () => {
     expect([48, 48, 48, 60].map(m => filter.push(m))).toEqual([60, 60, 60, 60])
     // sustained 4-frame +12 jump (octave-jump / octave-lift)
     expect([72, 72, 72, 72, 72].map(m => filter.push(m))).toEqual([60, 60, 60, 72, 72])
+  })
+
+  it('classifies a missed or denied mic prompt separately from a missing device', () => {
+    for (const name of ['NotAllowedError', 'PermissionDeniedError', 'SecurityError', 'AbortError']) {
+      const fail = classifyMicError({ name, message: 'denied' })
+      expect(fail.kind).toBe('denied')
+      expect(fail.message).toMatch(/замка/)
+      expect(fail.message).toMatch(/Повторить/)
+    }
+    expect(classifyMicError(new Error('NO_MEDIA_DEVICES')).kind).toBe('missing')
+    const missing = classifyMicError({ name: 'NotFoundError', message: 'Requested device not found' })
+    expect(missing.kind).toBe('missing')
+    expect(missing.message).toMatch(/не найден/)
+    expect(classifyMicError({ name: 'NotReadableError', message: 'busy' }).kind).toBe('missing')
+    expect(classifyMicError({ name: 'Unknown', message: 'boom' }).message).toMatch(/boom/)
+  })
+
+  it('explains why Start stays disabled while the mic is pending, denied or off', () => {
+    expect(micBlockText('on', '', false, '')).toBeNull()
+    expect(micBlockText('starting', '', false, '')).toMatch(/Разрешить/)
+    expect(micBlockText('error', 'denied', false, 'long denied copy')).toMatch(/настройках сайта/)
+    expect(micBlockText('error', 'missing', false, 'Нет устройства')).toBe('Нет устройства')
+    expect(micBlockText('off', '', true, '')).toMatch(/звук и микрофон/)
+    expect(micBlockText('off', '', false, '')).toMatch(/включи микрофон/i)
   })
 
   it('passes glissandos immediately and resets anchor after extended silence', () => {

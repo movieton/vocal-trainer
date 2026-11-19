@@ -22,14 +22,19 @@ export function MicGate({ children }: { children?: React.ReactNode }) {
   useEngine(4)
   useMicUser()
   if (engine.mic === 'on') return <>{children}</>
+  const pending = engine.mic === 'starting'
+  const denied = engine.mic === 'error' && engine.micErrorKind === 'denied'
+  const failed = engine.mic === 'error' && !denied
   return (
     <div className="micgate">
       <div>
-        <strong>{engine.mic === 'starting' ? tr('Включаю микрофон…') : tr('Нужен микрофон')}</strong>
-        <p>{engine.audioSuspended ? tr('Нажми, чтобы включить звук и микрофон') : tr('Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.')}{SIM && import.meta.env.DEV && tr(' Режим проверки: вместо голоса синтетический тон.')}</p>
-        {engine.mic === 'error' && <p className="err">{engine.micError}</p>}
+        <strong>{pending ? tr('Включаю микрофон…') : denied ? tr('Нет доступа к микрофону') : failed ? tr('Микрофон не включился') : tr('Нужен микрофон')}</strong>
+        {pending && <p>{tr('В запросе браузера нажми «Разрешить». Пока не ответишь, кнопка «Начать» недоступна.')}</p>}
+        {denied && <p className="err">{engine.micError}</p>}
+        {failed && <p className="err">{engine.micError}</p>}
+        {!pending && !denied && !failed && <p>{engine.audioSuspended ? tr('Нажми, чтобы включить звук и микрофон') : tr('Звук разбирается прямо в браузере и никуда не отправляется. Лучше всего петь в наушниках.')}{SIM && import.meta.env.DEV && tr(' Режим проверки: вместо голоса синтетический тон.')}</p>}
       </div>
-      <button className="btn" onClick={() => engine.startMic()} disabled={engine.mic === 'starting'}>{tr('Включить микрофон')}</button>
+      <button className="btn" onClick={() => engine.startMic()} disabled={pending} title={pending ? tr('Ждём ответ в запросе браузера') : undefined}>{engine.mic === 'error' ? tr('Повторить') : tr('Включить микрофон')}</button>
     </div>
   )
 }

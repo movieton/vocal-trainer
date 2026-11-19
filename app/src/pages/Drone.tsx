@@ -8,7 +8,7 @@ import { LiveNote, MicGate, useEngine } from '../components/Mic'
 import { engine, SIM } from '../lib/audio'
 import { noteName } from '../lib/music'
 import type { Key, Target } from '../lib/run'
-import { logSession, useStored, useWorkRange } from '../lib/store'
+import { countsAsPractice, logSession, useStored, useWorkRange } from '../lib/store'
 import { degree, nearest, pcName, rand, SCALES } from '../lib/theory'
 
 const DEG_NAMES = ['1', '2', '3', '4', '5', '6', '7']
@@ -29,6 +29,7 @@ export default function Drone() {
   const [score, setScore] = useState({ ok: 0, all: 0 })
   const held = useRef(0)
   const heldCents = useRef<number[]>([])
+  const voiced = useRef(0)
   // статистика по ступеням: среднее отклонение удержанной ноты, последние 20 попыток на ступень
   const [degStats, setDegStats] = useStored<Record<number, number[]>>('degStats', {})
   const steps: readonly number[] = minor ? SCALES.minor.steps : SCALES.major.steps
@@ -41,11 +42,12 @@ export default function Drone() {
     const m = tonic + degree(d, steps)
     setTask({ deg: d, m, t0: engine.now() }); held.current = 0; heldCents.current = []
   }
-  const start = () => { engine.drone(tonic); setOn(true); setScore({ ok: 0, all: 0 }); setTask({ deg: 0, m: tonic, t0: engine.now() }); held.current = 0 }
+  const start = () => { voiced.current = 0; engine.drone(tonic); setOn(true); setScore({ ok: 0, all: 0 }); setTask({ deg: 0, m: tonic, t0: engine.now() }); held.current = 0 }
   const stop = () => {
     engine.drone(null); setOn(false); setTask(null)
     engine.history = []; setTimeout(() => { engine.history = [] }, 500)
-    if (score.all) logSession({ date: Date.now(), kind: 'ear', id: 'drone', title: tr('Пение под дрон'), score: Math.round((score.ok / score.all) * 100), reps: score.all })
+    // таймаут без голоса увеличивает score.all, но в историю такое не пишем
+    if (score.all && countsAsPractice(voiced.current)) logSession({ date: Date.now(), kind: 'ear', id: 'drone', title: tr('Пение под дрон'), score: Math.round((score.ok / score.all) * 100), reps: score.all }, { voicedFrames: voiced.current })
   }
   useEffect(() => () => engine.drone(null), [])
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function Drone() {
     const now = engine.now(), dt = Math.min(0.1, now - last.current); last.current = now
     if (!task) return
     const m = engine.current
+    if (m != null) voiced.current++
     if (m != null && Math.abs(m - task.m) * 100 <= TOL) { held.current += dt; heldCents.current.push((m - task.m) * 100) }
     if (held.current >= HOLD) {
       engine.click(true)

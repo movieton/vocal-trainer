@@ -121,9 +121,9 @@ export class PhraseRun {
     const notes = sung.map(g => {
       const from = g.t0 + 0.2 * (g.t1 - g.t0)
       const frames = engine.history.filter(s => s.t >= from && s.t < g.t1)
-      const cents = frames.filter(s => s.midi != null).map(s => (s.midi! - targetAt(g, s.t)) * 100)
-      g.score = frames.length ? cents.filter(c => Math.abs(c) <= this.tolerance).length / frames.length : 0
-      return { m: g.midi, score: g.score, cents: cents.length ? median(cents) : null }
+      const deltas = frames.filter(s => s.midi != null).map(s => (s.midi! - targetAt(g, s.t)) * 100)
+      g.score = frames.length ? deltas.filter(c => Math.abs(c) <= this.tolerance).length / frames.length : 0
+      return { m: g.midi, score: g.score, cents: deltas.length ? median(deltas) : null, voiced: deltas.length }
     })
     const score = notes.length ? notes.reduce((a, n) => a + n.score, 0) / notes.length : 0
     this.results.push({ label: this.label, score, notes })
@@ -139,7 +139,7 @@ export class PhraseRun {
   summary() {
     const all = this.results.flatMap(r => r.notes)
     const score = all.length ? all.reduce((a, n) => a + n.score, 0) / all.length : 0
-    return { score, reps: this.results.length }
+    return { score, reps: this.results.length, voiced: all.reduce((a, n) => a + n.voiced, 0) }
   }
 }
 

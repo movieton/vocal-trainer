@@ -1,16 +1,57 @@
 
 export type Lang = 'ru' | 'en'
 const KEY = 'vt:lang'
+/** Языки, для которых интерфейс по-русски: ru и близкие, где английский был бы хуже */
 const RU_LIKE = ['ru', 'uk', 'be', 'kk']
+
+/** Первичный подъязык: `ru-RU`, `ru_RU`, `RU` → `ru` */
+export function primarySubtag(tag: string): string {
+  return tag.trim().toLowerCase().replace(/_/g, '-').split('-')[0].replace(/[^a-z]/g, '')
+}
+
+/** Теги из navigator.languages (массив, array-like или строка) и запасной navigator.language */
+export function collectLanguageTags(languages: unknown, language?: unknown): string[] {
+  const tags: string[] = []
+  const push = (value: unknown) => {
+    if (typeof value !== 'string') return
+    for (const part of value.split(',')) {
+      const tag = part.trim()
+      if (tag) tags.push(tag)
+    }
+  }
+  if (typeof languages === 'string') push(languages)
+  else if (Array.isArray(languages)) languages.forEach(push)
+  else if (languages && typeof languages === 'object') {
+    const list = languages as ArrayLike<unknown>
+    const n = Number(list.length)
+    if (Number.isFinite(n)) for (let i = 0; i < n && i < 32; i++) push(list[i])
+  }
+  push(language)
+  return tags
+}
+
+/**
+ * Явный выбор (`ru`/`en`) побеждает. Иначе русский, если среди языков браузера есть ru*
+ * (или uk/be/kk), иначе английский. Пустой список — английский.
+ */
+export function resolveLang(stored: unknown, languages?: unknown, language?: unknown): Lang {
+  if (stored === 'ru' || stored === 'en') return stored
+  const tags = collectLanguageTags(languages, language)
+  return tags.some(t => RU_LIKE.includes(primarySubtag(t))) ? 'ru' : 'en'
+}
+
+function readChoice(): unknown {
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (raw == null) return null
+    try { return JSON.parse(raw) } catch { return raw }
+  } catch { return null }
+}
 
 /** Язык: сохранённый выбор, иначе язык браузера */
 function detect(): Lang {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null')
-    if (v === 'ru' || v === 'en') return v
-  } catch { /* приватный режим */ }
-  const langs = navigator.languages?.length ? navigator.languages : [navigator.language]
-  return langs.some(l => RU_LIKE.includes(l?.slice(0, 2).toLowerCase())) ? 'ru' : 'en'
+  const nav = typeof navigator === 'undefined' ? undefined : navigator
+  return resolveLang(readChoice(), nav?.languages, nav?.language)
 }
 
 export const lang: Lang = detect()

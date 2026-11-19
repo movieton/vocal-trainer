@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import PianoRoll from '../components/PianoRoll'
 import { LiveNote, MicGate, useEngine } from '../components/Mic'
-import { engine, SIM } from '../lib/audio'
+import { engine, micBlockText, SIM } from '../lib/audio'
 import { analyzeTone, noteName } from '../lib/music'
-import { logSession, read, useStored, useWorkRange, write } from '../lib/store'
+import { countsAsPractice, logSession, read, useStored, useWorkRange, write } from '../lib/store'
 
 /** Замеры вибрато для сравнения с прошлым разом */
 type VibLog = { date: number; rate: number; extent: number; reg: number }
@@ -64,19 +64,26 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
   }
   function finish() {
     const s = st.current
-    const sec = engine.now() - s.t0 - 0.5
-    const stable = s.frames ? s.good / s.frames : 0
+    const frames = s.frames
+    const sang = s.phase === 'sing' && countsAsPractice(frames)
+    const sec = sang ? Math.max(0, engine.now() - s.t0 - 0.5) : 0
+    const t0 = s.t0
     s.phase = 'idle'
+    // стоп в тишине: нет рекорда, истории и серии (t0 ещё 0 — длительность была бы ложной)
+    if (!sang) { setRes(null); return }
     const now = engine.now()
-    const tone = analyzeTone(engine.history.filter(h => h.t >= s.t0 && h.t <= now), note, TOL)
+    const stable = frames ? s.good / frames : 0
+    const tone = analyzeTone(engine.history.filter(h => h.t >= t0 && h.t <= now), note, TOL)
     const prev = read<VibLog[]>('vib.log', [])[0] ?? null
     setRes({ sec, stable: tone?.inTune ?? stable, tone, prev })
     if (tone?.vibrato) write('vib.log', [{ date: Date.now(), rate: tone.rate, extent: tone.extent, reg: tone.regularity }, ...read<VibLog[]>('vib.log', [])].slice(0, 30))
     if (sec > (best[bestKey] ?? 0)) setBest({ ...best, [bestKey]: sec })
-    logSession({ date: Date.now(), kind: 'breath', id, title: presets ? tr('Длинная нота {0}', noteName(note)) : tr('Длинная нота'), score: Math.round((tone?.inTune ?? stable) * 100) })
+    logSession({ date: Date.now(), kind: 'breath', id, title: presets ? tr('Длинная нота {0}', noteName(note)) : tr('Длинная нота'), score: Math.round((tone?.inTune ?? stable) * 100) }, { voicedFrames: frames })
   }
 
   const phase = st.current.phase
+  const block = micBlockText(engine.mic, engine.micErrorKind, engine.audioSuspended, engine.micError)
+  const startLabel = phase === 'idle' ? tr('Начать') : phase === 'wait' ? tr('Пой ноту…') : tr('Стоп')
   return (
     <>
       {!noGate && <MicGate />}
@@ -88,7 +95,10 @@ export default function LongNote({ presets, id = 'long-note', noGate }: { preset
           <button onClick={() => setNote(note + 1)} disabled={phase !== 'idle'} aria-label={tr('Выше')}>+</button>
         </span>}
         <button className={'btn' + (phase !== 'idle' ? ' stop' : '')} disabled={engine.mic !== 'on'}
-          onClick={phase === 'idle' ? start : finish}>{phase === 'idle' ? tr('Начать') : phase === 'wait' ? tr('Пой ноту…') : tr('Стоп')}</button>
+          title={block ?? undefined}
+          aria-label={block ? `${startLabel}. ${block}` : undefined}
+          onClick={phase === 'idle' ? start : finish}>{startLabel}</button>
+        {block && <span className="muted small" aria-hidden>{block}</span>}
         <span className="status">
           {phase === 'sing' && <span>{tr('Держишь')} <b>{(engine.now() - st.current.t0).toFixed(1)} {tr('с')}</b></span>}
           <span>{best[bestKey] ? <>{tr('Рекорд')} <b>{best[bestKey].toFixed(1)} {tr('с')}</b></> : tr('Рекорда пока нет')}</span>
